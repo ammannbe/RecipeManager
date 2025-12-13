@@ -1,0 +1,79 @@
+
+.\*\:data-flux-label\:mb-3 {
+    :is(& > *) {
+        &[data-flux-label] {
+            @apply mb-1.5! mt-2;
+        }
+    }
+}
+
+[data-flux-button],
+[data-flux-date-picker-button],
+button[data-flux-badge],
+[data-flux-radio-segmented],
+[data-flux-switch],
+[data-flux-switch] + [data-flux-label],
+[data-flux-option],
+[data-flux-file-upload],
+[data-flux-file-upload-dropzone] > div > div,
+[data-flux-menu-item],
+[data-flux-navlist-group] > button,
+[data-flux-navlist-item],
+[data-flux-profile],
+[data-flux-tab],
+[data-flux-checkbox],
+[data-flux-checkbox-buttons] {
+    @apply cursor-pointer;
+
+    &:disabled, &[disabled] {
+        @apply cursor-not-allowed pointer-events-auto opacity-75;
+
+        + [data-flux-label] {
+            @apply cursor-not-allowed pointer-events-auto opacity-75;
+        }
+    }
+}
+
+[data-flux-input-group] {
+    [data-flux-radio-group-buttons] {
+        &:not(:first-child) > [data-flux-radio-buttons]:first-child {
+            @apply rounded-l-none;
+        }
+
+        &:not(:last-child) > [data-flux-radio-buttons]:last-child {
+            @apply rounded-r-none;
+        }
+    }
+}
+
+[data-flux-radio-group-buttons] {
+    @apply gap-0;
+
+    > [data-flux-radio-buttons] {
+        @apply cursor-pointer;
+
+        &:not(:first-child):not(:last-child) {
+            @apply rounded-none;
+        }
+
+        &:first-child {
+            @apply rounded-r-none;
+        }
+
+        &:last-child {
+            @apply rounded-l-none;
+        }
+
+        &:disabled, &[disabled] {
+            @apply cursor-not-allowed;
+        }
+    }
+}
+
+[data-flux-card] {
+    @apply p-4 sm:p-6;
+}
+
+[data-flux-flyout] {
+    @apply w-120 max-w-[90vw];
+}

@@ -1,0 +1,57 @@
+/* Fonts */
+@import './fonts.css' layer(base);
+
+/* Utilities */
+@import './resets.css' layer(utilities);
+@import './flux.css' layer(utilities);
+@import './flux-editor.css' layer(utilities);
+
+/* Tailwind */
+@import 'tailwindcss';
+@import '../../vendor/livewire/flux/dist/flux.css';
+@plugin '@tailwindcss/forms';
+
+/* Views */
+@source '../views';
+@source '../../storage/framework/views';
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views';
+@source '../../vendor/livewire/flux/stubs';
+@source '../../vendor/livewire/flux-pro/stubs';
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Re-assign Flux's gray of choice... */
+@theme {
+    --color-zinc-50: var(--color-gray-50);
+    --color-zinc-100: var(--color-gray-100);
+    --color-zinc-200: var(--color-gray-200);
+    --color-zinc-300: var(--color-gray-300);
+    --color-zinc-400: var(--color-gray-400);
+    --color-zinc-500: var(--color-gray-500);
+    --color-zinc-600: var(--color-gray-600);
+    --color-zinc-700: var(--color-gray-700);
+    --color-zinc-800: var(--color-gray-800);
+    --color-zinc-900: var(--color-gray-900);
+    --color-zinc-950: var(--color-gray-950);
+}
+
+@theme {
+    --color-accent: var(--color-violet-500);
+    --color-accent-content: var(--color-violet-600);
+    --color-accent-foreground: var(--color-white);
+}
+
+@layer theme {
+    .dark {
+        --color-accent: var(--color-violet-500);
+        --color-accent-content: var(--color-violet-400);
+        --color-accent-foreground: var(--color-white);
+    }
+}
+
+/* Set variable font if supported */
+/* This must be outside of the @theme */
+@supports (font-variation-settings: normal) {
+    :root {
+        --font-sans: 'Instrument Sans Variable', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+    }
+}

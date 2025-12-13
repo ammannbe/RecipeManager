@@ -1,0 +1,20 @@
+includes:
+    - ./vendor/larastan/larastan/extension.neon
+
+parameters:
+    paths:
+        - app
+        - bootstrap/app.php
+        - database
+        - public/index.php
+        - resources
+        - routes
+        - tests
+
+    # The level 9 is the highest level
+    level: 7
+
+    excludePaths:
+        - database/migrations/2014_04_02_193005_create_translations_table.php
+
+    ignoreErrors:
