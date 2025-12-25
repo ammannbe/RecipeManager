@@ -1,4 +1,5 @@
 *
 !private/
 !public/
+!recipes/
 !.gitignore

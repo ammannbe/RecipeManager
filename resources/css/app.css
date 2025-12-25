@@ -21,6 +21,9 @@
 
 /* Re-assign Flux's gray of choice... */
 @theme {
+    --breakpoint-xxs: 26rem;
+    --breakpoint-xs: 30rem;
+
     --color-zinc-50: var(--color-gray-50);
     --color-zinc-100: var(--color-gray-100);
     --color-zinc-200: var(--color-gray-200);

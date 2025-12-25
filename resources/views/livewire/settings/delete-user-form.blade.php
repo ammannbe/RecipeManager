@@ -2,10 +2,17 @@
 
 use App\Livewire\Actions\Logout;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\View\View;
 use Livewire\Volt\Component;
 
 new class extends Component {
     public string $password = '';
+
+    public function rendering(View $view): void
+    {
+        $view->layout('layouts.app');
+        $view->title(__('Profile'));
+    }
 
     /**
      * Delete the currently authenticated user.

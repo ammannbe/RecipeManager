@@ -3,12 +3,19 @@
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rules\Password;
 use Illuminate\Validation\ValidationException;
+use Illuminate\View\View;
 use Livewire\Volt\Component;
 
 new class extends Component {
     public string $current_password = '';
     public string $password = '';
     public string $password_confirmation = '';
+
+    public function rendering(View $view): void
+    {
+        $view->layout('layouts.app');
+        $view->title(__('Profile'));
+    }
 
     /**
      * Update the password for the currently authenticated user.

@@ -8,6 +8,7 @@ use Laravel\Fortify\Fortify;
 use Livewire\Attributes\Locked;
 use Livewire\Attributes\Validate;
 use Livewire\Volt\Component;
+use Illuminate\View\View;
 use Symfony\Component\HttpFoundation\Response;
 
 new class extends Component {
@@ -43,6 +44,12 @@ new class extends Component {
 
         $this->twoFactorEnabled = auth()->user()->hasEnabledTwoFactorAuthentication();
         $this->requiresConfirmation = Features::optionEnabled(Features::twoFactorAuthentication(), 'confirm');
+    }
+
+    public function rendering(View $view): void
+    {
+        $view->layout('layouts.app');
+        $view->title(__('Profile'));
     }
 
     /**

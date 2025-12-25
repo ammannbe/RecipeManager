@@ -1,5 +1,6 @@
 <?php
 
+use Illuminate\View\View;
 use Laravel\Fortify\Actions\GenerateNewRecoveryCodes;
 use Livewire\Attributes\Locked;
 use Livewire\Volt\Component;
@@ -14,6 +15,12 @@ new class extends Component {
     public function mount(): void
     {
         $this->loadRecoveryCodes();
+    }
+
+    public function rendering(View $view): void
+    {
+        $view->layout('layouts.app');
+        $view->title(__('Profile'));
     }
 
     /**

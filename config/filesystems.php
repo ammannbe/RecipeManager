@@ -47,6 +47,13 @@ return [
             'report' => false,
         ],
 
+        'recipe_photos' => [
+            'driver' => 'local',
+            'root' => storage_path('app/recipes'),
+            'url' => env('APP_URL').'/recipes/images',
+            'visibility' => 'public',
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),
