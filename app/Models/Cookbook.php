@@ -4,12 +4,13 @@ namespace App\Models;
 
 use App\Models\SlugifyTrait;
 use App\Models\OrderByNameScope;
+use App\Models\AdminOrOwnerScope;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
-class Author extends Model
+class Cookbook extends Model
 {
     use SoftDeletes, SlugifyTrait, HasFactory;
 
@@ -20,6 +21,9 @@ class Author extends Model
      */
     protected $fillable = [
         'name',
+        // Only for CookbookFactory
+        'user_id',
+        'author_id',
     ];
 
     /**
@@ -40,11 +44,12 @@ class Author extends Model
     {
         parent::boot();
 
+        static::addGlobalScope(new AdminOrOwnerScope);
         static::addGlobalScope(new OrderByNameScope);
     }
 
     /**
-     * Get the author's recipes
+     * Get the category's recipes
      *
      * @return \Illuminate\Database\Eloquent\Relations\HasMany
      */

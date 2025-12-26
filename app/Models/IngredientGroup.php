@@ -6,10 +6,11 @@ use App\Models\SlugifyTrait;
 use App\Models\OrderByNameScope;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class Author extends Model
+class IngredientGroup extends Model
 {
     use SoftDeletes, SlugifyTrait, HasFactory;
 
@@ -28,7 +29,7 @@ class Author extends Model
      * @var array
      */
     protected $softCascade = [
-        'recipes'
+        'ingredients',
     ];
 
     /**
@@ -44,12 +45,22 @@ class Author extends Model
     }
 
     /**
-     * Get the author's recipes
+     * Get the ingredient-group's recipe
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function recipe(): BelongsTo
+    {
+        return $this->belongsTo('\App\Models\Recipe');
+    }
+
+    /**
+     * Get the ingredient-group's ingredients
      *
      * @return \Illuminate\Database\Eloquent\Relations\HasMany
      */
-    public function recipes(): HasMany
+    public function ingredients(): HasMany
     {
-        return $this->hasMany('\App\Models\Recipe');
+        return $this->hasMany('\App\Models\Ingredient');
     }
 }

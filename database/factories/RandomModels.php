@@ -3,19 +3,19 @@
 namespace Database\Factories;
 
 use App\Models\User;
-use App\Models\Recipes\Recipe;
-use App\Models\Ratings\RatingCriterion;
+use App\Models\Recipe;
+use App\Models\RatingCriterion;
 
 trait RandomModels
 {
     /**
      * Get a random recipe
      *
-     * @return \App\Models\Recipes\Recipe
+     * @return \App\Models\Recipe
      */
-    private function getRandomRecipe(): \App\Models\Recipes\Recipe
+    private function getRandomRecipe(): \App\Models\Recipe
     {
-        /** @var \App\Models\Recipes\Recipe */
+        /** @var \App\Models\Recipe */
         return Recipe::withoutGlobalScope('isAdminOrOwnOrPublic')
             ->inRandomOrder()
             ->first();
@@ -34,9 +34,9 @@ trait RandomModels
     /**
      * Get a random rating criterion
      *
-     * @return \App\Models\Ratings\RatingCriterion
+     * @return \App\Models\RatingCriterion
      */
-    private function getRandomRatingCriterion(): \App\Models\Ratings\RatingCriterion
+    private function getRandomRatingCriterion(): \App\Models\RatingCriterion
     {
         return RatingCriterion::inRandomOrder()->first();
     }

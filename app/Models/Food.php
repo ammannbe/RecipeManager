@@ -9,9 +9,16 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
-class Author extends Model
+class Food extends Model
 {
     use SoftDeletes, SlugifyTrait, HasFactory;
+
+    /**
+     * The table associated with the model.
+     *
+     * @var string
+     */
+    protected $table = 'foods';
 
     /**
      * The attributes that are mass assignable.
@@ -23,12 +30,21 @@ class Author extends Model
     ];
 
     /**
+     * The accessors to append to the model's array form.
+     *
+     * @var array
+     */
+    protected $appends = [
+        'can_delete',
+    ];
+
+    /**
      * Relations that cascade or restrict on delete.
      *
      * @var array
      */
     protected $softCascade = [
-        'recipes'
+        'ingredients@restrict'
     ];
 
     /**
@@ -44,12 +60,22 @@ class Author extends Model
     }
 
     /**
-     * Get the author's recipes
+     * This ressource can be deleted
+     *
+     * @return bool
+     */
+    public function getCanDeleteAttribute(): bool
+    {
+        return !$this->ingredients()->exists();
+    }
+
+    /**
+     * Get the unit's ingredients
      *
      * @return \Illuminate\Database\Eloquent\Relations\HasMany
      */
-    public function recipes(): HasMany
+    public function ingredients(): HasMany
     {
-        return $this->hasMany('\App\Models\Recipe');
+        return $this->hasMany('\App\Models\Ingredient');
     }
 }

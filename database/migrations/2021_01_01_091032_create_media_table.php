@@ -1,6 +1,6 @@
 <?php
 
-use App\Models\Recipes\Recipe;
+use App\Models\Recipe;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Migrations\Migration;
@@ -61,7 +61,7 @@ class CreateMediaTable extends Migration
         if (\File::exists("{$pathOld}/.gitignore")) {
             \File::copy("{$pathOld}/.gitignore", "{$path}/.gitignore");
         }
-        /** @var \App\Models\Recipes\Recipe[] */
+        /** @var \App\Models\Recipe[] */
         $recipes = Recipe::withoutGlobalScopes()->whereNotNull('photos')->get();
         foreach ($recipes as $recipe) {
             if (!\File::exists("{$pathOld}/{$recipe->id}")) {

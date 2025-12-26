@@ -6,10 +6,10 @@ use App\Models\SlugifyTrait;
 use App\Models\OrderByNameScope;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
-class Author extends Model
+class IngredientAttribute extends Model
 {
     use SoftDeletes, SlugifyTrait, HasFactory;
 
@@ -23,12 +23,21 @@ class Author extends Model
     ];
 
     /**
+     * The accessors to append to the model's array form.
+     *
+     * @var array
+     */
+    protected $appends = [
+        'can_delete',
+    ];
+
+    /**
      * Relations that cascade or restrict on delete.
      *
      * @var array
      */
     protected $softCascade = [
-        'recipes'
+        'ingredients@restrict'
     ];
 
     /**
@@ -44,12 +53,22 @@ class Author extends Model
     }
 
     /**
-     * Get the author's recipes
+     * This ressource can be deleted
      *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     * @return bool
      */
-    public function recipes(): HasMany
+    public function getCanDeleteAttribute(): bool
     {
-        return $this->hasMany('\App\Models\Recipe');
+        return !$this->ingredients()->exists();
+    }
+
+    /**
+     * Get the ingredient-attribute's ingredients
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
+     */
+    public function ingredients(): BelongsToMany
+    {
+        return $this->belongsToMany('\App\Models\Ingredient');
     }
 }

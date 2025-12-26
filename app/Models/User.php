@@ -105,7 +105,7 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function recipes(): HasMany
     {
-        return $this->hasMany('\App\Models\Recipes\Recipe');
+        return $this->hasMany('\App\Models\Recipe');
     }
 
     /**
@@ -115,7 +115,7 @@ class User extends Authenticatable implements MustVerifyEmail
      */
     public function cookbooks(): HasMany
     {
-        return $this->hasMany('\App\Models\Recipes\Cookbook');
+        return $this->hasMany('\App\Models\Cookbook');
     }
 
     /**

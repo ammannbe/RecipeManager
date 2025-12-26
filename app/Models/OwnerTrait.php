@@ -2,10 +2,10 @@
 
 namespace App\Models;
 
-use App\Models\Recipes\Recipe;
-use App\Models\Recipes\Cookbook;
-use App\Models\Ingredients\Ingredient;
-use App\Models\Ingredients\IngredientGroup;
+use App\Models\Recipe;
+use App\Models\Cookbook;
+use App\Models\Ingredient;
+use App\Models\IngredientGroup;
 
 trait OwnerTrait
 {
@@ -24,7 +24,7 @@ trait OwnerTrait
     /**
      * Determine if the user is owner of a specific cookbook
      *
-     * @param  \App\Models\Recipes\Cookbook  $cookbook
+     * @param  \App\Models\Cookbook  $cookbook
      * @return bool
      */
     public function isOwnerOfCookbook(Cookbook $cookbook): bool
@@ -35,7 +35,7 @@ trait OwnerTrait
     /**
      * Determine if the user is owner of a specific recipe
      *
-     * @param  \App\Models\Recipes\Recipe  $recipe
+     * @param  \App\Models\Recipe  $recipe
      * @return bool
      */
     public function isOwnerOfRecipe(Recipe $recipe): bool
@@ -46,7 +46,7 @@ trait OwnerTrait
     /**
      * Determine if the user is owner of a specific ingredient
      *
-     * @param  \App\Models\Ingredients\Ingredient  $ingredient
+     * @param  \App\Models\Ingredient  $ingredient
      * @return bool
      */
     public function isOwnerOfIngredient(Ingredient $ingredient): bool
@@ -57,7 +57,7 @@ trait OwnerTrait
     /**
      * Determine if the user is owner of a specific ingredient-group
      *
-     * @param  \App\Models\Ingredients\IngredientGroup  $ingredientGroup
+     * @param  \App\Models\IngredientGroup  $ingredientGroup
      * @return bool
      */
     public function isOwnerOfIngredientGroup(IngredientGroup $ingredientGroup): bool

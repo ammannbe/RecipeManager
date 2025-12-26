@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 
-class Author extends Model
+class Category extends Model
 {
     use SoftDeletes, SlugifyTrait, HasFactory;
 
@@ -23,12 +23,21 @@ class Author extends Model
     ];
 
     /**
+     * The accessors to append to the model's array form.
+     *
+     * @var array
+     */
+    protected $appends = [
+        'can_delete',
+    ];
+
+    /**
      * Relations that cascade or restrict on delete.
      *
      * @var array
      */
     protected $softCascade = [
-        'recipes'
+        'recipes@restrict'
     ];
 
     /**
@@ -44,7 +53,17 @@ class Author extends Model
     }
 
     /**
-     * Get the author's recipes
+     * This ressource can be deleted
+     *
+     * @return bool
+     */
+    public function getCanDeleteAttribute(): bool
+    {
+        return !$this->recipes()->exists();
+    }
+
+    /**
+     * Get the category's recipes
      *
      * @return \Illuminate\Database\Eloquent\Relations\HasMany
      */
