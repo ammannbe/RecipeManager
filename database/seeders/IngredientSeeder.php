@@ -28,7 +28,7 @@ class IngredientSeeder extends Seeder
             ->recycle(Food::get())
             ->create()
             ->each(function (Ingredient $ingredient) use ($attributes) {
-                $ingredient->attributes()->attach($attributes->random(rand(0, 3)));
+                $ingredient->ingredientAttributes()->attach($attributes->random(rand(0, 3)));
             });
     }
 }

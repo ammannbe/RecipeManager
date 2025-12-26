@@ -24,30 +24,27 @@ new class extends Component {
 
 <section class="w-full">
     @php
-        $recipes = Recipe::with(['ratings'])->latest()->get();
+        $recipes = Recipe::orderBy('name')->latest()->get();
     @endphp
 
     <div class="grid gap-6 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
         @foreach($recipes as $recipe)
             <article class="bg-white rounded-lg shadow-sm overflow-hidden">
-                {{-- @php
-                    $photo = $recipe->photos->first() ?? null;
-                    $img = $photo['conversions']['thumbnail'] ?? $photo['url'] ?? asset('images/placeholder.png');
-                @endphp
-
-                <img src="{{ $img }}" alt="{{ $recipe->name }}" class="w-full h-48 object-cover"> --}}
+                @if ($recipe->photos->isNotEmpty())
+                    <img src="{{ $recipe->photos->first()->url() }}" alt="{{ $recipe->name }}" class="w-full h-48 object-cover">
+                @endif
 
                 <div class="p-4">
                     <h3 class="text-lg font-semibold">{{ $recipe->name }}</h3>
 
                     <div class="mt-2 text-sm text-gray-600">
                         <span class="font-medium">Rating:</span>
-                        {{ number_format($recipe->stars_average, 1) }} ({{ $recipe->ratings_count }})
+                        {{ number_format($recipe->stars, 1) }} ({{ $recipe->ratings_count }})
                     </div>
 
                     <div class="mt-1 text-sm text-gray-600">
                         <span class="font-medium">Complexity:</span>
-                        {{ $recipe->complexity_text }}
+                        {{ $recipe->complexity->label() }}
                     </div>
 
                     <div class="mt-3 text-sm text-gray-700">

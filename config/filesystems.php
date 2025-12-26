@@ -47,10 +47,10 @@ return [
             'report' => false,
         ],
 
-        'recipe_photos' => [
+        'recipes' => [
             'driver' => 'local',
-            'root' => storage_path('app/recipes'),
-            'url' => env('APP_URL').'/recipes/images',
+            'root' => storage_path('app/public/recipes'),
+            'url' => env('APP_URL').'/storage/recipes',
             'visibility' => 'public',
         ],
 

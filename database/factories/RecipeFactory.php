@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Enums\Complexity;
 use App\Models\Author;
 use App\Models\Category;
 use App\Models\Cookbook;
@@ -34,7 +35,7 @@ class RecipeFactory extends Factory
             'name' => $this->faker->unique(reset: true)->word(),
             'servings' => $this->faker->optional()->numberBetween(1, 20),
             'serving_type' => $this->faker->optional()->word(),
-            'complexity' => $this->faker->randomElement(Recipe::COMPLEXITY_TYPES),
+            'complexity' => $this->faker->randomElement(Complexity::cases()),
             'instructions' => $this->faker->unique(reset: true)->text(),
             'preparation_time' => $this->faker->optional()->time('H:i:00', '23:59'),
         ];

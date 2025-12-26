@@ -24,10 +24,6 @@ class Ingredient extends Model
         'position',
     ];
 
-    protected $appends = [
-        'name',
-    ];
-
     /**
      * Generate a human-readable name (e.g. 200 - 300 g Ananas (fresh, diced))
      *
@@ -44,8 +40,8 @@ class Ingredient extends Model
                 $this->unit?->name,
                 $this->food?->name,
 
-                $this->attributes->isNotEmpty()
-                    ? '('.$this->attributes->pluck('name')->implode(', ').')'
+                $this->ingredientAttributes->isNotEmpty()
+                    ? '('.$this->ingredientAttributes->pluck('name')->implode(', ').')'
                     : null,
             ])
                 ->filter()
@@ -104,7 +100,7 @@ class Ingredient extends Model
     /**
      * @return BelongsToMany<IngredientAttribute, $this>
      */
-    public function attributes(): BelongsToMany
+    public function ingredientAttributes(): BelongsToMany
     {
         return $this->belongsToMany(IngredientAttribute::class);
     }
