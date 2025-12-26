@@ -2,11 +2,10 @@
 
 namespace Database\Factories;
 
-use App\Models\User;
-use App\Models\Recipe;
 use App\Models\Category;
 use App\Models\Cookbook;
-use App\Models\AdminOrOwnerScope;
+use App\Models\Recipe;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class RecipeFactory extends Factory
@@ -18,7 +17,7 @@ class RecipeFactory extends Factory
      */
     public function definition()
     {
-        $cookbook = $this->faker->randomElement([null, Cookbook::withoutGlobalScope(AdminOrOwnerScope::class)->inRandomOrder()->first()]);
+        $cookbook = $this->faker->randomElement([null, Cookbook::inRandomOrder()->first()]);
 
         $user = User::inRandomOrder()->first();
         if ($cookbook) {

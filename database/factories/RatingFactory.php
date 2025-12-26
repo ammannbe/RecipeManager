@@ -2,8 +2,6 @@
 
 namespace Database\Factories;
 
-use App\Models\Rating;
-use Database\Factories\RandomModels;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class RatingFactory extends Factory

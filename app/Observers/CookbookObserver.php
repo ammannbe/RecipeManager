@@ -3,30 +3,12 @@
 namespace App\Observers;
 
 use App\Models\Cookbook;
+use App\Models\Recipe;
 
 class CookbookObserver
 {
-    /**
-     * Handle the cookbook "creating" event.
-     *
-     * @param  \App\Models\Cookbook  $cookbook
-     * @return void
-     */
-    public function creating(Cookbook $cookbook)
+    public function deleting(Cookbook $cookbook): void
     {
-        if (!$cookbook->author_id) {
-            $cookbook->author_id = auth()->user()->author->id;
-        }
-    }
-
-    /**
-     * Handle the cookbook "saving" event.
-     *
-     * @param  \App\Models\Cookbook  $cookbook
-     * @return void
-     */
-    public function saving(Cookbook $cookbook)
-    {
-        $cookbook->slugifyName();
+        $cookbook->recipes()->each(fn (Recipe $r) => $r->delete());
     }
 }

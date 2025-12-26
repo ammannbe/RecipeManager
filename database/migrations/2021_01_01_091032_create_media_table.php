@@ -1,9 +1,9 @@
 <?php
 
 use App\Models\Recipe;
-use Illuminate\Support\Facades\Schema;
-use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
 
 class CreateMediaTable extends Migration
 {
@@ -44,8 +44,6 @@ class CreateMediaTable extends Migration
 
     /**
      * Migrate existing photos to new database schema
-     *
-     * @return void
      */
     private function migratePhotos(): void
     {
@@ -64,7 +62,7 @@ class CreateMediaTable extends Migration
         /** @var \App\Models\Recipe[] */
         $recipes = Recipe::withoutGlobalScopes()->whereNotNull('photos')->get();
         foreach ($recipes as $recipe) {
-            if (!\File::exists("{$pathOld}/{$recipe->id}")) {
+            if (! \File::exists("{$pathOld}/{$recipe->id}")) {
                 continue;
             }
 

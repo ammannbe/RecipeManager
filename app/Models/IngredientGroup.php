@@ -2,65 +2,33 @@
 
 namespace App\Models;
 
-use App\Models\SlugifyTrait;
-use App\Models\OrderByNameScope;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class IngredientGroup extends Model
 {
-    use SoftDeletes, SlugifyTrait, HasFactory;
+    use HasFactory, SoftDeletes;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array
-     */
     protected $fillable = [
         'name',
     ];
 
     /**
-     * Relations that cascade or restrict on delete.
-     *
-     * @var array
-     */
-    protected $softCascade = [
-        'ingredients',
-    ];
-
-    /**
-     * The "booting" method of the model.
-     *
-     * @return void
-     */
-    protected static function boot()
-    {
-        parent::boot();
-
-        static::addGlobalScope(new OrderByNameScope);
-    }
-
-    /**
-     * Get the ingredient-group's recipe
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return BelongsTo<Recipe, $this>
      */
     public function recipe(): BelongsTo
     {
-        return $this->belongsTo('\App\Models\Recipe');
+        return $this->belongsTo(Recipe::class);
     }
 
     /**
-     * Get the ingredient-group's ingredients
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     * @return HasMany<Ingredient, $this>
      */
     public function ingredients(): HasMany
     {
-        return $this->hasMany('\App\Models\Ingredient');
+        return $this->hasMany(Ingredient::class);
     }
 }

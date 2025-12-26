@@ -2,18 +2,13 @@
 
 namespace App\Observers;
 
+use App\Models\Ingredient;
 use App\Models\IngredientGroup;
 
 class IngredientGroupObserver
 {
-    /**
-     * Handle the ingredientGroup "saving" event.
-     *
-     * @param  \App\Models\IngredientGroup  $ingredientGroup
-     * @return void
-     */
-    public function saving(IngredientGroup $ingredientGroup)
+    public function deleting(IngredientGroup $ingredientGroup)
     {
-        $ingredientGroup->slugifyName();
+        $ingredientGroup->ingredients()->each(fn (Ingredient $i) => $i->delete());
     }
 }

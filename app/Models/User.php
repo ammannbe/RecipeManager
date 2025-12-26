@@ -2,134 +2,75 @@
 
 namespace App\Models;
 
-use Carbon\Carbon;
-use App\Notifications\Users\VerifyEmail;
-use Illuminate\Notifications\Notifiable;
-use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
-use Illuminate\Database\Eloquent\Relations\HasOne;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 
 class User extends Authenticatable implements MustVerifyEmail
 {
-    use Notifiable,
-        SoftDeletes,
-        OwnerTrait,
-        HasFactory,
-        TwoFactorAuthenticatable;
+    use HasFactory, Notifiable, SoftDeletes, TwoFactorAuthenticatable;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array
-     */
     protected $fillable = [
         'email',
         'password',
     ];
 
-    /**
-     * The attributes that should be hidden for arrays.
-     *
-     * @var array
-     */
     protected $hidden = [
         'email_verified_at',
         'password',
         'remember_token',
+    ];
+
+    protected $with = [
         'author',
     ];
 
-    /**
-     * The attributes that should be cast to native types.
-     *
-     * @var array
-     */
     protected $casts = [
         'email_verified_at' => 'datetime',
-        'admin' => 'boolean',
         'password' => 'hashed',
     ];
 
-    /**
-     * The accessors to append to the model's array form.
-     *
-     * @var array
-     */
-    protected $appends = [
-        'name',
-        'has_verified_email',
-    ];
+    // protected $softCascade = [
+    //     'recipes'
+    // ];
 
     /**
-     * Relations that cascade or restrict on delete.
-     *
-     * @var array
+     * @return Attribute<string, never>
      */
-    protected $softCascade = [
-        'recipes'
-    ];
-
-    public function __construct(array $attributes = [])
+    public function name(): Attribute
     {
-        parent::__construct($attributes);
+        return Attribute::make(
+            get: fn () => \Str::slug($this->author->name),
+        );
     }
 
     /**
-     * Get the name attribute
-     *
-     * @return string
-     */
-    public function getNameAttribute(): string
-    {
-        return $this->author->name ?? '';
-    }
-
-    /**
-     * Check if the user has a verified email
-     *
-     * @return bool
-     */
-    public function getHasVerifiedEmailAttribute(): bool
-    {
-        return $this->hasVerifiedEmail();
-    }
-
-    /**
-     * Get the user's recipes
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
-     */
-    public function recipes(): HasMany
-    {
-        return $this->hasMany('\App\Models\Recipe');
-    }
-
-    /**
-     * Get the user's cookbooks
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
-     */
-    public function cookbooks(): HasMany
-    {
-        return $this->hasMany('\App\Models\Cookbook');
-    }
-
-    /**
-     * Get the user's author
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\HasOne
+     * @return HasOne<Author, $this>
      */
     public function author(): HasOne
     {
-        return $this->hasOne('\App\Models\Author');
+        return $this->hasOne(Author::class);
     }
 
-    public function initials(): string
+    /**
+     * @return HasMany<Recipe, $this>
+     */
+    public function recipes(): HasMany
     {
-        return \Str::of($this->name)->upper()->substr(0, 2);
+        return $this->hasMany(Recipe::class);
+    }
+
+    /**
+     * @return HasMany<Cookbook, $this>
+     */
+    public function cookbooks(): HasMany
+    {
+        return $this->hasMany(Cookbook::class);
     }
 }

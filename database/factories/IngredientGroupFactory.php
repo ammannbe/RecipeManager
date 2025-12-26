@@ -2,8 +2,6 @@
 
 namespace Database\Factories;
 
-use Database\Factories\RandomModels;
-use App\Models\IngredientGroup;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class IngredientGroupFactory extends Factory

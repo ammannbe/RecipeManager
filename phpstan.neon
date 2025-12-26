@@ -15,6 +15,5 @@ parameters:
     level: 7
 
     excludePaths:
-        - database/migrations/2014_04_02_193005_create_translations_table.php
 
     ignoreErrors:

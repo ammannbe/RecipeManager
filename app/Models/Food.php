@@ -2,80 +2,37 @@
 
 namespace App\Models;
 
-use App\Models\SlugifyTrait;
-use App\Models\OrderByNameScope;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Food extends Model
 {
-    use SoftDeletes, SlugifyTrait, HasFactory;
+    use HasFactory, SoftDeletes;
 
-    /**
-     * The table associated with the model.
-     *
-     * @var string
-     */
     protected $table = 'foods';
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array
-     */
     protected $fillable = [
         'name',
     ];
 
     /**
-     * The accessors to append to the model's array form.
-     *
-     * @var array
+     * @return Attribute<string, never>
      */
-    protected $appends = [
-        'can_delete',
-    ];
-
-    /**
-     * Relations that cascade or restrict on delete.
-     *
-     * @var array
-     */
-    protected $softCascade = [
-        'ingredients@restrict'
-    ];
-
-    /**
-     * The "booting" method of the model.
-     *
-     * @return void
-     */
-    protected static function boot()
+    public function slug(): Attribute
     {
-        parent::boot();
-
-        static::addGlobalScope(new OrderByNameScope);
+        return Attribute::make(
+            get: fn () => \Str::slug($this->name),
+        );
     }
 
     /**
-     * This ressource can be deleted
-     *
-     * @return bool
-     */
-    public function getCanDeleteAttribute(): bool
-    {
-        return !$this->ingredients()->exists();
-    }
-
-    /**
-     * Get the unit's ingredients
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     * @return HasMany<Ingredient, $this>
      */
     public function ingredients(): HasMany
     {
-        return $this->hasMany('\App\Models\Ingredient');
+        return $this->hasMany(Ingredient::class);
     }
 }

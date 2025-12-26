@@ -2,8 +2,8 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\RatingCriterion;
+use Illuminate\Database\Seeder;
 
 class RatingCriterionSeeder extends Seeder
 {

@@ -2,48 +2,37 @@
 
 namespace App\Providers;
 
-use App\Models\Tag;
 use App\Models\Author;
-use App\Models\Recipe;
-use App\Models\Food;
-use App\Models\Unit;
-use App\Models\Category;
 use App\Models\Cookbook;
 use App\Models\Ingredient;
-use App\Models\RatingCriterion;
-use Illuminate\Support\ServiceProvider;
 use App\Models\IngredientGroup;
-use App\Models\IngredientAttribute;
+use App\Models\Recipe;
+use App\Models\User;
 use App\Observers\AuthorObserver;
+use App\Observers\CookbookObserver;
+use App\Observers\IngredientGroupObserver;
+use App\Observers\IngredientObserver;
+use App\Observers\RecipeObserver;
+use App\Observers\UserObserver;
+use Illuminate\Support\ServiceProvider;
 
 class ObserverServiceProvider extends ServiceProvider
 {
-    /**
-     * Register any application services.
-     */
-    public function register(): void
-    {
-        //
-    }
-
     /**
      * Bootstrap any application services.
      */
     public function boot(): void
     {
-        Food::observe('App\Observers\FoodObserver');
-        IngredientGroup::observe('App\Observers\IngredientGroupObserver');
-        IngredientAttribute::observe('App\Observers\IngredientAttributeObserver');
-        Ingredient::observe('App\Observers\IngredientObserver');
-        Unit::observe('App\Observers\UnitObserver');
-
-        RatingCriterion::observe('App\Observers\RatingCriterionObserver');
-
-        Category::observe('App\Observers\CategoryObserver');
-        Recipe::observe('App\Observers\RecipeObserver');
-        Tag::observe('App\Observers\TagObserver');
-        Cookbook::observe('App\Observers\CookbookObserver');
-
         Author::observe(AuthorObserver::class);
+
+        Cookbook::observe(CookbookObserver::class);
+
+        Ingredient::observe(IngredientObserver::class);
+
+        IngredientGroup::observe(IngredientGroupObserver::class);
+
+        Recipe::observe(RecipeObserver::class);
+
+        User::observe(UserObserver::class);
     }
 }

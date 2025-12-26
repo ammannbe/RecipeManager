@@ -2,31 +2,21 @@
 
 namespace App\Models;
 
-use App\Models\FilterScope;
-use App\Models\SlugifyTrait;
-use Spatie\Image\Manipulations;
-use Illuminate\Support\Collection;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Spatie\MediaLibrary\MediaCollections\Models\Media;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Collection;
+use Spatie\Image\Manipulations;
+use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class Recipe extends Model
 {
-    use FilterScope,
-        SoftDeletes,
-        SlugifyTrait,
-        HasFactory;
+    use HasFactory, SoftDeletes;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array
-     */
     protected $fillable = [
         'cookbook_id',
         'category_id',
@@ -38,29 +28,10 @@ class Recipe extends Model
         'preparation_time',
     ];
 
-    /**
-     * The attributes that should be hidden for arrays.
-     *
-     * @var array
-     */
-    protected $hidden = [
-        'media',
-    ];
-
-    /**
-     * The attributes that should be cast.
-     *
-     * @var array
-     */
     protected $casts = [
         'preparation_time' => 'datetime:H:i',
     ];
 
-    /**
-     * The accessors to append to the model's array form.
-     *
-     * @var array
-     */
     protected $appends = [
         'photos',
         'can_edit',
@@ -69,17 +40,6 @@ class Recipe extends Model
         'ratings_count',
         'complexity_text',
         'complexity_number',
-    ];
-
-    /**
-     * The relations that should cascade on delete
-     *
-     * @var array
-     */
-    protected $softCascade = [
-        'ingredients',
-        'ingredientGroups',
-        'ratings',
     ];
 
     /**
@@ -94,72 +54,21 @@ class Recipe extends Model
     ];
 
     /**
-     * The "booting" method of the model.
-     *
-     * @return void
+     * @return Attribute<string, never>
      */
-    protected static function boot()
+    public function slug(): Attribute
     {
-        parent::boot();
-
-        static::addGlobalScope('isAdminOrOwnOrPublic', function (Builder $query) {
-            if (auth()->check() && auth()->user()->admin) {
-                return $query;
-            }
-
-            return $query->where(function (Builder $q) {
-                /** @var Recipe $q */
-                return $q->isOwn();
-            })->orWhere(function (Builder $q) {
-                /** @var Recipe $q */
-                return $q->isPublic();
-            });
-        });
-    }
-
-    /**
-     * Get the indexable data array for the model.
-     *
-     * @return array
-     */
-    public function toSearchableArray()
-    {
-        return [
-            'id'                => $this->id,
-            'name'              => $this->name,
-            'instructions'      => $this->instructions,
-            'preparation_time'  => $this->preparation_time,
-            'category_id'       => $this->category_id,
-        ];
-    }
-
-    /**
-     * Modify the query used to retrieve models when making all of the models searchable.
-     *
-     * @param  \Illuminate\Database\Eloquent\Builder  $query
-     * @return \Illuminate\Database\Eloquent\Builder
-     */
-    protected function makeAllSearchableUsing(Builder $query): Builder
-    {
-        return $query->with([
-            'author',
-            'category',
-            'cookbook',
-            'tags',
-            'ingredients',
-            'ingredientGroups',
-            'ratings',
-        ]);
+        return Attribute::make(
+            get: fn () => \Str::slug($this->name),
+        );
     }
 
     /**
      * Register new media conversions
      *
      * This method is used by the  spatie/laravel-medialibrary package
-     *
-     * @param \Spatie\MediaLibrary\MediaCollections\Models\Media|null $media
      */
-    public function registerMediaConversions(Media $media = null): void
+    public function registerMediaConversions(?Media $media = null): void
     {
         $this->addMediaConversion('thumbnail')
             ->width(200)
@@ -171,31 +80,7 @@ class Recipe extends Model
     }
 
     /**
-     * Get only the recipes of the logged in user
-     *
-     * @param  \Illuminate\Database\Eloquent\Builder  $builder
-     * @return \Illuminate\Database\Eloquent\Builder
-     */
-    public function scopeIsOwn(Builder $builder): Builder
-    {
-        return $builder->whereUserId(auth()->id());
-    }
-
-    /**
-     * Get only the "public" recipes
-     *
-     * @param  \Illuminate\Database\Eloquent\Builder  $builder
-     * @return \Illuminate\Database\Eloquent\Builder
-     */
-    public function scopeIsPublic(Builder $builder): Builder
-    {
-        return $builder->whereNull('cookbook_id');
-    }
-
-    /**
      * Get complexity as translated text
-     *
-     * @return string
      */
     public function getComplexityTextAttribute(): string
     {
@@ -225,8 +110,6 @@ class Recipe extends Model
      * 0 = simple;
      * 1 = simple;
      * 2 = simple;
-     *
-     * @return int|null
      */
     public function getComplexityNumberAttribute(): ?int
     {
@@ -246,10 +129,8 @@ class Recipe extends Model
 
     /**
      * Set the preparation time
-     *
-     * @return void
      */
-    public function setPreparationTimeAttribute(string $time = null): void
+    public function setPreparationTimeAttribute(?string $time = null): void
     {
         if ($time === '00:00') {
             $time = null;
@@ -260,29 +141,25 @@ class Recipe extends Model
 
     /**
      * Get the related photos
-     *
-     * @return \Illuminate\Support\Collection
      */
     public function getPhotosAttribute(): Collection
     {
         return $this->getMedia('recipe_photos')->map(function (Media $media) {
             return collect([
-                'id'            => $media->id,
-                'name'          => $media->name,
-                'url'           => $media->getUrl(),
-                'conversions'   => $media->getGeneratedConversions(),
+                'id' => $media->id,
+                'name' => $media->name,
+                'url' => $media->getUrl(),
+                'conversions' => $media->getGeneratedConversions(),
             ]);
         });
     }
 
     /**
      * Evaluate if the user can edit this recipe
-     *
-     * @return bool
      */
     public function getCanEditAttribute(): bool
     {
-        if (!auth()->check()) {
+        if (! auth()->check()) {
             return false;
         }
 
@@ -291,8 +168,6 @@ class Recipe extends Model
 
     /**
      * Get the ratings count
-     *
-     * @return int
      */
     public function getRatingsCountAttribute(): int
     {
@@ -301,8 +176,6 @@ class Recipe extends Model
 
     /**
      * Get the all given stars
-     *
-     * @return int
      */
     public function getStarsAttribute(): int
     {
@@ -311,12 +184,10 @@ class Recipe extends Model
 
     /**
      * Get the average of stars
-     *
-     * @return float
      */
     public function getStarsAverageAttribute(): float
     {
-        if (!$this->ratings_count) {
+        if (! $this->ratings_count) {
             return 0;
         }
 
@@ -324,72 +195,58 @@ class Recipe extends Model
     }
 
     /**
-     * Get the recipe's author
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return BelongsTo<Author, $this>
      */
     public function author(): BelongsTo
     {
-        return $this->belongsTo('\App\Models\Author');
+        return $this->belongsTo(Author::class);
     }
 
     /**
-     * Get the recipe's category
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return BelongsTo<Category, $this>
      */
     public function category(): BelongsTo
     {
-        return $this->belongsTo('\App\Models\Category');
+        return $this->belongsTo(Category::class);
     }
 
     /**
-     * Get the recipe's cookbook
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     * @return BelongsTo<Cookbook, $this>
      */
     public function cookbook(): BelongsTo
     {
-        return $this->belongsTo('\App\Models\Cookbook');
+        return $this->belongsTo(Cookbook::class);
     }
 
     /**
-     * Get the recipe's tags
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsToMany
+     * @return BelongsToMany<Tag, $this>
      */
     public function tags(): BelongsToMany
     {
-        return $this->belongsToMany('\App\Models\Tag');
+        return $this->belongsToMany(Tag::class);
     }
 
     /**
-     * Get the recipe's ingredients
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     * @return HasMany<Ingredient, $this>
      */
     public function ingredients(): HasMany
     {
-        return $this->hasMany('\App\Models\Ingredient');
+        return $this->hasMany(Ingredient::class);
     }
 
     /**
-     * Get the recipe's ingredientGroups
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     * @return HasMany<IngredientGroup, $this>
      */
-    public function ingredientGroups(): HasMany
+    public function groups(): HasMany
     {
-        return $this->hasMany('\App\Models\IngredientGroup');
+        return $this->hasMany(IngredientGroup::class);
     }
 
     /**
-     * Get the recipe's ratings
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     * @return HasMany<Rating, $this>
      */
     public function ratings(): HasMany
     {
-        return $this->hasMany('\App\Models\Rating');
+        return $this->hasMany(Rating::class);
     }
 }

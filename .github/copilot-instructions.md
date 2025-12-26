@@ -17,8 +17,7 @@ Big-picture architecture
 Project-specific conventions
 - Livewire + Volt: UI pages are implemented as Volt components and wired via `Volt::route()` (see [routes/web.php](routes/web.php)). Follow existing component structure under `app/Livewire`.
 - Actions & Livewire Actions: Reusable actions live in `app/Actions/` and `app/Livewire/Actions/` — prefer using these for encapsulated business logic.
-- Observers & Traits: Domain behaviors use observers (`app/Observers`) and traits (e.g., `OwnerTrait`, `SlugifyTrait`) — follow these patterns for cross-model behavior.
-- Scopes: Global scopes (e.g., `AdminOrOwnerScope`, `FilterScope`) are used for multi-tenant/authorization filtering — check `app/Models` for examples before adding queries.
+- Observers: Domain behaviors use observers (`app/Observers`) — follow these patterns for cross-model behavior.
 
 Testing and CI hints
 - Tests use sqlite :memory: (see [phpunit.xml](phpunit.xml)) so no DB setup required for CI; ensure migrations/factories are used to seed state in tests.

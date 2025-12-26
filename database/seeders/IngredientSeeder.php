@@ -2,9 +2,9 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
 use App\Models\Ingredient;
 use App\Models\IngredientAttribute;
+use Illuminate\Database\Seeder;
 
 class IngredientSeeder extends Seeder
 {

@@ -3,17 +3,12 @@
 namespace App\Observers;
 
 use App\Models\Author;
+use App\Models\Recipe;
 
 class AuthorObserver
 {
-    /**
-     * Handle the author "saving" event.
-     *
-     * @param  \App\Models\Author  $author
-     * @return void
-     */
-    public function saving(Author $author)
+    public function deleting(Author $author): void
     {
-        $author->slugifyName();
+        $author->recipes()->each(fn (Recipe $r) => $r->delete());
     }
 }

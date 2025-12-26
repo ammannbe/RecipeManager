@@ -2,25 +2,31 @@
 
 namespace App\Models;
 
-use App\Models\SlugifyTrait;
-use App\Models\OrderByNameScope;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class RatingCriterion extends Model
 {
-    use SoftDeletes, SlugifyTrait, HasFactory;
+    use HasFactory, SoftDeletes;
 
     /**
-     * The "booting" method of the model.
-     *
-     * @return void
+     * @return Attribute<string, never>
      */
-    protected static function boot()
+    public function slug(): Attribute
     {
-        parent::boot();
+        return Attribute::make(
+            get: fn () => \Str::slug($this->name),
+        );
+    }
 
-        static::addGlobalScope(new OrderByNameScope);
+    /**
+     * @return HasMany<Rating, $this>
+     */
+    public function ratings()
+    {
+        return $this->hasMany(Rating::class);
     }
 }

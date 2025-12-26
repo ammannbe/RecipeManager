@@ -2,10 +2,9 @@
 
 namespace Database\Factories;
 
-use App\Models\Recipe;
 use App\Models\Food;
+use App\Models\Recipe;
 use App\Models\Unit;
-use App\Models\Ingredient;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class IngredientFactory extends Factory

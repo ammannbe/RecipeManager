@@ -2,59 +2,35 @@
 
 namespace App\Models;
 
-use App\Models\SlugifyTrait;
-use App\Models\OrderByNameScope;
-use App\Models\AdminOrOwnerScope;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Cookbook extends Model
 {
-    use SoftDeletes, SlugifyTrait, HasFactory;
+    use HasFactory, SoftDeletes;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array
-     */
     protected $fillable = [
         'name',
-        // Only for CookbookFactory
-        'user_id',
-        'author_id',
     ];
 
     /**
-     * Relations that cascade or restrict on delete.
-     *
-     * @var array
+     * @return Attribute<string, never>
      */
-    protected $softCascade = [
-        'recipes'
-    ];
-
-    /**
-     * The "booting" method of the model.
-     *
-     * @return void
-     */
-    protected static function boot()
+    public function slug(): Attribute
     {
-        parent::boot();
-
-        static::addGlobalScope(new AdminOrOwnerScope);
-        static::addGlobalScope(new OrderByNameScope);
+        return Attribute::make(
+            get: fn () => \Str::slug($this->name),
+        );
     }
 
     /**
-     * Get the category's recipes
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     * @return HasMany<Recipe, $this>
      */
     public function recipes(): HasMany
     {
-        return $this->hasMany('\App\Models\Recipe');
+        return $this->hasMany(Recipe::class);
     }
 }

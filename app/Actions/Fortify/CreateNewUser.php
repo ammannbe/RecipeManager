@@ -39,7 +39,6 @@ class CreateNewUser implements CreatesNewUsers
                 'password' => $input['password'],
             ]);
 
-
             $user->author()->create([
                 'name' => $input['name'],
             ]);

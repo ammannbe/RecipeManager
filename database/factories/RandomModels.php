@@ -2,16 +2,14 @@
 
 namespace Database\Factories;
 
-use App\Models\User;
-use App\Models\Recipe;
 use App\Models\RatingCriterion;
+use App\Models\Recipe;
+use App\Models\User;
 
 trait RandomModels
 {
     /**
      * Get a random recipe
-     *
-     * @return \App\Models\Recipe
      */
     private function getRandomRecipe(): \App\Models\Recipe
     {
@@ -23,8 +21,6 @@ trait RandomModels
 
     /**
      * Get a random user
-     *
-     * @return \App\Models\User
      */
     private function getRandomUser(): \App\Models\User
     {
@@ -33,8 +29,6 @@ trait RandomModels
 
     /**
      * Get a random rating criterion
-     *
-     * @return \App\Models\RatingCriterion
      */
     private function getRandomRatingCriterion(): \App\Models\RatingCriterion
     {
