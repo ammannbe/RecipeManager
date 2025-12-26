@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\IngredientGroup;
+use App\Models\Recipe;
 use Illuminate\Database\Seeder;
 
 class IngredientGroupSeeder extends Seeder
@@ -14,6 +15,6 @@ class IngredientGroupSeeder extends Seeder
      */
     public function run()
     {
-        IngredientGroup::factory()->times(40)->create();
+        IngredientGroup::factory(50)->recycle(Recipe::get())->create();
     }
 }

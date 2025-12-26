@@ -14,6 +14,6 @@ class UnitSeeder extends Seeder
      */
     public function run()
     {
-        Unit::factory()->times(20)->create();
+        Unit::factory(50)->create();
     }
 }

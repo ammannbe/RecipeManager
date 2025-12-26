@@ -3,6 +3,7 @@
 namespace Database\Seeders;
 
 use App\Models\Cookbook;
+use App\Models\User;
 use Illuminate\Database\Seeder;
 
 class CookbookSeeder extends Seeder
@@ -14,6 +15,6 @@ class CookbookSeeder extends Seeder
      */
     public function run()
     {
-        Cookbook::factory()->times(20)->create();
+        Cookbook::factory(20)->recycle(User::get())->create();
     }
 }

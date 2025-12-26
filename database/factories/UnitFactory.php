@@ -13,16 +13,11 @@ class UnitFactory extends Factory
      */
     public function definition()
     {
-        $name = $this->faker->unique()->word;
-        $nameShortcut = substr($name, 0, -2);
-        $namePlural = \Str::plural($name);
-        $namePluralShortcut = substr($namePlural, 0, -2);
-
         return [
-            'name' => $name,
-            'name_shortcut' => $nameShortcut ? $nameShortcut : null,
-            'name_plural' => $namePlural,
-            'name_plural_shortcut' => $namePluralShortcut ? $namePluralShortcut : null,
+            'name' => $this->faker->unique()->word(),
+            'name_shortcut' => $this->faker->optional()->randomLetter(),
+            'name_plural' => $this->faker->optional()->word(),
+            'name_plural_shortcut' => $this->faker->optional()->randomLetter(),
         ];
     }
 }

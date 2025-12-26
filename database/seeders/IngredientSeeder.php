@@ -2,9 +2,13 @@
 
 namespace Database\Seeders;
 
+use App\Models\Food;
 use App\Models\Ingredient;
 use App\Models\IngredientAttribute;
+use App\Models\Recipe;
+use App\Models\Unit;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Collection;
 
 class IngredientSeeder extends Seeder
 {
@@ -15,10 +19,16 @@ class IngredientSeeder extends Seeder
      */
     public function run()
     {
-        $ingredientAttributes = IngredientAttribute::get();
-        Ingredient::factory()->times(500)->create()->each(function ($ingredient) use ($ingredientAttributes) {
-            $random = $ingredientAttributes->random(rand(0, 3))->pluck('id');
-            $ingredient->ingredientAttributes()->attach($random);
-        });
+        /** @var Collection<int, IngredientAttribute> */
+        $attributes = IngredientAttribute::get();
+
+        Ingredient::factory(500)
+            ->recycle(Recipe::get())
+            ->recycle(Unit::get())
+            ->recycle(Food::get())
+            ->create()
+            ->each(function (Ingredient $ingredient) use ($attributes) {
+                $ingredient->attributes()->attach($attributes->random(rand(0, 3)));
+            });
     }
 }

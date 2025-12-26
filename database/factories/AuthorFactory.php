@@ -15,7 +15,7 @@ class AuthorFactory extends Factory
     {
         return [
             // The user_id will be set through the UserSeeder
-            'name' => $this->faker->name,
+            'name' => $this->faker->name(),
         ];
     }
 }

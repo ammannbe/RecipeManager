@@ -3,6 +3,9 @@
 namespace Database\Seeders;
 
 use App\Models\Rating;
+use App\Models\RatingCriterion;
+use App\Models\Recipe;
+use App\Models\User;
 use Illuminate\Database\Seeder;
 
 class RatingSeeder extends Seeder
@@ -14,6 +17,10 @@ class RatingSeeder extends Seeder
      */
     public function run()
     {
-        Rating::factory()->times(50)->create();
+        Rating::factory(50)
+            ->recycle(Recipe::get())
+            ->recycle(User::get())
+            ->recycle(RatingCriterion::get())
+            ->create();
     }
 }

@@ -7,13 +7,8 @@ use Illuminate\Database\Seeder;
 
 class CategorySeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     *
-     * @return void
-     */
-    public function run()
+    public function run(): void
     {
-        Category::factory()->times(15)->create();
+        Category::factory(20)->create();
     }
 }

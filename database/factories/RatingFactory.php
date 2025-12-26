@@ -2,12 +2,13 @@
 
 namespace Database\Factories;
 
+use App\Models\RatingCriterion;
+use App\Models\Recipe;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 class RatingFactory extends Factory
 {
-    use RandomModels;
-
     /**
      * Define the model's default state.
      *
@@ -16,10 +17,10 @@ class RatingFactory extends Factory
     public function definition()
     {
         return [
-            'recipe_id' => $this->getRandomRecipe()->id,
-            'user_id' => $this->faker->randomElement([null, $this->getRandomUser()->id]),
-            'rating_criterion_id' => $this->getRandomRatingCriterion()->id,
-            'comment' => $this->faker->text,
+            'recipe_id' => Recipe::factory(),
+            'user_id' => User::factory(),
+            'rating_criterion_id' => RatingCriterion::factory(),
+            'comment' => $this->faker->text(),
             'stars' => rand(0, 5),
         ];
     }

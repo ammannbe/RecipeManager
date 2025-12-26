@@ -24,15 +24,10 @@ class ObserverServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Author::observe(AuthorObserver::class);
-
         Cookbook::observe(CookbookObserver::class);
-
         Ingredient::observe(IngredientObserver::class);
-
         IngredientGroup::observe(IngredientGroupObserver::class);
-
         Recipe::observe(RecipeObserver::class);
-
         User::observe(UserObserver::class);
     }
 }

@@ -16,8 +16,8 @@ new class extends Component {
      */
     public function mount(): void
     {
-        $this->name = Auth::user()->name;
-        $this->email = Auth::user()->email;
+        $this->name = user()->name;
+        $this->email = user()->email;
     }
 
     public function rendering(View $view): void
@@ -31,7 +31,7 @@ new class extends Component {
      */
     public function updateProfileInformation(): void
     {
-        $user = Auth::user();
+        $user = user();
 
         $validated = $this->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -62,7 +62,7 @@ new class extends Component {
      */
     public function resendVerificationNotification(): void
     {
-        $user = Auth::user();
+        $user = user();
 
         if ($user->hasVerifiedEmail()) {
             $this->redirectIntended(default: route('dashboard', absolute: false));

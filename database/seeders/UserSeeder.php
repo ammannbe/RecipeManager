@@ -15,8 +15,20 @@ class UserSeeder extends Seeder
      */
     public function run()
     {
-        User::factory()->times(50)->create()->each(function ($user) {
-            $user->author()->save(Author::factory()->make());
+        if (! User::whereEmail(config('mail.from.address'))->exists()) {
+            User::factory()
+                ->create(['email' => config('mail.from.address')])
+                ->each(function (User $user) {
+                    $author = Author::factory()->make([
+                        'name' => config('mail.from.name'),
+                    ]);
+
+                    return $user->author()->save($author);
+                });
+        }
+
+        User::factory(20)->create()->each(function (User $user) {
+            return $user->author()->save(Author::factory()->make());
         });
     }
 }

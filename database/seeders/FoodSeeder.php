@@ -14,6 +14,6 @@ class FoodSeeder extends Seeder
      */
     public function run()
     {
-        Food::factory()->times(20)->create();
+        Food::factory(50)->create();
     }
 }

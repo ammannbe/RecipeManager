@@ -35,10 +35,6 @@ class User extends Authenticatable implements MustVerifyEmail
         'password' => 'hashed',
     ];
 
-    // protected $softCascade = [
-    //     'recipes'
-    // ];
-
     /**
      * @return Attribute<string, never>
      */

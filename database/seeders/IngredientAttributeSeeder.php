@@ -14,6 +14,6 @@ class IngredientAttributeSeeder extends Seeder
      */
     public function run()
     {
-        IngredientAttribute::factory()->times(30)->create();
+        IngredientAttribute::factory(50)->create();
     }
 }
