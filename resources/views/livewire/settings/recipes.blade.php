@@ -48,6 +48,9 @@ new class extends Component {
         $view->title(__('Recipes'));
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function with(): array
     {
         return [

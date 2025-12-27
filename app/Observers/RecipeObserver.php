@@ -9,7 +9,7 @@ use App\Models\Recipe;
 
 class RecipeObserver
 {
-    public function deleting(Recipe $recipe)
+    public function deleting(Recipe $recipe): void
     {
         $recipe->ingredients()->each(fn (Ingredient $i) => $i->delete());
         $recipe->groups()->each(fn (IngredientGroup $g) => $g->delete());

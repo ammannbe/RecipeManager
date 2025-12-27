@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Database\Factories\RatingFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,7 +10,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Rating extends Model
 {
-    use HasFactory, SoftDeletes;
+    /** @use HasFactory<RatingFactory> */
+    use HasFactory;
+
+    use SoftDeletes;
 
     protected $fillable = [
         'rating_criterion_id',

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Database\Factories\CookbookFactory;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -11,7 +12,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Cookbook extends Model
 {
-    use HasFactory, SoftDeletes;
+    /** @use HasFactory<CookbookFactory> */
+    use HasFactory;
+
+    use SoftDeletes;
 
     protected $fillable = [
         'name',

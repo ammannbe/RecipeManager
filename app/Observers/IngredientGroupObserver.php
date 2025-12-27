@@ -7,7 +7,7 @@ use App\Models\IngredientGroup;
 
 class IngredientGroupObserver
 {
-    public function deleting(IngredientGroup $ingredientGroup)
+    public function deleting(IngredientGroup $ingredientGroup): void
     {
         $ingredientGroup->ingredients()->each(fn (Ingredient $i) => $i->delete());
     }

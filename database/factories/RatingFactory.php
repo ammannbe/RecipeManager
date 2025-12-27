@@ -2,19 +2,21 @@
 
 namespace Database\Factories;
 
+use App\Models\Rating;
 use App\Models\RatingCriterion;
 use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
+/**
+ * @extends Factory<Rating>
+ */
 class RatingFactory extends Factory
 {
     /**
-     * Define the model's default state.
-     *
-     * @return array
+     * @return array<string, mixed>
      */
-    public function definition()
+    public function definition(): array
     {
         return [
             'recipe_id' => Recipe::factory(),

@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\Complexity;
 use App\Services\Document;
 use App\Traits\Searchable;
+use Database\Factories\RecipeFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -17,7 +18,9 @@ use Illuminate\Support\Collection;
 
 class Recipe extends Model
 {
+    /** @use HasFactory<RecipeFactory> */
     use HasFactory;
+
     use Searchable;
     use SoftDeletes;
 
@@ -52,7 +55,7 @@ class Recipe extends Model
     }
 
     /**
-     * @return Attribute<Collection, never>
+     * @return Attribute<Collection<int, Document>, never>
      */
     public function photos(): Attribute
     {
@@ -68,7 +71,7 @@ class Recipe extends Model
     public function stars(): Attribute
     {
         return Attribute::make(
-            get: fn () => round($this->ratings()->avg('stars') ?? 0, 1),
+            get: fn () => round((float) $this->ratings()->avg('stars'), 1),
         );
     }
 

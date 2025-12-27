@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Database\Factories\IngredientGroupFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -10,7 +11,10 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class IngredientGroup extends Model
 {
-    use HasFactory, SoftDeletes;
+    /** @use HasFactory<IngredientGroupFactory> */
+    use HasFactory;
+
+    use SoftDeletes;
 
     protected $fillable = [
         'name',

@@ -18,6 +18,7 @@ new class extends Component {
     use Sortable;
     use WithPagination;
 
+    /** @var Collection<int, Recipe> */
     public Collection $recipes;
 
     public int $page = 1;
@@ -70,6 +71,9 @@ new class extends Component {
         }
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     public function with(): array
     {
         $recipes = Recipe::search($this->searchable, $this->search)

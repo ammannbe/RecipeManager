@@ -11,14 +11,11 @@ use Illuminate\Database\Eloquent\Factories\Factory;
 class AuthorFactory extends Factory
 {
     /**
-     * Define the model's default state.
-     *
-     * @return array
+     * @return array<string, mixed>
      */
-    public function definition()
+    public function definition(): array
     {
         return [
-            // The user_id will be set through the UserSeeder
             'name' => $this->faker->name(),
         ];
     }
