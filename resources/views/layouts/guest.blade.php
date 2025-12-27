@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
     <head>
-        @if (! config('app.debug'))
+        @production
             <!-- Google Tag Manager -->
             <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
             new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
@@ -9,7 +9,7 @@
             'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
             })(window,document,'script','dataLayer','GTM-NFHFWB99');</script>
             <!-- End Google Tag Manager -->
-        @endif
+        @endproduction
 
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -27,42 +27,16 @@
     </head>
 
     <body class="min-h-screen">
-        @if (! config('app.debug'))
+        @production
             <!-- Google Tag Manager (noscript) -->
             <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NFHFWB99"
             height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             <!-- End Google Tag Manager (noscript) -->
-        @endif
+        @endproduction
+
+        @include('layouts.navigation')
 
         <flux:main>
-            <div class="fixed top-0 inset-x-0 w-full p-4 flex justify-between items-center">
-                <flux:brand
-                    href="{{ route('recipes.index') }}"
-                    wire:navigate
-                    logo="{{ asset('/favicon.ico') }}"
-                    name="{{ config('app.name') }}"
-                    alt="{{ config('app.name') }} Logo"
-                    class="px-2 me-0!"
-                />
-
-                <flux:dropdown>
-                    <flux:button variant="ghost" icon="language">
-                        {{ __('Language') }}
-                    </flux:button>
-
-                    <flux:menu>
-                        @foreach (config('app.locales') as $locale => $language)
-                            <form action="{{ route('profile.locale', ['locale' => $locale]) }}" method="post">
-                                @csrf
-                                <flux:menu.item icon="{{ $locale }}" type="submit">
-                                    {{ $language }}
-                                </flux:menu.item>
-                            </form>
-                        @endforeach
-                    </flux:menu>
-                </flux:dropdown>
-            </div>
-
             <div class="grid h-full place-items-center">
                 {{ $slot }}
             </div>

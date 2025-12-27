@@ -65,7 +65,7 @@ new class extends Component {
         $user = user();
 
         if ($user->hasVerifiedEmail()) {
-            $this->redirectIntended(default: route('dashboard', absolute: false));
+            $this->redirectIntended(default: route('recipes.index', absolute: false));
 
             return;
         }

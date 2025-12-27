@@ -4,6 +4,8 @@ namespace App\Models;
 
 use App\Enums\Complexity;
 use App\Services\Document;
+use App\Traits\Searchable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -15,7 +17,9 @@ use Illuminate\Support\Collection;
 
 class Recipe extends Model
 {
-    use HasFactory, SoftDeletes;
+    use HasFactory;
+    use Searchable;
+    use SoftDeletes;
 
     protected $fillable = [
         'cookbook_id',
@@ -48,27 +52,40 @@ class Recipe extends Model
     }
 
     /**
-     * @return Attribute<float, never>
-     */
-    public function stars(): Attribute
-    {
-        return Attribute::make(
-            get: fn () => $this->ratings_count
-                ? $this->ratings()->sum('stars') / $this->ratings_count
-                : 0,
-        );
-    }
-
-    /**
      * @return Attribute<Collection, never>
      */
     public function photos(): Attribute
     {
         return Attribute::make(
-            get: fn () => collect(\Storage::disk('recipes')->files($this->id))
+            get: fn () => collect(\Storage::disk('recipes')->files((string) $this->id))
                 ->map(fn ($file) => new Document($file, 'recipes')),
         );
     }
+
+    /**
+     * @return Attribute<string, never>
+     */
+    public function stars(): Attribute
+    {
+        return Attribute::make(
+            get: fn () => round($this->ratings()->avg('stars') ?? 0, 1),
+        );
+    }
+
+    // /**
+    //  * @param  Builder<static>  $query
+    //  * @return Builder<static>
+    //  */
+    // public function scopeWithStars(Builder $query): Builder
+    // {
+    //     return $query
+    //         ->addSelect([
+    //             'stars' => \DB::table('ratings')
+    //                 ->selectRaw('COALESCE(ROUND(SUM(stars) / NULLIF(COUNT(*), 0), 1), 0)')
+    //                 ->whereColumn('ratings.recipe_id', 'recipes.id')
+    //                 ->whereNull('ratings.deleted_at'),
+    //         ]);
+    // }
 
     /**
      * @return BelongsTo<Author, $this>

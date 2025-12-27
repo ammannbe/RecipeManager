@@ -30,7 +30,7 @@ return new class extends Migration
         }
 
         foreach (\Storage::disk('recipes')->directories() as $directory) {
-            \Storage::disk('recipes')->deleteDirectory($directory . '/conversions');
+            \Storage::disk('recipes')->deleteDirectory($directory.'/conversions');
         }
     }
 

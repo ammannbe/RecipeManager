@@ -14,7 +14,7 @@ new class extends Component {
     public function rendering(View $view): void
     {
         $view->layout('layouts.app');
-        $view->title(__('Profile'));
+        $view->title(__('Password'));
     }
 
     /**

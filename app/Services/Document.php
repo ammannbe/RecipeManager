@@ -2,7 +2,7 @@
 
 namespace App\Services;
 
-use Illuminate\Filesystem\LocalFilesystemAdapter;
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
@@ -13,7 +13,7 @@ class Document
         protected string $disk = 'local',
     ) {}
 
-    protected function disk(): LocalFilesystemAdapter
+    protected function disk(): Filesystem
     {
         return \Storage::disk($this->disk);
     }

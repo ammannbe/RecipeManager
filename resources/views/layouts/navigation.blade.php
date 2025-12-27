@@ -19,12 +19,20 @@
     <flux:spacer />
 
     <flux:dropdown>
-        <flux:profile avatar:name="{{ user()->name }}" />
+        @auth
+            <flux:profile avatar:name="{{ user()->name }}" />
+        @endauth
+
+        @guest
+            <flux:profile avatar:icon="user" />
+        @endguest
 
         <flux:menu>
-            <flux:menu.item href="{{ route('profile.edit') }}" wire:navigate icon="user-circle">
-                {{ __('Profile') }}
-            </flux:menu.item>
+            @auth
+                <flux:menu.item href="{{ route('settings.profile') }}" wire:navigate icon="user-circle">
+                    {{ __('Profile') }}
+                </flux:menu.item>
+            @endauth
 
             <flux:menu.submenu heading="{{ __('Language') }}" icon="language">
                 @foreach (config('app.locales') as $locale => $language)
@@ -47,25 +55,33 @@
 
             <flux:menu.separator />
 
-            @if (user()->is_admin)
-                <flux:menu.item icon="shield-exclamation" href="{{ route('admin.index') }}" wire:navigate>
-                    <span>{{ __('Admin') }}</span>
-                </flux:menu.item>
-            @elseif (session()->get('admin_logged_in'))
-                <form method="POST" action="{{ route('admin.logout') }}">
+            @auth
+                @if (user()->is_admin)
+                    <flux:menu.item icon="shield-exclamation" href="{{ route('admin.index') }}" wire:navigate>
+                        <span>{{ __('Admin') }}</span>
+                    </flux:menu.item>
+                @elseif (session()->get('admin_logged_in'))
+                    <form method="POST" action="{{ route('admin.logout') }}">
+                        @csrf
+                        <flux:menu.item icon="shield-exclamation" variant="danger" type="submit">
+                            {{ __('Admin logout') }}
+                        </flux:menu.item>
+                    </form>
+                @endif
+
+                <form method="POST" action="{{ route('logout') }}">
                     @csrf
-                    <flux:menu.item icon="shield-exclamation" variant="danger" type="submit">
-                        {{ __('Admin logout') }}
+                    <flux:menu.item icon="arrow-right-start-on-rectangle" variant="danger" type="submit">
+                        {{ __('Logout') }}
                     </flux:menu.item>
                 </form>
-            @endif
+            @endauth
 
-            <form method="POST" action="{{ route('logout') }}">
-                @csrf
-                <flux:menu.item icon="arrow-right-start-on-rectangle" variant="danger" type="submit">
-                    {{ __('Logout') }}
+            @guest
+                <flux:menu.item href="{{ route('login') }}" wire:navigate icon="user-circle">
+                    {{ __('Login') }}
                 </flux:menu.item>
-            </form>
+            @endguest
         </flux:menu>
     </flux:dropdown>
 </flux:header>

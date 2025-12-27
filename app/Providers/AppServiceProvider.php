@@ -25,5 +25,9 @@ class AppServiceProvider extends ServiceProvider
         Blade::directive('emdash', function () {
             return '<?php echo emdash(); ?>';
         });
+
+        Blade::directive('nl2br', function (string $expression) {
+            return "<?php echo nl2br(e($expression)); ?>";
+        });
     }
 }

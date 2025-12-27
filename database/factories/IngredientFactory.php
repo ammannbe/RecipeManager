@@ -3,11 +3,15 @@
 namespace Database\Factories;
 
 use App\Models\Food;
+use App\Models\Ingredient;
 use App\Models\IngredientGroup;
 use App\Models\Recipe;
 use App\Models\Unit;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
+/**
+ * @extends Factory<Ingredient>
+ */
 class IngredientFactory extends Factory
 {
     /**

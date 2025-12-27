@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
     <head>
-        {{-- @if (! config('app.debug'))
+        @production
             <!-- Google Tag Manager -->
             <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
             new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
@@ -9,7 +9,7 @@
             'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
             })(window,document,'script','dataLayer','GTM-NFHFWB99');</script>
             <!-- End Google Tag Manager -->
-        @endif --}}
+        @endproduction
 
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -27,16 +27,16 @@
     </head>
 
     <body class="min-h-screen">
-        @if (! config('app.debug'))
+        @production
             <!-- Google Tag Manager (noscript) -->
             <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-NFHFWB99"
             height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
             <!-- End Google Tag Manager (noscript) -->
-        @endif
+        @endproduction
 
         @include('layouts.navigation')
 
-        <flux:main class="bg-zinc-50 dark:bg-zinc-800">
+        <flux:main>
             @if (user() instanceof \Illuminate\Contracts\Auth\MustVerifyEmail && ! user()->hasVerifiedEmail())
                 <x-card class="bg-amber-400/80! dark:bg-amber-800/80! p-4 lg:px-8 mb-6 lg:mb-8 rounded-lg">
                     <form method="post" action="{{ route('verification.send') }}">

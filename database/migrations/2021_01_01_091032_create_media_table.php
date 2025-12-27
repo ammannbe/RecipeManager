@@ -69,7 +69,7 @@ class CreateMediaTable extends Migration
             $files = \File::files("{$pathOld}/{$recipe->id}");
 
             foreach ($files as $file) {
-                $recipe->addMedia($file->getPathname())->toMediaCollection('recipe_photos');
+                $recipe->addMedia($file->getPathname())->toMediaCollection('recipe_photos'); // @phpstan-ignore-line
             }
         }
     }

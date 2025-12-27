@@ -10,6 +10,9 @@ use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
+/**
+ * @extends Factory<Recipe>
+ */
 class RecipeFactory extends Factory
 {
     /**
@@ -36,7 +39,7 @@ class RecipeFactory extends Factory
             'servings' => $this->faker->optional()->numberBetween(1, 20),
             'serving_type' => $this->faker->optional()->word(),
             'complexity' => $this->faker->randomElement(Complexity::cases()),
-            'instructions' => $this->faker->unique(reset: true)->text(),
+            'instructions' => $this->faker->unique(reset: true)->randomHtml(),
             'preparation_time' => $this->faker->optional()->time('H:i:00', '23:59'),
         ];
     }

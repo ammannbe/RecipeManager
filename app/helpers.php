@@ -1,6 +1,8 @@
 <?php
 
-function user(): ?\App\Models\User
+use App\Models\User;
+
+function user(): ?User
 {
     return auth()->user();
 }
