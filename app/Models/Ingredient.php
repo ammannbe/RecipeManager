@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Lamansky\Fraction\Fraction;
 
 class Ingredient extends Model
 {
@@ -36,21 +37,48 @@ class Ingredient extends Model
     public function name(): Attribute
     {
         return Attribute::make(
-            get: fn () => collect([
-                collect([$this->amount, $this->amount_max])
+            get: function () {
+                $amount = Fraction::fromFloat((float) $this->amount)->toUnicodeString();
+                $amount_max = Fraction::fromFloat((float) $this->amount_max)->toUnicodeString();
+                $amountString = collect([$amount, $amount_max])->filter()->implode(' - ');
+
+                $unit = $this->unit?->getMatchingName($this->amount_max ?? $this->amount);
+
+                $ingredientAttributes = $this->ingredientAttributes->isNotEmpty()
+                    ? '(' . $this->ingredientAttributes->pluck('name')->implode(', ') . ')'
+                    : null;
+
+                $values = [
+                    $amountString,
+                    $unit,
+                    $this->food?->name,
+                    $ingredientAttributes,
+                ];
+
+                return collect($values)
                     ->filter()
-                    ->implode(' - '),
-
-                $this->unit?->name,
-                $this->food?->name,
-
-                $this->ingredientAttributes->isNotEmpty()
-                    ? '('.$this->ingredientAttributes->pluck('name')->implode(', ').')'
-                    : null,
-            ])
-                ->filter()
-                ->implode(' ')
+                    ->implode(' ');
+            },
         );
+    }
+
+    public function getAmountAndUnit(float $multiply = 1): string
+    {
+        $amount = Fraction::fromFloat((float) $this->amount * $multiply)->toUnicodeString();
+        $amount_max = Fraction::fromFloat((float) $this->amount_max * $multiply)->toUnicodeString();
+
+        $amountString = collect([$amount, $amount_max])
+            ->filter()
+            ->implode(' - ');
+
+        $values = [
+            $amountString,
+            $this->unit?->getMatchingName($this->amount_max ?? $this->amount),
+        ];
+
+        return collect($values)
+            ->filter()
+            ->implode(' ');
     }
 
     /**
@@ -78,6 +106,8 @@ class Ingredient extends Model
     }
 
     /**
+     * Get the "original" ingredient
+     *
      * @return BelongsTo<Ingredient, $this>
      */
     public function ingredient(): BelongsTo
@@ -86,6 +116,8 @@ class Ingredient extends Model
     }
 
     /**
+     * Get all alternatives to this ingredient
+     *
      * @return HasMany<Ingredient, $this>
      */
     public function ingredients(): HasMany
@@ -96,7 +128,7 @@ class Ingredient extends Model
     /**
      * @return BelongsTo<IngredientGroup, $this>
      */
-    public function group(): BelongsTo
+    public function ingredientGroup(): BelongsTo
     {
         return $this->belongsTo(IngredientGroup::class);
     }

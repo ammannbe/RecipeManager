@@ -12,6 +12,7 @@
         "@fontsource/lora": "^5.2.8",
         "@fontsource/nunito": "^5.2.7",
         "@tailwindcss/forms": "^0.5.10",
+        "@tailwindcss/typography": "^0.5.19",
         "@tailwindcss/vite": "^4.1.17",
         "autoprefixer": "^10.4.22",
         "axios": "^1.13.2",

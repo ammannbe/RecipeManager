@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "c5294a7e9435d22fc211b3396dcab1d9",
+    "content-hash": "0f5cda700f731187f35bb9a14a13e92c",
     "packages": [
         {
             "name": "bacon/bacon-qr-code",
@@ -1388,6 +1388,55 @@
                 }
             ],
             "time": "2025-08-22T14:27:06+00:00"
+        },
+        {
+            "name": "lamansky/fraction",
+            "version": "1.0.0",
+            "source": {
+                "type": "git",
+                "url": "https://github.com/lamansky/fraction.git",
+                "reference": "4cdd9de924f7a783147b9461d7b60858213d000b"
+            },
+            "dist": {
+                "type": "zip",
+                "url": "https://api.github.com/repos/lamansky/fraction/zipball/4cdd9de924f7a783147b9461d7b60858213d000b",
+                "reference": "4cdd9de924f7a783147b9461d7b60858213d000b",
+                "shasum": ""
+            },
+            "require": {
+                "php": ">=7.1.0"
+            },
+            "require-dev": {
+                "phpunit/phpunit": "^7"
+            },
+            "type": "library",
+            "autoload": {
+                "psr-4": {
+                    "Lamansky\\Fraction\\": "src/"
+                }
+            },
+            "notification-url": "https://packagist.org/downloads/",
+            "license": [
+                "MIT"
+            ],
+            "authors": [
+                {
+                    "name": "John Lamansky",
+                    "email": "lamansky@users.noreply.github.com"
+                }
+            ],
+            "description": "A class that represents a fraction. Supports conversion to/from floats, mathematical operations, negative fractions, and Unicode stringification.",
+            "keywords": [
+                "floats",
+                "fractions",
+                "math",
+                "numbers"
+            ],
+            "support": {
+                "issues": "https://github.com/lamansky/fraction/issues",
+                "source": "https://github.com/lamansky/fraction/tree/1.0.0"
+            },
+            "time": "2018-09-05T17:58:42+00:00"
         },
         {
             "name": "laravel/fortify",

@@ -23,10 +23,6 @@ class Unit extends Model
         'name_plural_shortcut',
     ];
 
-    // protected $softCascade = [
-    //     'ingredients@restrict'
-    // ];
-
     /**
      * @return Attribute<string, never>
      */
@@ -37,9 +33,19 @@ class Unit extends Model
         );
     }
 
-    public function getCanDeleteAttribute(): bool
+    public function getMatchingName(int|float $amount): string
     {
-        return ! $this->ingredients()->exists();
+        if ($amount >= 1 || $amount === 0 || $amount === 0.0) {
+            return $this->name_plural_shortcut
+                ?? $this->name_shortcut
+                ?? $this->name_plural
+                ?? $this->name;
+        }
+
+        return $this->name_shortcut
+            ?? $this->name_plural_shortcut
+            ?? $this->name
+            ?? $this->name_plural;
     }
 
     /**

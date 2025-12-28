@@ -2,11 +2,10 @@
 
 namespace App\Models;
 
+use App\Casts\AsDocuments;
 use App\Enums\Complexity;
-use App\Services\Document;
 use App\Traits\Searchable;
 use Database\Factories\RecipeFactory;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -14,7 +13,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Support\Collection;
 
 class Recipe extends Model
 {
@@ -38,6 +36,7 @@ class Recipe extends Model
     protected $casts = [
         'complexity' => Complexity::class,
         'preparation_time' => 'datetime:H:i',
+        'photos' => AsDocuments::class.':recipes',
     ];
 
     protected $withCount = [
@@ -55,17 +54,6 @@ class Recipe extends Model
     }
 
     /**
-     * @return Attribute<Collection<int, Document>, never>
-     */
-    public function photos(): Attribute
-    {
-        return Attribute::make(
-            get: fn () => collect(\Storage::disk('recipes')->files((string) $this->id))
-                ->map(fn ($file) => new Document($file, 'recipes')),
-        );
-    }
-
-    /**
      * @return Attribute<string, never>
      */
     public function stars(): Attribute
@@ -74,21 +62,6 @@ class Recipe extends Model
             get: fn () => round((float) $this->ratings()->avg('stars'), 1),
         );
     }
-
-    // /**
-    //  * @param  Builder<static>  $query
-    //  * @return Builder<static>
-    //  */
-    // public function scopeWithStars(Builder $query): Builder
-    // {
-    //     return $query
-    //         ->addSelect([
-    //             'stars' => \DB::table('ratings')
-    //                 ->selectRaw('COALESCE(ROUND(SUM(stars) / NULLIF(COUNT(*), 0), 1), 0)')
-    //                 ->whereColumn('ratings.recipe_id', 'recipes.id')
-    //                 ->whereNull('ratings.deleted_at'),
-    //         ]);
-    // }
 
     /**
      * @return BelongsTo<Author, $this>
@@ -133,7 +106,7 @@ class Recipe extends Model
     /**
      * @return HasMany<IngredientGroup, $this>
      */
-    public function groups(): HasMany
+    public function ingredientGroups(): HasMany
     {
         return $this->hasMany(IngredientGroup::class);
     }

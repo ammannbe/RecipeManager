@@ -37,9 +37,7 @@
         @include('layouts.navigation')
 
         <flux:main>
-            <div class="grid h-full place-items-center">
-                {{ $slot }}
-            </div>
+            {{ $slot }}
         </flux:main>
 
         @persist('toast')

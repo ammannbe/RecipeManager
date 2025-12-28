@@ -133,7 +133,7 @@ new class extends Component {
     }
 }; ?>
 
-<section class="max-w-6xl mx-auto space-y-12 py-4">
+<section class="w-full max-w-6xl mx-auto space-y-12 py-4">
     <div class="flex flex-wrap items-center gap-4">
         <flux:button
             variant="{{ $quick ? 'primary' : 'filled' }}"
@@ -208,9 +208,10 @@ new class extends Component {
                 @if ($recipe->photos->isNotEmpty())
                     <div class="overflow-hidden aspect-square rounded-xl">
                         <img
-                            src="{{ $recipe->photos->first()->url() }}"
+                            src="{{ $recipe->photos->first()->url() }}?v={{ $recipe->updated_at->timestamp }}"
                             alt="{{ $recipe->name }}"
                             class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                            loading="{{ $loop->index >= 6 ? 'lazy' : 'eager' }}"
                         >
                     </div>
                 @endif
@@ -239,21 +240,21 @@ new class extends Component {
                         </div>
                     @endif
 
-                    <div class="flex items-center gap-3 leading-none">
+                    <div class="flex items-center gap-3">
                         @if ($recipe->preparation_time)
-                            <flux:badge icon="clock">
+                            <flux:badge variant="pill" icon="clock">
                                 {{ $recipe->preparation_time->format('H:i') }}
                             </flux:badge>
                         @endif
 
-                        <flux:badge icon="{{ $recipe->complexity->icon() }}" color="{{ $recipe->complexity->color() }}">
+                        <flux:badge variant="pill" icon="{{ $recipe->complexity->icon() }}" color="{{ $recipe->complexity->color() }}">
                             {{ $recipe->complexity->label() }}
                         </flux:badge>
                     </div>
 
                     @if ($recipe->photos->isEmpty())
                         <flux:text class="mt-4">
-                            {!! nl2br(Str::limit(strip_tags($recipe->instructions), 500)) !!}
+                            {!! Str::limit(strip_tags($recipe->instructions), 500) !!}
                         </flux:text>
                     @endif
                 </div>

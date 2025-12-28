@@ -12,7 +12,7 @@ class RecipeObserver
     public function deleting(Recipe $recipe): void
     {
         $recipe->ingredients()->each(fn (Ingredient $i) => $i->delete());
-        $recipe->groups()->each(fn (IngredientGroup $g) => $g->delete());
+        $recipe->ingredientGroups()->each(fn (IngredientGroup $g) => $g->delete());
         $recipe->ratings()->each(fn (Rating $r) => $r->delete());
     }
 }
