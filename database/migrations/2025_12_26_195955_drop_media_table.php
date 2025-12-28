@@ -11,27 +11,36 @@ return new class extends Migration
      */
     public function up(): void
     {
+        Schema::table('recipes', function (Blueprint $table) {
+            $table->json('photos')->nullable()->default(null)->after('instructions');
+        });
+
+        \DB::table('media')->get()->each(function ($media) {
+            $fileName = $media->uuid.'.'.\Str::of($media->mime_type)->after('/');
+
+            $recipe = \DB::table('recipes')->find($media->model_id);
+
+            if (! file_exists(storage_path('app/public/recipes/'.$media->model_id))) {
+                mkdir(storage_path('app/public/recipes/'.$media->model_id));
+            }
+
+            rename(
+                storage_path('app/images/recipes/'.$media->id.'/'.$media->file_name),
+                storage_path('app/public/recipes/'.$recipe->id.'/'.$fileName) // @phpstan-ignore-line
+            );
+
+            $photos = json_decode($recipe->photos ?: '[]'); // @phpstan-ignore-line
+
+            $photos[] = $fileName;
+
+            \DB::table('recipes')
+                ->where('id', $recipe->id) // @phpstan-ignore-line
+                ->update(['photos' => $photos]);
+        });
+
         Schema::table('media', function (Blueprint $table) {
             $table->dropIfExists();
         });
-
-        if (file_exists(storage_path('app/public/recipes/.gitignore'))) {
-            unlink(storage_path('app/public/recipes/.gitignore'));
-        }
-
-        rename(storage_path('app/images/recipes'), storage_path('app/public/recipes'));
-
-        if (file_exists('app/images/.gitignore')) {
-            unlink(storage_path('app/images/.gitignore'));
-        }
-
-        if (file_exists(storage_path('app/images'))) {
-            rmdir(storage_path('app/images'));
-        }
-
-        foreach (\Storage::disk('recipes')->directories() as $directory) {
-            \Storage::disk('recipes')->deleteDirectory($directory.'/conversions');
-        }
     }
 
     /**
@@ -58,6 +67,10 @@ return new class extends Migration
             $table->unsignedInteger('order_column')->nullable();
 
             $table->nullableTimestamps();
+        });
+
+        Schema::table('recipes', function (Blueprint $table) {
+            $table->dropColumn('photos');
         });
     }
 };

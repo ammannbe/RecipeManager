@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\Complexity;
 use App\Livewire\Traits\Sortable;
 use App\Models\Category;
 use App\Models\User;
@@ -42,7 +43,7 @@ new class extends Component {
      */
     protected array $searchable = [
         'name',
-        'introduction',
+        'instructions',
     ];
 
     /**
@@ -56,8 +57,8 @@ new class extends Component {
 
     public function mount(): void
     {
-        $this->defaultSortField('name');
-        $this->defaultSortDirection('asc');
+        $this->defaultSortField('created_at');
+        $this->defaultSortDirection('desc');
 
         $this->recipes = collect();
     }
@@ -77,6 +78,8 @@ new class extends Component {
     public function with(): array
     {
         $recipes = Recipe::search($this->searchable, $this->search)
+            ->when(auth()->check(), fn ($q) => $q->where(fn ($subQ) => $subQ->whereNull('cookbook_id')->orWhere('user_id', user()->id)))
+            ->when(! auth()->check(), fn ($q) => $q->whereNull('cookbook_id'))
             ->when(in_array($this->sortBy, $this->sortable), fn ($q) => $q->orderBy($this->sortBy, $this->sortDirection)->orderBy('id', 'desc'))
             ->when($this->quick, fn ($q) => $q->where('preparation_time', '<=', '00:30:00'))
             ->when($this->complexity, fn ($q) => $q->where('complexity', $this->complexity))
@@ -88,8 +91,16 @@ new class extends Component {
 
         return [
             'hasMorePages' => $recipes->hasMorePages(),
+            'total' => $recipes->total(),
             'categories' => Category::get(),
         ];
+    }
+
+    public function updated(string $property, mixed $value): void
+    {
+        if ($property === 'search') {
+            $this->resetPage();
+        }
     }
 
     public function resetPage(): void
@@ -123,7 +134,7 @@ new class extends Component {
 }; ?>
 
 <section class="max-w-6xl mx-auto space-y-12 py-4">
-    <div class="flex items-center gap-4">
+    <div class="flex flex-wrap items-center gap-4">
         <flux:button
             variant="{{ $quick ? 'primary' : 'filled' }}"
             icon="rocket-launch"
@@ -139,40 +150,56 @@ new class extends Component {
                 variant="{{ $complexity === 'simple' ? 'primary' : 'filled' }}"
                 icon="signal-cellular-1"
                 wire:click="setComplexity('simple')"
+                tooltip="{{ Complexity::Simple->label() }}"
             />
             <flux:button
                 size="sm"
                 variant="{{ $complexity === 'normal' ? 'primary' : 'filled' }}"
                 icon="signal-cellular-2"
                 wire:click="setComplexity('normal')"
+                tooltip="{{ Complexity::Normal->label() }}"
             />
             <flux:button
                 size="sm"
                 variant="{{ $complexity === 'difficult' ? 'primary' : 'filled' }}"
                 icon="signal-cellular-3"
                 wire:click="setComplexity('difficult')"
+                tooltip="{{ Complexity::Difficult->label() }}"
             />
         </flux:button.group>
 
-        <flux:dropdown>
-            <flux:button size="sm" variant="filled" icon:trailing="chevron-down">
-                {{ $category ? $categories->find($category)->name : __('Category...') }}
-            </flux:button>
+        <div class="flex items-center gap-4">
+            <flux:button.group>
+                @if ($category)
+                    <flux:button size="sm" variant="{{ $category ? 'primary' : 'filled' }}" icon:trailing="x-mark" wire:click="setCategory(null)">
+                        {{ $categories->find($category)->name }}
+                    </flux:button>
+                @else
+                    <flux:dropdown>
+                        <flux:button size="sm" variant="filled" icon:trailing="chevron-down">
+                            {{ __('All categories') }}
+                        </flux:button>
 
-            <flux:menu>
-                <flux:menu.radio.group @change="$wire.setCategory($event.target.value ? $event.target.value : null)" value="{{ $category }}">
-                    @foreach ($categories as $c)
-                        <flux:menu.radio value="{{ $c->id }}" :checked="$c->id == $category">
-                            {{ $c->name }}
-                        </flux:menu.radio>
-                    @endforeach
+                        <flux:menu>
+                            <flux:menu.radio.group @change="$wire.setCategory($event.target.value)" value="{{ $category }}">
+                                @foreach ($categories as $c)
+                                    <flux:menu.radio value="{{ $c->id }}" :checked="$c->id == $category">
+                                        {{ $c->name }}
+                                    </flux:menu.radio>
+                                @endforeach
+                            </flux:menu.radio.group>
+                        </flux:menu>
+                    </flux:dropdown>
+                @endif
+            </flux:button.group>
 
-                    <flux:menu.radio value="" :checked="$category === null">
-                        {{ __('Reset category...') }}
-                    </flux:menu.radio>
-                </flux:menu.radio.group>
-            </flux:menu>
-        </flux:dropdown>
+            <flux:input
+                wire:model.live.debounce="search"
+                size="sm"
+                placeholder="{{ __('Search for recipes...') }}"
+                class="max-w-64"
+            />
+        </div>
     </div>
 
     <div class="grid gap-12 grid-cols-1 xs:grid-cols-2 lg:grid-cols-3">
@@ -224,9 +251,11 @@ new class extends Component {
                         </flux:badge>
                     </div>
 
-                    <flux:text class="mt-4">
-                        {!! nl2br(Str::limit(strip_tags($recipe->instructions), 300)) !!}
-                    </flux:text>
+                    @if ($recipe->photos->isEmpty())
+                        <flux:text class="mt-4">
+                            {!! nl2br(Str::limit(strip_tags($recipe->instructions), 500)) !!}
+                        </flux:text>
+                    @endif
                 </div>
             </a>
         @endforeach

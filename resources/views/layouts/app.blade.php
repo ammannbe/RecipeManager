@@ -36,7 +36,10 @@
 
         @include('layouts.navigation')
 
-        <flux:main>
+        <flux:main
+            x-data="{ showScrollToTop: false }"
+            @scroll.window="showScrollToTop = (window.pageYOffset > 150) ? true : false"
+        >
             @if (user() instanceof \Illuminate\Contracts\Auth\MustVerifyEmail && ! user()->hasVerifiedEmail())
                 <x-card class="bg-amber-400/80! dark:bg-amber-800/80! p-4 lg:px-8 mb-6 lg:mb-8 rounded-lg">
                     <form method="post" action="{{ route('verification.send') }}">
@@ -60,6 +63,15 @@
             @endif
 
             {{ $slot }}
+
+            <div
+                @click="window.scrollTo({top: 0, behavior: 'smooth'})"
+                x-show="showScrollToTop"
+                class="fixed bottom-4 right-4"
+                style="display: none;"
+            >
+                <flux:button icon="arrow-up" />
+            </div>
         </flux:main>
 
         @if (isset($endbody))
