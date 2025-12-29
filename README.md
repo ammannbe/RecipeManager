@@ -1,6 +1,6 @@
 # IMPORTANT
 
-This is a complete rewrite from [RecipeManagerApi](https://github.com/ammannbe/RecipeManagerApi) and [RecipeManagerWeb](https://github.com/ammannbe/RecipeManagerWeb) which in earlier days based on a laravel REST API and a Nuxt.js web frontend.
+This is a complete rewrite from [RecipeManagerApi](https://github.com/ammannbe/RecipeManager/tree/8.x) and [RecipeManagerWeb](https://github.com/ammannbe/RecipeManagerWeb) which in earlier days based on a laravel REST API and a Nuxt.js web frontend.
 
 This setup was very complicated, error prone and the existing codes had a lot of bugs. That's why I decided to adopt the code to a normal laravel app based on [livewire](https://livewire.laravel.com/) and [flux](https://fluxui.dev/).
 
