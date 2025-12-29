@@ -3,8 +3,8 @@
 use App\Enums\Complexity;
 use App\Livewire\Traits\Sortable;
 use App\Models\Category;
-use App\Models\User;
 use App\Models\Recipe;
+use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Collection;
@@ -22,9 +22,7 @@ new class extends Component {
     /** @var Collection<int, Recipe> */
     public Collection $recipes;
 
-    public int $page = 1;
-
-    public int $pagination = 12;
+    public int $pagination = 15;
 
     #[Url(as: 'search', history: true, keep: false)]
     public string $search = '';
@@ -77,15 +75,16 @@ new class extends Component {
      */
     public function with(): array
     {
-        $recipes = Recipe::search($this->searchable, $this->search)
-            ->when(auth()->check(), fn ($q) => $q->where(fn ($subQ) => $subQ->whereNull('cookbook_id')->orWhere('user_id', user()->id)))
+        $recipes = Recipe::withCount('ratings')
+            ->withAvg('ratings', 'stars')
+            ->search($this->searchable, $this->search)
+            ->when(auth()->check(), fn ($q) => $q->where(fn ($subQ) => $subQ->whereNull('cookbook_id')->orWhere('author_id', author()->id)))
             ->when(! auth()->check(), fn ($q) => $q->whereNull('cookbook_id'))
             ->when(in_array($this->sortBy, $this->sortable), fn ($q) => $q->orderBy($this->sortBy, $this->sortDirection)->orderBy('id', 'desc'))
             ->when($this->quick, fn ($q) => $q->where('preparation_time', '<=', '00:30:00'))
             ->when($this->complexity, fn ($q) => $q->where('complexity', $this->complexity))
             ->when($this->category, fn ($q) => $q->where('category_id', $this->category))
-            ->latest()
-            ->paginate($this->pagination, page: $this->page);
+            ->paginate($this->pagination);
 
         $this->recipes = $this->recipes->concat($recipes->items());
 
@@ -99,37 +98,37 @@ new class extends Component {
     public function updated(string $property, mixed $value): void
     {
         if ($property === 'search') {
-            $this->resetPage();
+            $this->resetLoadMore();
         }
     }
 
-    public function resetPage(): void
+    public function resetLoadMore(): void
     {
-        $this->page = 1;
+        $this->resetPage();
         $this->recipes = collect();
     }
 
     public function loadMore(): void
     {
-        $this->page++;
+        $this->nextPage();
     }
 
     public function setQuick(): void
     {
         $this->quick = ! $this->quick;
-        $this->resetPage();
+        $this->resetLoadMore();
     }
 
     public function setComplexity(string $complexity): void
     {
         $this->complexity = $this->complexity === $complexity ? null : $complexity;
-        $this->resetPage();
+        $this->resetLoadMore();
     }
 
     public function setCategory(?int $category = null): void
     {
         $this->category = $category;
-        $this->resetPage();
+        $this->resetLoadMore();
     }
 }; ?>
 
@@ -222,18 +221,18 @@ new class extends Component {
                     @if ($recipe->ratings_count)
                         <div class="flex items-center gap-2">
                             <div class="flex items-center gap-0.5">
-                                @for ($i = 0; $i < $recipe->stars; $i++)
+                                @for ($i = 0; $i < $recipe->ratings_stars; $i++)
                                     <flux:icon.star class="size-3" variant="solid" />
                                 @endfor
 
-                                @for ($i = $recipe->stars; $i < 5; $i++)
+                                @for ($i = $recipe->ratings_stars; $i < 5; $i++)
                                     <flux:icon.star class="size-3" />
                                 @endfor
                             </div>
 
                             <flux:text size="xs">
                                 ({{ __(':stars stars / :ratings ratings', [
-                                    'stars' => $recipe->stars,
+                                    'stars' => $recipe->ratings_stars,
                                     'ratings' => $recipe->ratings_count
                                 ]) }})
                             </flux:text>

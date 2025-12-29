@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Database\Factories\CookbookFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -18,8 +19,21 @@ class Cookbook extends Model
     use SoftDeletes;
 
     protected $fillable = [
+        'author_id',
         'name',
     ];
+
+    /**
+     * The "booted" method of the model.
+     *
+     * @return void
+     */
+    protected static function booted()
+    {
+        static::addGlobalScope('author_name', function (Builder $builder) {
+            $builder->withAggregate('author', 'name');
+        });
+    }
 
     /**
      * @return Attribute<string, never>
@@ -32,11 +46,11 @@ class Cookbook extends Model
     }
 
     /**
-     * @return BelongsTo<User, $this>
+     * @return BelongsTo<Author, $this>
      */
-    public function user(): BelongsTo
+    public function author(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(Author::class);
     }
 
     /**

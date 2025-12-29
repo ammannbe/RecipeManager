@@ -57,7 +57,7 @@ ddev ssh -c 'rm -rf storage/app/images'
 
 - Uninstall `spatie/laravel-markdown`:
 ```bash
-composer require spatie/laravel-markdown
+composer remove spatie/laravel-markdown
 ```
 
 - Verify:

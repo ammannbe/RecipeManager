@@ -23,7 +23,7 @@ class CookbookPolicy
 
     public function view(User $user, Cookbook $cookbook): bool
     {
-        return $user->id === $cookbook->user_id;
+        return $user->author_id === $cookbook->author_id;
     }
 
     public function create(User $user): bool
@@ -33,17 +33,17 @@ class CookbookPolicy
 
     public function update(User $user, Cookbook $cookbook): bool
     {
-        return $user->id === $cookbook->user_id;
+        return $user->author_id === $cookbook->author_id;
     }
 
     public function delete(User $user, Cookbook $cookbook): bool
     {
-        return $user->id === $cookbook->user_id;
+        return $user->author_id === $cookbook->author_id;
     }
 
     public function restore(User $user, Cookbook $cookbook): bool
     {
-        return $user->id === $cookbook->user_id;
+        return $user->author_id === $cookbook->author_id;
     }
 
     public function forceDelete(User $user, Cookbook $cookbook): bool

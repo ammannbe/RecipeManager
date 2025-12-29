@@ -45,7 +45,7 @@ class Ingredient extends Model
                 $unit = $this->unit?->getMatchingName($this->amount_max ?? $this->amount);
 
                 $ingredientAttributes = $this->ingredientAttributes->isNotEmpty()
-                    ? '(' . $this->ingredientAttributes->pluck('name')->implode(', ') . ')'
+                    ? '('.$this->ingredientAttributes->pluck('name')->implode(', ').')'
                     : null;
 
                 $values = [

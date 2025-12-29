@@ -2,25 +2,22 @@
 
 namespace App\Models;
 
+use App\Traits\Searchable;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
-use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
-/**
- * @property string $name
- */
 class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory;
 
     use Notifiable;
+    use Searchable;
     use SoftDeletes;
 
     protected $fillable = [
@@ -34,46 +31,20 @@ class User extends Authenticatable implements MustVerifyEmail
         'remember_token',
     ];
 
-    protected $with = [
-        'author',
-    ];
-
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
     ];
 
-    /**
-     * @return Attribute<string, never>
-     */
-    public function name(): Attribute
-    {
-        return Attribute::make(
-            get: fn () => \Str::slug($this->author->name),
-        );
-    }
+    protected $with = [
+        'author',
+    ];
 
     /**
-     * @return HasOne<Author, $this>
+     * @return BelongsTo<Author, $this>
      */
-    public function author(): HasOne
+    public function author(): BelongsTo
     {
-        return $this->hasOne(Author::class);
-    }
-
-    /**
-     * @return HasMany<Recipe, $this>
-     */
-    public function recipes(): HasMany
-    {
-        return $this->hasMany(Recipe::class);
-    }
-
-    /**
-     * @return HasMany<Cookbook, $this>
-     */
-    public function cookbooks(): HasMany
-    {
-        return $this->hasMany(Cookbook::class);
+        return $this->belongsTo(Author::class);
     }
 }

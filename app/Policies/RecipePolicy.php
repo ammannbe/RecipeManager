@@ -23,7 +23,7 @@ class RecipePolicy
 
     public function view(User $user, Recipe $recipe): bool
     {
-        return ! $recipe->cookbook_id || $user->id === $recipe->cookbook->user_id;
+        return $user->author_id === $recipe->cookbook->author_id || ! $recipe->cookbook_id;
     }
 
     public function create(User $user): bool
@@ -33,21 +33,21 @@ class RecipePolicy
 
     public function update(User $user, Recipe $recipe): bool
     {
-        return $user->id === $recipe->cookbook->user_id;
+        return $user->author_id === $recipe->cookbook->author_id;
     }
 
     public function delete(User $user, Recipe $recipe): bool
     {
-        return $user->id === $recipe->cookbook->user_id;
+        return $user->author_id === $recipe->cookbook->author_id;
     }
 
     public function restore(User $user, Recipe $recipe): bool
     {
-        return $user->id === $recipe->cookbook->user_id;
+        return $user->author_id === $recipe->cookbook->author_id;
     }
 
     public function forceDelete(User $user, Recipe $recipe): bool
     {
-        return $user->id === $recipe->cookbook->user_id;
+        return $user->author_id === $recipe->cookbook->author_id;
     }
 }

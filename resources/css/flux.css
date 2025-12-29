@@ -8,7 +8,7 @@
 }
 
 h1[data-flux-heading].text-2xl {
-    @apply text-4xl leading-10 sm:text-6xl sm:leading-16;
+    @apply text-4xl leading-10 sm:text-5xl sm:leading-14;
 }
 
 h2[data-flux-heading].text-base {
@@ -19,13 +19,16 @@ h3[data-flux-heading].text-base {
     @apply text-2xl sm:text-2xl;
 }
 
+button[data-flux-badge],
+button[data-flux-avatar],
 [data-flux-button],
 [data-flux-date-picker-button],
-button[data-flux-badge],
+[data-flux-pagination] button,
 [data-flux-radio-segmented],
 [data-flux-switch],
 [data-flux-switch] + [data-flux-label],
 [data-flux-option],
+[data-flux-option-create],
 [data-flux-file-upload],
 [data-flux-file-upload-dropzone] > div > div,
 [data-flux-menu-item],

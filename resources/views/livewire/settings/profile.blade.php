@@ -16,7 +16,7 @@ new class extends Component {
      */
     public function mount(): void
     {
-        $this->name = user()->name;
+        $this->name = author()->name;
         $this->email = user()->email;
     }
 
@@ -32,6 +32,7 @@ new class extends Component {
     public function updateProfileInformation(): void
     {
         $user = user();
+        $author = author();
 
         $validated = $this->validate([
             'name' => ['required', 'string', 'max:255'],
@@ -46,15 +47,16 @@ new class extends Component {
             ],
         ]);
 
-        $user->fill($validated);
+        $author->name = $validated['name'];
+        $author->update();
 
+        $user->email = $validated['email'];
         if ($user->isDirty('email')) {
             $user->email_verified_at = null;
         }
-
         $user->save();
 
-        $this->dispatch('profile-updated', name: $user->name);
+        $this->dispatch('profile-updated', name: $author->name);
     }
 
     /**
@@ -80,13 +82,13 @@ new class extends Component {
     @include('partials.settings-heading')
 
     <x-settings.layout :heading="__('Profile')" :subheading="__('Update your name and email address')">
-        <form wire:submit="updateProfileInformation" class="my-6 w-full space-y-6">
+        <form wire:submit="updateProfileInformation" class="my-6 w-full max-w-lg space-y-6">
             <flux:input wire:model="name" :label="__('Name')" type="text" required autofocus autocomplete="name" />
 
             <div>
                 <flux:input wire:model="email" :label="__('Email')" type="email" required autocomplete="email" />
 
-                @if (auth()->user() instanceof \Illuminate\Contracts\Auth\MustVerifyEmail &&! auth()->user()->hasVerifiedEmail())
+                @if (user() instanceof \Illuminate\Contracts\Auth\MustVerifyEmail &&! user()->hasVerifiedEmail())
                     <div>
                         <flux:text class="mt-4">
                             {{ __('Your email address is unverified.') }}

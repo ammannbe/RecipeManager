@@ -20,7 +20,7 @@
 
     <flux:dropdown>
         @auth
-            <flux:profile avatar:name="{{ user()->name }}" />
+            <flux:profile avatar:name="{{ author()->name }}" />
         @endauth
 
         @guest
@@ -56,8 +56,8 @@
             <flux:menu.separator />
 
             @auth
-                @if (user()->is_admin)
-                    <flux:menu.item icon="shield-exclamation" href="{{ route('admin.index') }}" wire:navigate>
+                @if (user()->admin)
+                    <flux:menu.item icon="shield-exclamation" href="{{ route('recipes.index') }}" wire:navigate>
                         <span>{{ __('Admin') }}</span>
                     </flux:menu.item>
                 @elseif (session()->get('admin_logged_in'))

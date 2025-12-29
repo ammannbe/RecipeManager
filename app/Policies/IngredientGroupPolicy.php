@@ -29,26 +29,26 @@ class IngredientGroupPolicy
 
     public function create(User $user, IngredientGroup $group): bool
     {
-        return $user->id === $group->recipe->user_id;
+        return $user->author_id === $group->recipe->author_id;
     }
 
     public function update(User $user, IngredientGroup $group): bool
     {
-        return $user->id === $group->recipe->user_id;
+        return $user->author_id === $group->recipe->author_id;
     }
 
     public function delete(User $user, IngredientGroup $group): bool
     {
-        return $user->id === $group->recipe->user_id;
+        return $user->author_id === $group->recipe->author_id;
     }
 
     public function restore(User $user, IngredientGroup $group): bool
     {
-        return $user->id === $group->recipe->user_id;
+        return $user->author_id === $group->recipe->author_id;
     }
 
     public function forceDelete(User $user, IngredientGroup $group): bool
     {
-        return $user->id === $group->recipe->user_id;
+        return $user->author_id === $group->recipe->author_id;
     }
 }

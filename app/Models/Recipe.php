@@ -34,13 +34,10 @@ class Recipe extends Model
     ];
 
     protected $casts = [
+        'servings' => 'float',
         'complexity' => Complexity::class,
         'preparation_time' => 'datetime:H:i',
         'photos' => AsDocuments::class.':recipes',
-    ];
-
-    protected $withCount = [
-        'ratings',
     ];
 
     /**
@@ -50,16 +47,6 @@ class Recipe extends Model
     {
         return Attribute::make(
             get: fn () => \Str::slug($this->name),
-        );
-    }
-
-    /**
-     * @return Attribute<string, never>
-     */
-    public function stars(): Attribute
-    {
-        return Attribute::make(
-            get: fn () => round((float) $this->ratings()->avg('stars'), 1),
         );
     }
 

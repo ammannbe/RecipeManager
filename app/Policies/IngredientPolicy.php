@@ -28,26 +28,26 @@ class IngredientPolicy
 
     public function create(User $user, Ingredient $ingredient): bool
     {
-        return $user->id === $ingredient->recipe->user_id;
+        return $user->author_id === $ingredient->recipe->author_id;
     }
 
     public function update(User $user, Ingredient $ingredient): bool
     {
-        return $user->id === $ingredient->recipe->user_id;
+        return $user->author_id === $ingredient->recipe->author_id;
     }
 
     public function delete(User $user, Ingredient $ingredient): bool
     {
-        return $user->id === $ingredient->recipe->user_id;
+        return $user->author_id === $ingredient->recipe->author_id;
     }
 
     public function restore(User $user, Ingredient $ingredient): bool
     {
-        return $user->id === $ingredient->recipe->user_id;
+        return $user->author_id === $ingredient->recipe->author_id;
     }
 
     public function forceDelete(User $user, Ingredient $ingredient): bool
     {
-        return $user->id === $ingredient->recipe->user_id;
+        return $user->author_id === $ingredient->recipe->author_id;
     }
 }

@@ -2,10 +2,10 @@
 
 namespace Database\Factories;
 
+use App\Models\Author;
 use App\Models\Rating;
 use App\Models\RatingCriterion;
 use App\Models\Recipe;
-use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -20,7 +20,7 @@ class RatingFactory extends Factory
     {
         return [
             'recipe_id' => Recipe::factory(),
-            'user_id' => User::factory(),
+            'author_id' => Author::factory(),
             'rating_criterion_id' => RatingCriterion::factory(),
             'comment' => $this->faker->text(),
             'stars' => rand(0, 5),

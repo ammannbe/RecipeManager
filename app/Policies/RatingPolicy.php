@@ -33,21 +33,21 @@ class RatingPolicy
 
     public function update(User $user, Rating $rating): bool
     {
-        return $user->id === $rating->user_id;
+        return $user->author_id === $rating->author_id;
     }
 
     public function delete(User $user, Rating $rating): bool
     {
-        return $user->id === $rating->user_id;
+        return $user->author_id === $rating->author_id;
     }
 
     public function restore(User $user, Rating $rating): bool
     {
-        return $user->id === $rating->user_id;
+        return $user->author_id === $rating->author_id;
     }
 
     public function forceDelete(User $user, Rating $rating): bool
     {
-        return $user->id === $rating->user_id;
+        return $user->author_id === $rating->author_id;
     }
 }

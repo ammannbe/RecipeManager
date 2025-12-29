@@ -2,6 +2,9 @@
     <div class="me-10 w-full pb-4 md:w-55">
         <flux:navlist>
             <flux:navlist.item :href="route('settings.profile')" wire:navigate>{{ __('Profile') }}</flux:navlist.item>
+            @if (user()->admin)
+                <flux:navlist.item :href="route('settings.authors')" wire:navigate>{{ __('Authors') }}</flux:navlist.item>
+            @endif
             <flux:navlist.item :href="route('settings.recipes')" wire:navigate>{{ __('Recipes') }}</flux:navlist.item>
             <flux:navlist.item :href="route('settings.password')" wire:navigate>{{ __('Password') }}</flux:navlist.item>
         </flux:navlist>
@@ -13,7 +16,7 @@
         <flux:heading>{{ $heading ?? '' }}</flux:heading>
         <flux:subheading>{{ $subheading ?? '' }}</flux:subheading>
 
-        <div class="mt-5 w-full max-w-lg">
+        <div class="mt-5 w-full">
             {{ $slot }}
         </div>
     </div>

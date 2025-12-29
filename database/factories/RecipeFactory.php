@@ -7,7 +7,6 @@ use App\Models\Author;
 use App\Models\Category;
 use App\Models\Cookbook;
 use App\Models\Recipe;
-use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -21,15 +20,10 @@ class RecipeFactory extends Factory
     public function definition(): array
     {
         return [
-            'user_id' => User::factory(),
-            'author_id' => function (array $attributes) {
-                return $this->faker->randomElement(
-                    Author::whereUserId($attributes['user_id'])->pluck('id')
-                );
-            },
+            'author_id' => Author::factory(),
             'cookbook_id' => function (array $attributes) {
                 return $this->faker->optional()->randomElement(
-                    Cookbook::whereUserId($attributes['user_id'])->pluck('id')
+                    Cookbook::whereAuthorId($attributes['author_id'])->pluck('id')
                 );
             },
             'category_id' => Category::factory(),

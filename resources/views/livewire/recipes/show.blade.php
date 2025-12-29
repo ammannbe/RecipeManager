@@ -20,11 +20,19 @@ new class extends Component {
     public function mount(): void
     {
         $this->servings = $this->recipe->servings;
-        $this->recipe->load(['ingredients.ingredients', 'ingredients.ingredientGroup', 'ingredientGroups']);
     }
 
     public function rendering(View $view): void
     {
+        $this->recipe->load([
+            'ingredients',
+            'ingredients.ingredients',
+            'ingredients.ingredientGroup',
+            'ingredients.food',
+            'ingredients.unit',
+            'ingredientGroups',
+        ]);
+
         if (user()) {
             $view->layout('layouts.app');
         } else {
@@ -70,18 +78,18 @@ new class extends Component {
         @if ($recipe->ratings_count)
             <div class="flex items-center gap-2">
                 <div class="flex items-center gap-0.5">
-                    @for ($i = 0; $i < $recipe->stars; $i++)
+                    @for ($i = 0; $i < $recipe->ratings_stars; $i++)
                         <flux:icon.star class="size-5" variant="solid" />
                     @endfor
 
-                    @for ($i = $recipe->stars; $i < 5; $i++)
+                    @for ($i = $recipe->ratings_stars; $i < 5; $i++)
                         <flux:icon.star class="size-5 text-amber-400" />
                     @endfor
                 </div>
 
                 <flux:text class="leading-tight">
                     ({{ __(':stars stars / :ratings ratings', [
-                        'stars' => $recipe->stars,
+                        'stars' => $recipe->ratings_stars,
                         'ratings' => $recipe->ratings_count
                     ]) }})
                 </flux:text>
@@ -89,19 +97,33 @@ new class extends Component {
         @endif
     </div>
 
-    <div class="flex flex-wrap gap-16">
+    <div class="flex flex-col md:flex-row gap-4 md:gap-16">
         <div class="flex items-center gap-4">
             <div class="flex items-center gap-2">
                 <flux:button variant="filled" size="xs" icon="minus" :disabled="$servings <= 1" wire:click="decreaseServings()" />
                 <flux:button variant="filled" size="xs" icon="plus" wire:click="increaseServings()" />
             </div>
 
-            <flux:heading size="lg">
+            <flux:text variant="strong" class="text-lg">
                 {{ $servings }} {{ $recipe->serving_type ?? __('servings') }}
-            </flux:heading>
+            </flux:text>
+
+            <flux:tooltip toggleable>
+                <flux:button
+                    icon="information-circle"
+                    variant="ghost"
+                    size="sm"
+                    class="{{ $servings === $recipe->servings ? 'invisible pointer-events-none' : '' }}"
+                />
+
+                <flux:tooltip.content class="max-w-[20rem] space-y-2">
+                    <p>{{ __('Please note: The conversion is done automatically. Not all recipes can be converted automatically on a 1:1 basis.') }}</p>
+                    <p>{{ __('Information in the text and cooking and baking times have not been adjusted automatically.') }}</p>
+                </flux:tooltip.content>
+            </flux:tooltip>
         </div>
 
-        <div class="flex items-center gap-8">
+        <div class="flex items-center gap-6">
             @if ($recipe->preparation_time)
                 <flux:badge variant="pill" icon="clock">
                     {{ $recipe->preparation_time->format('H:i') }}
@@ -134,7 +156,7 @@ new class extends Component {
 
             <div class="space-y-6">
                 @foreach ($recipe->ingredients->groupBy('ingredient_group_id') as $key => $ingredients)
-                    <hr class="border-zinc-300">
+                    <flux:separator />
 
                     <div class="space-y-2">
                         <flux:heading size="lg" level="3" class="mb-4">
@@ -144,14 +166,17 @@ new class extends Component {
                         @foreach ($ingredients->filter(fn ($i) => ! $i->ingredient_id) as $ingredient)
                             <div>
                                 <div class="flex flex-cols-2 gap-2 text-lg">
-                                    <div class="font-bold w-20">{{ $ingredient->getAmountAndUnit(1 / $recipe->servings * $servings) }}</div>
-                                    <div>{{ $ingredient->food?->name }}</div>
+                                    <div class="w-full max-w-32 sm:w-20">
+                                        <flux:text class="text-lg" variant="strong">
+                                            {{ $ingredient->getAmountAndUnit(1 / $recipe->servings * $servings) }}
+                                        </flux:text>
+                                    </div>
+                                    <flux:text class="text-lg">{{ $ingredient->food?->name }}</flux:text>
                                 </div>
 
                                 @foreach ($ingredient->ingredients as $i)
-                                    <div class="flex flex-cols-2 gap-2">
-                                        <div class="w-20"></div>
-                                        <div>{{ __('→ or :ingredient', ['ingredient' => $i->name]) }}</div>
+                                    <div class="flex flex-cols-2 gap-2 ml-2">
+                                        <flux:text>{{ __('→ or :ingredient', ['ingredient' => $i->name]) }}</flux:text>
                                     </div>
                                 @endforeach
                             </div>

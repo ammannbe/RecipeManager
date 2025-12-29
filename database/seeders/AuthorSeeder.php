@@ -6,7 +6,7 @@ use App\Models\Author;
 use App\Models\User;
 use Illuminate\Database\Seeder;
 
-class UserSeeder extends Seeder
+class AuthorSeeder extends Seeder
 {
     /**
      * Run the database seeds.
@@ -16,19 +16,19 @@ class UserSeeder extends Seeder
     public function run()
     {
         if (! User::whereEmail(config('mail.from.address'))->exists()) {
-            User::factory()
+            Author::factory()
                 ->create(['email' => config('mail.from.address')])
-                ->each(function (User $user) {
-                    $author = Author::factory()->make([
+                ->each(function (Author $author) {
+                    $user = User::factory()->make([
                         'name' => config('mail.from.name'),
                     ]);
 
-                    return $user->author()->save($author);
+                    return $author->user()->save($user);
                 });
         }
 
-        User::factory(20)->create()->each(function (User $user) {
-            return $user->author()->save(Author::factory()->make());
+        Author::factory(20)->create()->each(function (Author $author) {
+            return $author->user()->save(User::factory()->make());
         });
     }
 }
