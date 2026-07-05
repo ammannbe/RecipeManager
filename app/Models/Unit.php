@@ -33,9 +33,9 @@ class Unit extends Model
         );
     }
 
-    public function getMatchingName(int|float $amount): string
+    public function getMatchingName(int|float|null $amount = null): string
     {
-        if ($amount >= 1 || $amount === 0 || $amount === 0.0) {
+        if ($amount === null || $amount >= 1 || $amount === 0 || $amount === 0.0) {
             return $this->name_plural_shortcut
                 ?? $this->name_shortcut
                 ?? $this->name_plural

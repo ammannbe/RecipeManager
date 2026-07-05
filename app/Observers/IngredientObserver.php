@@ -11,6 +11,14 @@ class IngredientObserver
         if ($ingredient->ingredient_id) {
             $ingredient->ingredient_group_id = $ingredient->ingredient->ingredient_group_id;
         }
+
+        if (! $ingredient->recipe_id && $ingredient->ingredient_group_id) {
+            $ingredient->recipe_id = $ingredient->ingredientGroup?->recipe_id;
+        }
+
+        if (! $ingredient->recipe_id && $ingredient->ingredient_id) {
+            $ingredient->recipe_id = $ingredient->ingredient?->recipe_id;
+        }
     }
 
     public function deleted(Ingredient $ingredient): void

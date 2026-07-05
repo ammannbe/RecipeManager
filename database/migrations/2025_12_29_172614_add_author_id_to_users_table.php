@@ -17,7 +17,7 @@ return new class extends Migration
                 ->nullable();
         });
 
-        \DB::statement('
+        DB::statement('
             UPDATE users
             INNER JOIN authors
                 ON authors.user_id = users.id

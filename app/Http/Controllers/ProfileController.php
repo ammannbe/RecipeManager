@@ -12,10 +12,6 @@ class ProfileController extends Controller
             abort(400);
         }
 
-        if (auth()->check()) {
-            user()->update(['locale' => $locale]);
-        }
-
         session()->put('locale', $locale);
         app()->setLocale($locale);
 

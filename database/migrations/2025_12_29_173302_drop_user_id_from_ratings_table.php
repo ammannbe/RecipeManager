@@ -25,7 +25,7 @@ return new class extends Migration
             $table->unsignedBigInteger('user_id')->after('name')->nullable();
         });
 
-        \DB::statement('
+        DB::statement('
             UPDATE ratings
             INNER JOIN users
                 ON users.author_id = ratings.author_id

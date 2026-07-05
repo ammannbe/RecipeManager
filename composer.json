@@ -3,34 +3,28 @@
     "name": "laravel/laravel",
     "type": "project",
     "description": "A tool to manage your families and friends recipes like a chef.",
-    "keywords": [
-        "cookbook",
-        "recipes"
-    ],
+    "keywords": ["cookbook", "recipes"],
     "license": "MIT",
     "require": {
-        "php": "^8.2",
-        "barryvdh/laravel-dompdf": "^3.1",
+        "php": "^8.3",
         "lamansky/fraction": "^1.0",
-        "laravel/fortify": "^1.30",
-        "laravel/framework": "^12.0",
-        "laravel/tinker": "^2.10.1",
-        "livewire/flux": "^2.10.0",
-        "livewire/flux-pro": "^2.10",
-        "livewire/volt": "^1.7.0",
-        "spatie/laravel-honeypot": "^4.6"
+        "filament/filament": "^5.6",
+        "laravel/framework": "^13.8",
+        "laravel/tinker": "^3.0",
+        "livewire/livewire": "^4.3"
     },
     "require-dev": {
-        "barryvdh/laravel-ide-helper": "^3.6",
-        "barryvdh/laravel-translation-manager": "^0.6.8",
+        "barryvdh/laravel-ide-helper": "^3.7",
         "fakerphp/faker": "^1.23",
-        "itsgoingd/clockwork": "^5.3",
-        "larastan/larastan": "^3.8",
-        "laravel/pail": "^1.2.2",
-        "laravel/pint": "^1.24",
+        "larastan/larastan": "^3.10",
+        "laravel/breeze": "^2.4",
+        "laravel/pail": "^1.2.5",
+        "laravel/pao": "^1.0.6",
+        "laravel/pint": "^1.29",
         "mockery/mockery": "^1.6",
         "nunomaduro/collision": "^8.6",
-        "phpunit/phpunit": "^11.5.3"
+        "pestphp/pest": "^4.7",
+        "pestphp/pest-plugin-laravel": "^4.1"
     },
     "autoload": {
         "psr-4": {
@@ -50,16 +44,26 @@
             "@php -r \"file_exists('.env') || copy('.env.example', '.env');\"",
             "@php artisan key:generate",
             "@php artisan migrate --force",
-            "npm install",
+            "npm install --ignore-scripts",
             "npm run build"
         ],
         "dev": [
             "Composer\\Config::disableProcessTimeout",
             "npx concurrently -c \"#93c5fd,#c4b5fd,#fb7185,#fdba74\" \"php artisan serve\" \"php artisan queue:listen --tries=1\" \"php artisan pail --timeout=0\" \"npm run dev\" --names=server,queue,logs,vite --kill-others"
         ],
+        "ide-helper": [
+            "@php artisan ide-helper:generate",
+            "@php artisan ide-helper:models -R -N"
+        ],
         "test": [
-            "@php artisan config:clear --ansi",
+            "@php artisan config:clear --ansi @no_additional_args",
             "@php artisan test"
+        ],
+        "pint": [
+            "@php ./vendor/bin/pint"
+        ],
+        "phpstan": [
+            "@php ./vendor/bin/phpstan analyse"
         ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
@@ -78,22 +82,6 @@
         ],
         "pre-package-uninstall": [
             "Illuminate\\Foundation\\ComposerScripts::prePackageUninstall"
-        ],
-        "ide-helper": [
-            "@php artisan ide-helper:generate",
-            "@php artisan ide-helper:models -R -N"
-        ],
-        "pint": [
-            "@php ./vendor/bin/pint"
-        ],
-        "phpstan": [
-            "@php ./vendor/bin/phpstan analyse"
-        ],
-        "quality": [
-            "@php artisan ide-helper:generate",
-            "@php artisan ide-helper:models -R -N",
-            "@php ./vendor/bin/pint",
-            "@php ./vendor/bin/phpstan analyse"
         ]
     },
     "extra": {
@@ -111,10 +99,5 @@
         }
     },
     "minimum-stability": "stable",
-    "prefer-stable": true,
-    "repositories": [{
-        "name": "flux-pro",
-        "type": "composer",
-        "url": "https://composer.fluxui.dev"
-    }]
+    "prefer-stable": true
 }

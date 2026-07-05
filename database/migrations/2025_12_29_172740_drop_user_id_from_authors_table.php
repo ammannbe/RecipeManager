@@ -29,7 +29,7 @@ return new class extends Migration
                 ->restrictOnDelete();
         });
 
-        \DB::statement('
+        DB::statement('
             UPDATE authors
             INNER JOIN users
                 ON users.author_id = authors.id

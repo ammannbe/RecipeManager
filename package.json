@@ -6,24 +6,14 @@
         "dev": "vite",
         "build": "vite build"
     },
-    "dependencies": {
-        "@fontsource-variable/lora": "^5.2.8",
-        "@fontsource-variable/nunito": "^5.2.7",
-        "@fontsource/lora": "^5.2.8",
-        "@fontsource/nunito": "^5.2.7",
-        "@tailwindcss/forms": "^0.5.10",
-        "@tailwindcss/typography": "^0.5.19",
-        "@tailwindcss/vite": "^4.1.17",
-        "autoprefixer": "^10.4.22",
-        "axios": "^1.13.2",
-        "concurrently": "^9.0.1",
-        "laravel-vite-plugin": "^2.0",
+    "devDependencies": {
+        "@tailwindcss/forms": "^0.5.11",
+        "@tailwindcss/vite": "^4.3.1",
+        "alpinejs": "^3.15.12",
+        "autoprefixer": "^10.5.0",
+        "concurrently": "^9.2.3",
+        "laravel-vite-plugin": "^3.1.0",
         "tailwindcss": "^4.1.10",
-        "vite": "^7.0.4"
-    },
-    "optionalDependencies": {
-        "@rollup/rollup-linux-x64-gnu": "4.9.5",
-        "@tailwindcss/oxide-linux-x64-gnu": "^4.0.1",
-        "lightningcss-linux-x64-gnu": "^1.29.1"
+        "vite": "^8.0.16"
     }
 }

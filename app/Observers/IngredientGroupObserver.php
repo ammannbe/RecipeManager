@@ -11,4 +11,11 @@ class IngredientGroupObserver
     {
         $ingredientGroup->ingredients()->each(fn (Ingredient $i) => $i->delete());
     }
+
+    public function deleted(IngredientGroup $ingredientGroup): void
+    {
+        if ($ingredientGroup->trashed()) {
+            $ingredientGroup->update(['position' => null]);
+        }
+    }
 }

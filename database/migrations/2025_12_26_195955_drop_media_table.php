@@ -15,10 +15,10 @@ return new class extends Migration
             $table->json('photos')->nullable()->default(null)->after('instructions');
         });
 
-        \DB::table('media')->get()->each(function ($media) {
-            $fileName = $media->uuid.'.'.\Str::of($media->mime_type)->after('/');
+        DB::table('media')->get()->each(function ($media) {
+            $fileName = $media->uuid.'.'.Str::of($media->mime_type)->after('/');
 
-            $recipe = \DB::table('recipes')->find($media->model_id);
+            $recipe = DB::table('recipes')->find($media->model_id);
 
             if (! file_exists(storage_path('app/public/recipes/'.$media->model_id))) {
                 mkdir(storage_path('app/public/recipes/'.$media->model_id));
@@ -33,7 +33,7 @@ return new class extends Migration
 
             $photos[] = $fileName;
 
-            \DB::table('recipes')
+            DB::table('recipes')
                 ->where('id', $recipe->id) // @phpstan-ignore-line
                 ->update(['photos' => $photos]);
         });

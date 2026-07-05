@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Builder;
 trait Searchable
 {
     /**
-     * @param  \Illuminate\Database\Eloquent\Builder<self>  $query
+     * @param  Builder<self>  $query
      * @param  array<mixed>|string  $fields
      */
     public function scopeSearch(Builder $query, array|string $fields, mixed $value): void

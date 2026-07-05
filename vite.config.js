@@ -4,14 +4,14 @@ import tailwindcss from "@tailwindcss/vite";
 
 export default defineConfig({
     plugins: [
+        tailwindcss(),
         laravel({
             input: [
                 'resources/css/app.css',
                 'resources/js/app.js',
             ],
             refresh: true,
-        }),
-        tailwindcss(),
+        })
     ],
     server: {
         // Respond to all network requests
@@ -29,9 +29,6 @@ export default defineConfig({
         // supports additional hostnames (via regex). If you use another `project_tld`, adjust this.
         cors: {
             origin: /https?:\/\/([A-Za-z0-9\-\.]+)?(\.ddev\.site)(?::\d+)?$/,
-        },
-        watch: {
-            ignored: ['**/storage/framework/views/**'],
         },
     },
 });

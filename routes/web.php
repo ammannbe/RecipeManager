@@ -1,18 +1,10 @@
 <?php
 
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\RecipeController;
 use Illuminate\Support\Facades\Route;
-use Livewire\Volt\Volt;
 
-Volt::route('/', 'recipes.index')->name('recipes.index');
-Volt::route('/recipes/{recipe}', 'recipes.show')->name('recipes.show');
+Route::get('/', [RecipeController::class, 'index'])->name('recipes.index');
+Route::get('/recipes/{recipe}', [RecipeController::class, 'show'])->name('recipes.show');
 
 Route::post('/profile/{locale}', [ProfileController::class, 'locale'])->name('profile.locale');
-Route::middleware(['auth'])->group(function () {
-    Route::redirect('settings', 'settings/profile');
-
-    Volt::route('settings/profile', 'settings.profile')->name('settings.profile');
-    Volt::route('settings/password', 'settings.password')->name('settings.password');
-    Volt::route('settings/users', 'settings.authors')->name('settings.authors');
-    Volt::route('settings/recipes', 'settings.recipes')->name('settings.recipes');
-});

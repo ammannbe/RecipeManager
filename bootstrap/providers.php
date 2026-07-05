@@ -1,8 +1,11 @@
 <?php
 
+use App\Providers\AppServiceProvider;
+use App\Providers\Filament\AppPanelProvider;
+use App\Providers\ObserverServiceProvider;
+
 return [
-    App\Providers\AppServiceProvider::class,
-    App\Providers\FortifyServiceProvider::class,
-    App\Providers\VoltServiceProvider::class,
-    App\Providers\ObserverServiceProvider::class,
+    AppServiceProvider::class,
+    AppPanelProvider::class,
+    ObserverServiceProvider::class,
 ];

@@ -68,11 +68,12 @@ echo "Following steps will be executed:"
 echo "   1. Set app offline"
 echo "   2. Pull code from '$($CMD_GIT rev-parse --abbrev-ref HEAD)'"
 echo "   3. Install composer packages"
-echo "   4. Run migrations"
-echo "   4. Clear cache"
-echo "   5. Install npm packages"
-echo "   6. Build npm packages"
-echo "   7. Set app online"
+echo "   4. Publish Filament assets"
+echo "   5. Run migrations"
+echo "   6. Clear cache"
+echo "   7. Install npm packages"
+echo "   8. Build npm packages"
+echo "   9. Set app online"
 echo
 [[ -z $CMD_NPM ]] && echo "  NOTE: npm is not available, skipping step 5 & 6 for JS & CSS." && echo
 confirm
@@ -87,6 +88,10 @@ check_or_abort $? $CURRENT_STEP
 
 step "Install composer packages..."
 $CMD_COMPOSER install --optimize-autoloader --no-interaction --no-dev
+check_or_abort $? $CURRENT_STEP
+
+step "Publish Filament assets..."
+$CMD_ARTISAN filament:assets
 check_or_abort $? $CURRENT_STEP
 
 step "Run migrations..."

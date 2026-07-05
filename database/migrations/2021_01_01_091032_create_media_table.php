@@ -47,26 +47,26 @@ class CreateMediaTable extends Migration
      */
     private function migratePhotos(): void
     {
-        if (empty(\Storage::disk('recipe_photos')->directories())) {
+        if (empty(Storage::disk('recipe_photos')->directories())) {
             return;
         }
 
         $path = storage_path('app/images/recipes');
         $pathOld = storage_path('app/images/recipes.old');
 
-        \File::moveDirectory($path, $pathOld);
-        \Storage::disk('recipe_photos')->makeDirectory('');
-        if (\File::exists("{$pathOld}/.gitignore")) {
-            \File::copy("{$pathOld}/.gitignore", "{$path}/.gitignore");
+        File::moveDirectory($path, $pathOld);
+        Storage::disk('recipe_photos')->makeDirectory('');
+        if (File::exists("{$pathOld}/.gitignore")) {
+            File::copy("{$pathOld}/.gitignore", "{$path}/.gitignore");
         }
-        /** @var \App\Models\Recipe[] */
+        /** @var Recipe[] */
         $recipes = Recipe::withoutGlobalScopes()->whereNotNull('photos')->get();
         foreach ($recipes as $recipe) {
-            if (! \File::exists("{$pathOld}/{$recipe->id}")) {
+            if (! File::exists("{$pathOld}/{$recipe->id}")) {
                 continue;
             }
 
-            $files = \File::files("{$pathOld}/{$recipe->id}");
+            $files = File::files("{$pathOld}/{$recipe->id}");
 
             foreach ($files as $file) {
                 $recipe->addMedia($file->getPathname())->toMediaCollection('recipe_photos'); // @phpstan-ignore-line

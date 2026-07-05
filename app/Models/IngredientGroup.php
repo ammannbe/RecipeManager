@@ -18,6 +18,7 @@ class IngredientGroup extends Model
 
     protected $fillable = [
         'name',
+        'position',
     ];
 
     /**
@@ -33,6 +34,6 @@ class IngredientGroup extends Model
      */
     public function ingredients(): HasMany
     {
-        return $this->hasMany(Ingredient::class);
+        return $this->hasMany(Ingredient::class)->orderBy('position');
     }
 }

@@ -6,7 +6,7 @@ use Illuminate\Contracts\Filesystem\Filesystem;
 use Livewire\Features\SupportFileUploads\TemporaryUploadedFile;
 use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
-class Document
+class Document implements \JsonSerializable
 {
     public function __construct(
         protected string $path,
@@ -118,5 +118,10 @@ class Document
         }
 
         return response()->download($this->path(), $this->name(urlencode: true));
+    }
+
+    public function jsonSerialize(): string
+    {
+        return $this->name();
     }
 }

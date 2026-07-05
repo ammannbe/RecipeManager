@@ -31,6 +31,7 @@ class Recipe extends Model
         'complexity',
         'instructions',
         'preparation_time',
+        'photos',
     ];
 
     protected $casts = [
@@ -87,7 +88,17 @@ class Recipe extends Model
      */
     public function ingredients(): HasMany
     {
-        return $this->hasMany(Ingredient::class);
+        return $this->hasMany(Ingredient::class)->orderBy('position');
+    }
+
+    /**
+     * @return HasMany<Ingredient, $this>
+     */
+    public function ungroupedIngredients(): HasMany
+    {
+        return $this->hasMany(Ingredient::class)
+            ->whereNull('ingredient_group_id')
+            ->orderBy('position');
     }
 
     /**
@@ -95,7 +106,7 @@ class Recipe extends Model
      */
     public function ingredientGroups(): HasMany
     {
-        return $this->hasMany(IngredientGroup::class);
+        return $this->hasMany(IngredientGroup::class)->orderBy('position');
     }
 
     /**
