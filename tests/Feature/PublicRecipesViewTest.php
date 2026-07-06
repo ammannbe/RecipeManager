@@ -58,9 +58,9 @@ class PublicRecipesViewTest extends TestCase
             'recipe' => $recipe,
         ]);
 
-        $view->assertSee('recipes-slideshow', false);
-        $view->assertSee('recipes-slideshow-control-prev', false);
-        $view->assertSee('recipes-slideshow-control-next', false);
-        $view->assertSee('recipes-slideshow-dot', false);
+        $view->assertSee('aspect-[4/3]', false);
+        $view->assertSee(__('Previous image'));
+        $view->assertSee(__('Next image'));
+        $view->assertSee(__('Recipe images'));
     }
 }

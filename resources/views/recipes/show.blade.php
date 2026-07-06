@@ -6,43 +6,48 @@
     <title>{{ $recipe->name }} - {{ config('app.name') }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="recipes-body text-zinc-900">
-    <nav class="recipes-nav sticky top-0 z-20">
-        <div class="recipes-container recipes-nav-inner">
-            <a href="{{ route('recipes.index') }}" class="recipes-brand">
+<body class="min-h-screen bg-zinc-50 text-zinc-900">
+    <div class="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+        <div class="absolute -top-32 left-0 h-112 w-160 rounded-full bg-[radial-gradient(circle,rgba(251,191,36,0.22),transparent_70%)] blur-3xl"></div>
+        <div class="absolute -top-44 right-0 h-112 w-xl rounded-full bg-[radial-gradient(circle,rgba(59,130,246,0.16),transparent_72%)] blur-3xl"></div>
+    </div>
+
+    <nav class="sticky top-0 z-20 border-b border-zinc-200/80 bg-white/90 backdrop-blur">
+        <div class="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-6 py-4">
+            <a href="{{ route('recipes.index') }}" class="inline-flex items-center gap-3 font-semibold tracking-tight text-zinc-900">
                 <img src="{{ asset('favicon.ico') }}" alt="{{ config('app.name') }}" class="h-8 w-8 rounded-lg">
                 <span>{{ config('app.name') }}</span>
             </a>
 
             @guest
-                <a href="{{ url('/admin/login') }}" class="recipes-top-button">{{ __('Login') }}</a>
+                <a href="{{ url('/admin/login') }}" class="inline-flex items-center rounded-xl border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 shadow-sm transition hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900">{{ __('Login') }}</a>
             @endguest
 
             @auth
-                <a href="{{ url('/admin') }}" class="recipes-top-button">{{ __('Backend') }}</a>
+                <a href="{{ url('/admin') }}" class="inline-flex items-center rounded-xl border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 shadow-sm transition hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900">{{ __('Backend') }}</a>
             @endauth
         </div>
     </nav>
 
-    <main class="recipes-container recipes-main">
+    <main class="mx-auto grid w-full max-w-5xl gap-6 px-6 py-8 pb-32 lg:gap-8 lg:py-10">
         <div class="flex items-center justify-between gap-3">
-            <a href="{{ route('recipes.index') }}" class="recipes-back-link">{{ __('Back to recipes') }}</a>
+            <a href="{{ route('recipes.index') }}" class="text-sm font-bold text-zinc-600 transition hover:text-zinc-900">{{ __('Back to recipes') }}</a>
 
             @if (user() && (user()->admin || user()->author_id === $recipe->author_id))
                 <a
                     href="{{ \App\Filament\Resources\Recipes\RecipeResource::getUrl('edit', ['record' => $recipe]) }}"
-                    class="recipes-top-button"
+                    class="inline-flex items-center rounded-xl border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 shadow-sm transition hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900"
                 >
                     {{ __('Edit') }}
                 </a>
             @endif
         </div>
 
-        <article class="recipes-detail-shell">
-            <header class="recipes-detail-header">
-                <h1 class="recipes-page-title">{{ $recipe->name }}</h1>
+        <article class="grid gap-5 rounded-2xl border border-zinc-200 bg-white p-5 shadow-[0_18px_35px_-30px_rgba(15,23,42,0.75)] md:gap-6 md:p-6">
+            <header class="grid gap-2">
+            <h1 class="text-[clamp(2rem,1.5rem+1.4vw,2.75rem)] font-extrabold leading-none tracking-[-0.03em] text-zinc-900">{{ $recipe->name }}</h1>
 
-                <div class="recipes-detail-meta">
+                <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-zinc-600">
                     <span>{{ $recipe->author?->name }}</span>
                     <span>•</span>
                     <span>{{ $recipe->category?->name }}</span>
@@ -90,48 +95,48 @@
                             this.prev();
                         },
                     }"
-                    class="recipes-slideshow"
+                    class="grid gap-3"
                 >
                     <div
-                        class="recipes-slideshow-frame"
+                        class="relative aspect-16/10 overflow-hidden rounded-xl touch-pan-y"
                         @touchstart.passive="onTouchStart($event)"
                         @touchend.passive="onTouchEnd($event)"
                     >
                         <img
                             :src="images[current]"
                             alt="{{ $recipe->name }}"
-                            class="recipes-detail-image recipes-slideshow-image"
+                            class="h-full w-full object-cover"
                         >
 
                         <button
                             type="button"
-                            class="recipes-slideshow-control recipes-slideshow-control-prev"
+                            class="absolute left-3 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-white/80 bg-zinc-900/65 text-white backdrop-blur-[3px] transition hover:bg-zinc-900/80 active:scale-95"
                             @click="prev()"
                             aria-label="{{ __('Previous image') }}"
                         >
-                            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" class="recipes-slideshow-control-icon">
+                            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" class="h-4 w-4">
                                 <path d="M15 18L9 12L15 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                             </svg>
                         </button>
 
                         <button
                             type="button"
-                            class="recipes-slideshow-control recipes-slideshow-control-next"
+                            class="absolute right-3 top-1/2 inline-flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-full border border-white/80 bg-zinc-900/65 text-white backdrop-blur-[3px] transition hover:bg-zinc-900/80 active:scale-95"
                             @click="next()"
                             aria-label="{{ __('Next image') }}"
                         >
-                            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" class="recipes-slideshow-control-icon">
+                            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" class="h-4 w-4">
                                 <path d="M9 18L15 12L9 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                             </svg>
                         </button>
                     </div>
 
-                    <div class="recipes-slideshow-dots" role="tablist" aria-label="{{ __('Recipe images') }}">
+                    <div class="flex flex-wrap justify-center gap-1.5" role="tablist" aria-label="{{ __('Recipe images') }}">
                         <template x-for="(image, index) in images" :key="`dot-${index}`">
                             <button
                                 type="button"
-                                class="recipes-slideshow-dot"
-                                :class="{ 'is-active': current === index }"
+                                class="h-2.5 w-2.5 rounded-full bg-zinc-300 transition"
+                                :class="{ 'scale-110 bg-zinc-800': current === index }"
                                 @click="current = index"
                                 :aria-label="`{{ __('Image') }} ${index + 1}`"
                             ></button>
@@ -142,22 +147,22 @@
                 <img
                     src="{{ $photoUrls->first() }}"
                     alt="{{ $recipe->name }}"
-                    class="recipes-detail-image"
+                    class="max-h-112 w-full rounded-xl object-cover"
                 >
             @endif
 
-            <div class="recipes-detail-grid">
-                <section class="recipes-detail-card">
-                    <h2 class="recipes-section-title">{{ __('Ingredients') }}</h2>
+            <div class="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)] md:gap-5">
+                <section class="rounded-xl border border-zinc-200 bg-white p-5 md:p-6">
+                    <h2 class="mb-3 text-[1.1rem] font-semibold leading-tight text-zinc-900">{{ __('Ingredients') }}</h2>
 
                     <div class="space-y-5">
                         @php($ungroupedIngredients = $recipe->ingredients->whereNull('ingredient_group_id'))
 
                         @if ($ungroupedIngredients->isNotEmpty())
-                            <ul class="recipes-ingredient-list">
+                            <ul class="grid gap-1 text-sm leading-6 text-zinc-700">
                                 @foreach ($ungroupedIngredients->filter(fn ($ingredient) => ! $ingredient->ingredient_id) as $ingredient)
                                     <li>
-                                        <span class="recipes-ingredient-amount">{{ $ingredient->getAmountAndUnit() }}</span>
+                                        <span class="font-bold">{{ $ingredient->getAmountAndUnit() }}</span>
                                         {{ $ingredient->food?->name }}
                                     </li>
                                 @endforeach
@@ -168,14 +173,14 @@
                             @php($ingredients = $recipe->ingredients->where('ingredient_group_id', $group->id))
 
                             <div>
-                                <h3 class="recipes-group-title">
+                                <h3 class="mb-2 text-[0.95rem] font-semibold leading-tight text-zinc-700">
                                     {{ $group->name }}
                                 </h3>
 
-                                <ul class="recipes-ingredient-list">
+                                <ul class="grid gap-1 text-sm leading-6 text-zinc-700">
                                     @foreach ($ingredients->filter(fn ($ingredient) => ! $ingredient->ingredient_id) as $ingredient)
                                         <li>
-                                            <span class="recipes-ingredient-amount">{{ $ingredient->getAmountAndUnit() }}</span>
+                                            <span class="font-bold">{{ $ingredient->getAmountAndUnit() }}</span>
                                             {{ $ingredient->food?->name }}
                                         </li>
                                     @endforeach
@@ -185,9 +190,9 @@
                     </div>
                 </section>
 
-                <section class="recipes-detail-card">
-                    <h2 class="recipes-section-title">{{ __('Preparation') }}</h2>
-                    <div class="recipe-instructions">
+                <section class="rounded-xl border border-zinc-200 bg-white p-5 md:p-6">
+                    <h2 class="mb-3 text-[1.1rem] font-semibold leading-tight text-zinc-900">{{ __('Preparation') }}</h2>
+                    <div class="text-sm leading-7 text-zinc-700 [&_blockquote]:mb-3 [&_blockquote]:text-zinc-700 [&_h1]:mb-3 [&_h1]:mt-4 [&_h1]:font-bold [&_h1]:text-zinc-900 [&_h2]:mb-3 [&_h2]:mt-4 [&_h2]:font-bold [&_h2]:text-zinc-900 [&_h3]:mb-3 [&_h3]:mt-4 [&_h3]:font-bold [&_h3]:text-zinc-900 [&_ol]:mb-3 [&_ol]:ml-4 [&_ol]:list-decimal [&_ol]:space-y-2 [&_p]:mb-3 [&_ul]:mb-3 [&_ul]:ml-4 [&_ul]:list-disc [&_ul]:space-y-2">
                         {!! $recipe->instructions !!}
                     </div>
                 </section>

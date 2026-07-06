@@ -6,53 +6,65 @@
     <title>{{ config('app.name') }}</title>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="recipes-body text-zinc-900">
-    <nav class="recipes-nav sticky top-0 z-20">
-        <div class="recipes-container recipes-nav-inner">
-            <a href="{{ route('recipes.index') }}" class="recipes-brand">
+<body class="min-h-screen bg-zinc-50 text-zinc-900">
+    <div class="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
+        <div class="absolute -top-32 left-0 h-112 w-160 rounded-full bg-[radial-gradient(circle,rgba(251,191,36,0.22),transparent_70%)] blur-3xl"></div>
+        <div class="absolute -top-44 right-0 h-112 w-xl rounded-full bg-[radial-gradient(circle,rgba(59,130,246,0.16),transparent_72%)] blur-3xl"></div>
+    </div>
+
+    <nav class="sticky top-0 z-20 border-b border-zinc-200/80 bg-white/90 backdrop-blur">
+        <div class="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-6 py-4">
+            <a href="{{ route('recipes.index') }}" class="inline-flex items-center gap-3 font-semibold tracking-tight text-zinc-900">
                 <img src="{{ asset('favicon.ico') }}" alt="{{ config('app.name') }}" class="h-8 w-8 rounded-lg">
                 <span>{{ config('app.name') }}</span>
             </a>
 
             @guest
-                <a href="{{ url('/admin/login') }}" class="recipes-top-button">{{ __('Login') }}</a>
+                <a href="{{ url('/admin/login') }}" class="inline-flex items-center rounded-xl border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 shadow-sm transition hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900">{{ __('Login') }}</a>
             @endguest
 
             @auth
-                <a href="{{ url('/admin') }}" class="recipes-top-button">{{ __('Backend') }}</a>
+                <a href="{{ url('/admin') }}" class="inline-flex items-center rounded-xl border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 shadow-sm transition hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900">{{ __('Backend') }}</a>
             @endauth
         </div>
     </nav>
 
-    <main class="recipes-container recipes-main">
-        <header class="recipes-page-header">
-            <h1 class="recipes-page-title">{{ __('Recipes') }}</h1>
-            <p class="recipes-page-subtitle">{{ __('Public recipes and your private cookbook recipes in one place.') }}</p>
+    <main class="mx-auto grid w-full max-w-5xl gap-6 px-6 py-8 pb-20 lg:gap-8 lg:py-10">
+        <header class="mt-8 grid gap-2 md:mt-12">
+            <h1 class="text-5xl font-black leading-tight tracking-[-0.04em] text-zinc-900 md:text-6xl">{{ __('Recipes') }}</h1>
         </header>
 
-        <section class="recipes-filter-shell">
-            <form method="GET" action="{{ route('recipes.index') }}" class="recipes-form-grid" data-auto-submit-filters>
-                <div class="recipes-filter-toolbar md:col-span-12">
-                    <div class="recipes-filter-group">
-                        <p class="recipes-field-label">{{ __('Quick') }}</p>
+        <section class="grid gap-4 rounded-2xl border border-zinc-200 bg-white p-5 shadow-[0_12px_32px_-24px_rgba(15,23,42,0.6)] md:p-6">
+            <form method="GET" action="{{ route('recipes.index') }}" class="grid grid-cols-12 gap-5" data-auto-submit-filters>
+                <div class="col-span-12 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+                    <div class="flex flex-wrap items-center gap-4">
+                        <p class="text-[0.66rem] font-bold uppercase tracking-widest text-zinc-500">{{ __('Quick') }}</p>
 
-                        <label class="recipes-chip recipes-chip-option {{ $quick ? 'recipes-chip-active' : '' }}">
-                            <input type="checkbox" name="quick" value="1" class="recipes-hidden-input" @checked($quick)>
+                        <label @class([
+                            'inline-flex min-h-10 cursor-pointer select-none items-center rounded-full border px-5 py-2 text-[0.7rem] font-bold uppercase tracking-[0.1em] leading-none transition',
+                            'border-cyan-600 bg-cyan-50 text-cyan-700 shadow-sm' => $quick,
+                            'border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400 hover:text-zinc-900' => ! $quick,
+                        ])>
+                            <input type="checkbox" name="quick" value="1" class="sr-only" @checked($quick)>
                             {{ __('Max. 30 min') }}
                         </label>
                     </div>
 
-                    <div class="recipes-filter-group recipes-filter-group-divider">
-                        <p class="recipes-field-label">{{ __('Difficulty') }}</p>
+                    <div class="flex flex-wrap items-center gap-4 border-t border-dashed border-zinc-300 pt-3 md:border-l md:border-t-0 md:pt-0 md:pl-4">
+                        <p class="text-[0.66rem] font-bold uppercase tracking-widest text-zinc-500">{{ __('Difficulty') }}</p>
 
                         @php($complexityOptions = ['' => __('All'), 'simple' => __('Simple'), 'normal' => __('Normal'), 'difficult' => __('Difficult')])
                         @foreach ($complexityOptions as $value => $label)
-                            <label class="recipes-chip recipes-chip-option {{ $complexity === $value ? 'recipes-chip-active' : '' }}">
+                            <label @class([
+                                'inline-flex min-h-10 cursor-pointer select-none items-center rounded-full border px-5 py-2 text-[0.7rem] font-bold uppercase tracking-[0.1em] leading-none transition',
+                                'border-cyan-600 bg-cyan-50 text-cyan-700 shadow-sm' => $complexity === $value,
+                                'border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400 hover:text-zinc-900' => $complexity !== $value,
+                            ])>
                                 <input
                                     type="radio"
                                     name="complexity"
                                     value="{{ $value }}"
-                                    class="recipes-hidden-input"
+                                    class="sr-only"
                                     @checked($complexity === $value)
                                 >
                                 {{ $label }}
@@ -61,21 +73,21 @@
                     </div>
                 </div>
 
-                <div class="recipes-field recipes-field-search">
-                    <label for="search" class="recipes-field-label">{{ __('Search') }}</label>
+                <div class="col-span-12 grid gap-1 md:col-span-6">
+                    <label for="search" class="text-[0.66rem] font-bold uppercase tracking-widest text-zinc-500">{{ __('Search') }}</label>
                     <input
                         id="search"
                         type="text"
                         name="search"
                         value="{{ $search }}"
                         placeholder="{{ __('Search for recipes...') }}"
-                        class="recipes-input"
+                        class="h-12 w-full rounded-2xl border border-zinc-300 bg-white px-4 text-sm text-zinc-800 shadow-sm outline-none transition placeholder:text-zinc-400 focus:border-cyan-600 focus:ring-2 focus:ring-cyan-500/20"
                     >
                 </div>
 
-                <div class="recipes-field recipes-field-category">
-                    <label for="category" class="recipes-field-label">{{ __('Category') }}</label>
-                    <select id="category" name="category" class="recipes-input">
+                <div class="col-span-12 grid gap-1 md:col-span-3">
+                    <label for="category" class="text-[0.66rem] font-bold uppercase tracking-widest text-zinc-500">{{ __('Category') }}</label>
+                    <select id="category" name="category" class="h-12 w-full rounded-2xl border border-zinc-300 bg-white px-4 text-sm text-zinc-800 shadow-sm outline-none transition focus:border-cyan-600 focus:ring-2 focus:ring-cyan-500/20">
                         <option value="">{{ __('All categories') }}</option>
                         @foreach ($categories as $category)
                             <option value="{{ $category->id }}" @selected($selectedCategory === $category->id)>{{ $category->name }}</option>
@@ -83,9 +95,9 @@
                     </select>
                 </div>
 
-                <div class="recipes-field recipes-field-sort">
-                    <label for="sort" class="recipes-field-label">{{ __('Sort') }}</label>
-                    <select id="sort" name="sort" class="recipes-input">
+                <div class="col-span-12 grid gap-1 md:col-span-3">
+                    <label for="sort" class="text-[0.66rem] font-bold uppercase tracking-widest text-zinc-500">{{ __('Sort') }}</label>
+                    <select id="sort" name="sort" class="h-12 w-full rounded-2xl border border-zinc-300 bg-white px-4 text-sm text-zinc-800 shadow-sm outline-none transition focus:border-cyan-600 focus:ring-2 focus:ring-cyan-500/20">
                         <option value="created_at_desc" @selected($selectedSort === 'created_at_desc')>{{ __('Newest first') }}</option>
                         <option value="created_at_asc" @selected($selectedSort === 'created_at_asc')>{{ __('Oldest first') }}</option>
                         <option value="name_asc" @selected($selectedSort === 'name_asc')>{{ __('Name A-Z') }}</option>
@@ -95,85 +107,95 @@
                     </select>
                 </div>
 
-                <div class="recipes-actions">
-                    <a href="{{ route('recipes.index') }}" class="recipes-secondary-button">{{ __('Reset') }}</a>
+                <div class="col-span-12 flex items-center gap-3 pt-2">
+                    <a href="{{ route('recipes.index') }}" class="inline-flex h-11 items-center rounded-2xl border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 shadow-sm transition hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900">{{ __('Reset') }}</a>
                 </div>
             </form>
         </section>
 
-        <section class="recipes-grid">
+        <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-3 md:gap-5">
             @forelse ($recipes as $recipe)
-                <article class="recipe-card">
-                    <a href="{{ route('recipes.show', $recipe) }}" class="recipe-card-media block">
+                <article class="group overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_18px_35px_-30px_rgba(15,23,42,0.75)] transition hover:-translate-y-0.5 hover:shadow-[0_26px_40px_-28px_rgba(15,23,42,0.75)]">
+                    <a href="{{ route('recipes.show', $recipe) }}" class="block aspect-square overflow-hidden bg-linear-to-br from-zinc-200 to-zinc-50">
                         @if ($recipe->photos->isNotEmpty())
                             <img
                                 src="{{ $recipe->photos->first()->url() }}?v={{ $recipe->updated_at->timestamp }}"
                                 alt="{{ $recipe->name }}"
-                                class="h-full! w-full object-cover transition-transform duration-300 hover:scale-105"
+                                class="h-full w-full object-cover transition duration-300 group-hover:scale-105"
                             >
                         @else
-                            <div class="recipe-card-placeholder">{{ __('No image') }}</div>
+                            <div class="grid h-full place-items-center text-sm font-semibold text-zinc-400">{{ __('No image') }}</div>
                         @endif
                     </a>
 
-                    <div class="recipe-card-content">
-                        <div class="recipe-card-head">
-                            <span class="recipe-card-category">{{ $recipe->category?->name }}</span>
+                    <div class="grid gap-3 p-4 md:p-5">
+                        <div class="flex items-center justify-between gap-2">
+                            <span class="text-[0.68rem] font-bold uppercase tracking-[0.06em] text-zinc-500">{{ $recipe->category?->name }}</span>
 
                             @if ($recipe->cookbook)
-                                <span class="recipe-label recipe-label-cookbook">{{ $recipe->cookbook->name }}</span>
+                                <span class="inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-semibold leading-none text-zinc-700">{{ $recipe->cookbook->name }}</span>
                             @endif
                         </div>
 
-                        <h2 class="recipe-card-title">
-                            <a href="{{ route('recipes.show', $recipe) }}" class="hover:underline">{{ $recipe->name }}</a>
+                        <h2 class="text-lg font-semibold leading-tight text-zinc-900">
+                            <a href="{{ route('recipes.show', $recipe) }}" class="transition hover:underline">{{ $recipe->name }}</a>
                         </h2>
 
-                        <p class="recipe-card-excerpt">{{ \Illuminate\Support\Str::limit(strip_tags((string) $recipe->instructions), 170) }}</p>
+                        <p class="min-h-[5.2rem] overflow-hidden text-sm leading-6 text-zinc-600 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:4]">{{ \Illuminate\Support\Str::limit(strip_tags((string) $recipe->instructions), 170) }}</p>
 
-                        <div class="recipe-card-labels">
+                        <div class="flex flex-wrap items-center gap-1.5">
                             @if ($recipe->ratings_count > 0)
-                                <span class="recipe-label recipe-label-rating">
+                                <span class="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold leading-none text-amber-800">
                                     {{ str_repeat('★', (int) round((float) $recipe->ratings_avg_stars)) }}
                                     {{ __(':stars / :ratings', ['stars' => number_format((float) $recipe->ratings_avg_stars, 1), 'ratings' => $recipe->ratings_count]) }}
                                 </span>
                             @endif
 
-                            <span class="recipe-label recipe-label-complexity">{{ $recipe->complexity?->label() }}</span>
+                            <span class="inline-flex items-center rounded-full bg-sky-100 px-2.5 py-1 text-xs font-semibold leading-none text-sky-800">{{ $recipe->complexity?->label() }}</span>
 
                             @if ($recipe->preparation_time)
-                                <span class="recipe-label recipe-label-time">{{ $recipe->preparation_time->format('H:i') }}</span>
+                                <span class="inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-semibold leading-none text-zinc-700">{{ $recipe->preparation_time->format('H:i') }}</span>
                             @endif
                         </div>
 
-                        <div class="recipe-card-meta">
+                        <div class="flex items-center justify-between gap-3 text-xs text-zinc-500">
                             <span>{{ $recipe->author?->name }}</span>
                             <span>{{ $recipe->created_at?->isoFormat('L') }}</span>
                         </div>
                     </div>
                 </article>
             @empty
-                <p class="recipes-empty">{{ __('No recipes found.') }}</p>
+                <p class="col-span-full rounded-2xl border border-zinc-200 bg-white p-4 text-center text-sm text-zinc-600">{{ __('No recipes found.') }}</p>
             @endforelse
         </section>
 
         @if ($recipes->hasPages())
-            <nav class="recipes-pagination" aria-label="{{ __('Pagination') }}">
+            <nav class="grid grid-cols-1 items-center gap-3 pt-1 sm:grid-cols-[auto_1fr_auto]" aria-label="{{ __('Pagination') }}">
                 <a
                     href="{{ $recipes->onFirstPage() ? '#' : $recipes->previousPageUrl() }}"
-                    class="recipes-page-link {{ $recipes->onFirstPage() ? 'recipes-page-link-disabled' : '' }}"
+                    @class([
+                        'inline-flex h-10 min-w-10 items-center justify-center rounded-lg border px-3 text-sm font-bold transition sm:justify-self-start',
+                        'border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900' => ! $recipes->onFirstPage(),
+                        'pointer-events-none border-zinc-200 bg-zinc-100 text-zinc-400' => $recipes->onFirstPage(),
+                    ])
+                    style="min-width: 2.5rem; height: 2.5rem; padding-inline: 0.75rem;"
                 >
                     {{ __('Previous') }}
                 </a>
 
-                <div class="recipes-page-numbers">
+                <div class="flex flex-wrap items-center justify-center gap-1.5 sm:justify-self-center">
                     @foreach ($paginationPages as $page)
                         @if (is_null($page))
-                            <span class="recipes-page-ellipsis">…</span>
+                            <span class="px-1 text-sm font-bold text-zinc-500">…</span>
                         @else
                             <a
                                 href="{{ $recipes->url($page) }}"
-                                class="recipes-page-link {{ $page === $currentPage ? 'recipes-page-link-active' : '' }}"
+                                @class([
+                                    'inline-flex h-10 min-w-10 items-center justify-center rounded-lg border px-3 text-sm font-bold transition',
+                                    'border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900' => $page !== $currentPage,
+                                    'border-cyan-600 bg-cyan-50 text-cyan-700' => $page === $currentPage,
+                                ])
+                                style="min-width: 2.5rem; height: 2.5rem; padding-inline: 0.75rem;"
                             >
                                 {{ $page }}
                             </a>
@@ -183,7 +205,12 @@
 
                 <a
                     href="{{ $recipes->hasMorePages() ? $recipes->nextPageUrl() : '#' }}"
-                    class="recipes-page-link {{ $recipes->hasMorePages() ? '' : 'recipes-page-link-disabled' }}"
+                    @class([
+                        'inline-flex h-10 min-w-10 items-center justify-center rounded-lg border px-3 text-sm font-bold transition sm:justify-self-end',
+                        'border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900' => $recipes->hasMorePages(),
+                        'pointer-events-none border-zinc-200 bg-zinc-100 text-zinc-400' => ! $recipes->hasMorePages(),
+                    ])
+                    style="min-width: 2.5rem; height: 2.5rem; padding-inline: 0.75rem;"
                 >
                     {{ __('Next') }}
                 </a>
