@@ -1,7 +1,7 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Spatie\LaravelMarkdown\MarkdownRenderer;
+use Illuminate\Support\Str;
 
 return new class extends Migration
 {
@@ -11,8 +11,7 @@ return new class extends Migration
     public function up(): void
     {
         DB::table('recipes')->get()->each(function ($recipe) {
-            $html = app(MarkdownRenderer::class) // @phpstan-ignore-line
-                ->toHtml($recipe->instructions);
+            $html = Str::markdown($recipe->instructions ?? '');
 
             DB::table('recipes')
                 ->where('id', $recipe->id)
