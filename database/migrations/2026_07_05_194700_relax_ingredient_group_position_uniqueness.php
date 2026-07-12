@@ -9,8 +9,8 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('ingredient_groups', function (Blueprint $table): void {
-            $table->dropUnique('ingredient_groups_recipe_position_unique');
             $table->index(['recipe_id', 'position'], 'ingredient_groups_recipe_position_index');
+            $table->dropUnique('ingredient_groups_recipe_position_unique');
         });
     }
 
