@@ -56,6 +56,58 @@
                         <span>{{ $recipe->cookbook->name }}</span>
                     @endif
                 </div>
+
+                <div class="flex flex-wrap items-center gap-1.5 pt-1">
+                    @if ($recipe->servings)
+                        @php($servingsDisplay = floor($recipe->servings) == $recipe->servings ? (int) $recipe->servings : $recipe->servings)
+
+                        <span class="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-semibold leading-none text-zinc-700">
+                            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" class="h-3.5 w-3.5">
+                                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                <circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                <path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                <path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                            {{ $servingsDisplay }}{{ $recipe->serving_type ? ' ' . $recipe->serving_type : '' }}
+                        </span>
+                    @endif
+
+                    @if ($recipe->complexity)
+                        <span class="inline-flex items-center gap-1.5 rounded-full bg-sky-100 px-2.5 py-1 text-xs font-semibold leading-none text-sky-800">
+                            @switch($recipe->complexity)
+                                @case(\App\Enums\Complexity::Simple)
+                                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" class="h-3.5 w-3.5">
+                                        <rect x="3" y="14" width="4" height="7" rx="1" fill="currentColor" />
+                                    </svg>
+                                    @break
+                                @case(\App\Enums\Complexity::Normal)
+                                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" class="h-3.5 w-3.5">
+                                        <rect x="3" y="14" width="4" height="7" rx="1" fill="currentColor" />
+                                        <rect x="10" y="9" width="4" height="12" rx="1" fill="currentColor" />
+                                    </svg>
+                                    @break
+                                @case(\App\Enums\Complexity::Difficult)
+                                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" class="h-3.5 w-3.5">
+                                        <rect x="3" y="14" width="4" height="7" rx="1" fill="currentColor" />
+                                        <rect x="10" y="9" width="4" height="12" rx="1" fill="currentColor" />
+                                        <rect x="17" y="4" width="4" height="17" rx="1" fill="currentColor" />
+                                    </svg>
+                                    @break
+                            @endswitch
+                            {{ $recipe->complexity->label() }}
+                        </span>
+                    @endif
+
+                    @if ($recipe->preparation_time)
+                        <span class="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-semibold leading-none text-zinc-700">
+                            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" class="h-3.5 w-3.5">
+                                <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" />
+                                <path d="M12 7v5l3 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                            {{ $recipe->preparation_time->format('H:i') }}
+                        </span>
+                    @endif
+                </div>
             </header>
 
             @php($photoUrls = $recipe->photos->map(fn ($photo) => $photo->url().'?v='.$recipe->updated_at->timestamp)->values())
