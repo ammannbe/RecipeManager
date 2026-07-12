@@ -31,7 +31,7 @@
 
     <main class="mx-auto grid w-full max-w-5xl gap-6 px-6 py-8 pb-20 lg:gap-8 lg:py-10">
         <header class="mt-8 grid gap-2 md:mt-12">
-            <h1 class="text-5xl font-black leading-tight tracking-[-0.04em] text-zinc-900 md:text-6xl">{{ __('Recipes') }}</h1>
+            <h1 class="text-3xl font-black leading-tight tracking-[-0.04em] text-zinc-900 md:text-5xl">{{ __('Recipes') }}</h1>
         </header>
 
         <section class="grid gap-4 rounded-2xl border border-zinc-200 bg-white p-5 shadow-[0_12px_32px_-24px_rgba(15,23,42,0.6)] md:p-6">
