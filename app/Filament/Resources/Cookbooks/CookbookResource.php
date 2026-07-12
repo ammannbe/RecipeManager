@@ -23,6 +23,16 @@ class CookbookResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 
+    public static function getModelLabel(): string
+    {
+        return __('Cookbook');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('Cookbooks');
+    }
+
     public static function form(Schema $schema): Schema
     {
         return CookbookForm::configure($schema);

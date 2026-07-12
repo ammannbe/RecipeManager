@@ -23,6 +23,16 @@ class AuthorResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 
+    public static function getModelLabel(): string
+    {
+        return __('Author');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('Authors');
+    }
+
     public static function form(Schema $schema): Schema
     {
         return AuthorForm::configure($schema);

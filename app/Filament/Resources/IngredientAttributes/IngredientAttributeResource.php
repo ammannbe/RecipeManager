@@ -24,6 +24,16 @@ class IngredientAttributeResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 
+    public static function getModelLabel(): string
+    {
+        return __('Ingredient attribute');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('Ingredient attributes');
+    }
+
     public static function form(Schema $schema): Schema
     {
         return IngredientAttributeForm::configure($schema);

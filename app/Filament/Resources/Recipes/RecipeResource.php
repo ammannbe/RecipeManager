@@ -23,6 +23,16 @@ class RecipeResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 
+    public static function getModelLabel(): string
+    {
+        return __('Recipe');
+    }
+
+    public static function getPluralModelLabel(): string
+    {
+        return __('Recipes');
+    }
+
     public static function form(Schema $schema): Schema
     {
         return RecipeForm::configure($schema);
