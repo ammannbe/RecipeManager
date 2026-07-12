@@ -58,7 +58,7 @@ class PublicRecipesViewTest extends TestCase
             'recipe' => $recipe,
         ]);
 
-        $view->assertSee('aspect-[4/3]', false);
+        $view->assertSee('aspect-16/10', false);
         $view->assertSee(__('Previous image'));
         $view->assertSee(__('Next image'));
         $view->assertSee(__('Recipe images'));
