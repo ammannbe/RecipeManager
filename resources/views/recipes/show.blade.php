@@ -4,34 +4,60 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ $recipe->name }} - {{ config('app.name') }}</title>
+    <script>
+        (function () {
+            var theme = localStorage.getItem('theme');
+
+            if (theme === 'dark' || (! theme && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            }
+        }());
+    </script>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
 </head>
-<body class="min-h-screen bg-zinc-50 text-zinc-900">
+<body class="min-h-screen bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
     <div class="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-        <div class="absolute -top-32 left-0 h-112 w-160 rounded-full bg-[radial-gradient(circle,rgba(251,191,36,0.22),transparent_70%)] blur-3xl"></div>
-        <div class="absolute -top-44 right-0 h-112 w-xl rounded-full bg-[radial-gradient(circle,rgba(59,130,246,0.16),transparent_72%)] blur-3xl"></div>
+        <div class="absolute -top-32 left-0 h-112 w-160 rounded-full bg-[radial-gradient(circle,rgba(251,191,36,0.22),transparent_70%)] blur-3xl dark:bg-[radial-gradient(circle,rgba(251,191,36,0.1),transparent_70%)]"></div>
+        <div class="absolute -top-44 right-0 h-112 w-xl rounded-full bg-[radial-gradient(circle,rgba(59,130,246,0.16),transparent_72%)] blur-3xl dark:bg-[radial-gradient(circle,rgba(59,130,246,0.12),transparent_72%)]"></div>
     </div>
 
-    <nav class="sticky top-0 z-20 border-b border-zinc-200/80 bg-white/90 backdrop-blur">
+    <nav class="sticky top-0 z-20 border-b border-zinc-200/80 bg-white/90 backdrop-blur dark:border-zinc-800/80 dark:bg-zinc-950/90">
         <div class="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-6 py-4">
-            <a href="{{ route('recipes.index') }}" class="inline-flex items-center gap-3 font-semibold tracking-tight text-zinc-900">
+            <a href="{{ route('recipes.index') }}" class="inline-flex items-center gap-3 font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
                 <img src="{{ asset('favicon.ico') }}" alt="{{ config('app.name') }}" class="h-8 w-8 rounded-lg">
                 <span>{{ config('app.name') }}</span>
             </a>
 
-            @guest
-                <a href="{{ url('/admin/login') }}" class="inline-flex items-center rounded-xl border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 shadow-sm transition hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900">{{ __('Login') }}</a>
-            @endguest
+            <div class="flex items-center gap-2" x-data="themeToggle">
+                <button
+                    type="button"
+                    class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-300 bg-white text-zinc-700 shadow-sm transition hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                    @click="toggle()"
+                    :aria-label="dark ? '{{ __('Switch to light mode') }}' : '{{ __('Switch to dark mode') }}'"
+                >
+                    <svg x-show="! dark" viewBox="0 0 24 24" fill="none" aria-hidden="true" class="h-4.5 w-4.5">
+                        <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="2" />
+                        <path d="M12 2v2M12 20v2M4 12H2M22 12h-2M19.07 4.93l-1.41 1.41M6.34 17.66l-1.41 1.41M19.07 19.07l-1.41-1.41M6.34 6.34 4.93 4.93" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                    </svg>
+                    <svg x-show="dark" x-cloak viewBox="0 0 24 24" fill="none" aria-hidden="true" class="h-4.5 w-4.5">
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </button>
 
-            @auth
-                <a href="{{ url('/admin') }}" class="inline-flex items-center rounded-xl border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 shadow-sm transition hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900">{{ __('Backend') }}</a>
-            @endauth
+                @guest
+                    <a href="{{ url('/admin/login') }}" class="inline-flex items-center rounded-xl border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 shadow-sm transition hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-100">{{ __('Login') }}</a>
+                @endguest
+
+                @auth
+                    <a href="{{ url('/admin') }}" class="inline-flex items-center rounded-xl border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 shadow-sm transition hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-100">{{ __('Backend') }}</a>
+                @endauth
+            </div>
         </div>
     </nav>
 
     <main class="mx-auto grid w-full max-w-5xl gap-6 px-6 py-8 pb-32 lg:gap-8 lg:py-10">
         <div class="flex items-center justify-between gap-3">
-            <a href="{{ route('recipes.index') }}" class="inline-flex items-center gap-1.5 text-sm font-bold text-zinc-600 transition hover:text-zinc-900">
+            <a href="{{ route('recipes.index') }}" class="inline-flex items-center gap-1.5 text-sm font-bold text-zinc-600 transition hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100">
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" class="h-4 w-4">
                     <path d="M19 12H5M12 19L5 12L12 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                 </svg>
@@ -41,7 +67,7 @@
             @if (user() && (user()->admin || user()->author_id === $recipe->author_id))
                 <a
                     href="{{ \App\Filament\Resources\Recipes\RecipeResource::getUrl('edit', ['record' => $recipe]) }}"
-                    class="inline-flex items-center rounded-xl border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 shadow-sm transition hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900"
+                    class="inline-flex items-center rounded-xl border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 shadow-sm transition hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
                 >
                     {{ __('Edit') }}
                 </a>
@@ -49,19 +75,19 @@
         </div>
 
         <article
-            class="grid gap-5 rounded-2xl border border-zinc-200 bg-white p-5 shadow-[0_18px_35px_-30px_rgba(15,23,42,0.75)] md:gap-6 md:p-6"
+            class="grid gap-5 rounded-2xl border border-zinc-200 bg-white p-5 shadow-[0_18px_35px_-30px_rgba(15,23,42,0.75)] md:gap-6 md:p-6 dark:border-zinc-800 dark:bg-zinc-900"
             x-data="recipeServings({ initial: {{ $recipe->servings ?? 'null' }} })"
         >
             <header class="grid gap-2">
-            <h1 class="text-[clamp(2rem,1.5rem+1.4vw,2.75rem)] font-extrabold leading-none tracking-[-0.03em] text-zinc-900">{{ $recipe->name }}</h1>
+            <h1 class="text-[clamp(2rem,1.5rem+1.4vw,2.75rem)] font-extrabold leading-none tracking-[-0.03em] text-zinc-900 dark:text-zinc-100">{{ $recipe->name }}</h1>
 
-                <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-zinc-600">
+                <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-zinc-600 dark:text-zinc-400">
                     <span>{{ $recipe->author?->name }}</span>
                     @if ($recipe->category)
                         <span>•</span>
                         <a
                             href="{{ route('recipes.index', ['category' => $recipe->category->id]) }}"
-                            class="underline decoration-dotted transition hover:text-zinc-900"
+                            class="underline decoration-dotted transition hover:text-zinc-900 dark:hover:text-zinc-100"
                             title="{{ __('View all recipes in this category') }}"
                         >{{ $recipe->category->name }}</a>
                     @endif
@@ -73,7 +99,7 @@
 
                 <div class="flex flex-wrap items-center gap-1.5 pt-1">
                     @if ($recipe->servings)
-                        <span class="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 py-1 pl-2.5 pr-1 text-xs font-semibold leading-none text-zinc-700">
+                        <span class="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 py-1 pl-2.5 pr-1 text-xs font-semibold leading-none text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
                             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" class="h-3.5 w-3.5">
                                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                                 <circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
@@ -83,7 +109,7 @@
 
                             <button
                                 type="button"
-                                class="inline-flex h-4 w-4 items-center justify-center rounded-full text-zinc-500 transition hover:bg-zinc-200 hover:text-zinc-900 disabled:pointer-events-none disabled:opacity-30"
+                                class="inline-flex h-4 w-4 items-center justify-center rounded-full text-zinc-500 transition hover:bg-zinc-200 hover:text-zinc-900 disabled:pointer-events-none disabled:opacity-30 dark:text-zinc-400 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
                                 @click="decrease()"
                                 :disabled="servings <= 1"
                                 aria-label="{{ __('Decrease servings') }}"
@@ -97,7 +123,7 @@
 
                             <button
                                 type="button"
-                                class="inline-flex h-4 w-4 items-center justify-center rounded-full text-zinc-500 transition hover:bg-zinc-200 hover:text-zinc-900"
+                                class="inline-flex h-4 w-4 items-center justify-center rounded-full text-zinc-500 transition hover:bg-zinc-200 hover:text-zinc-900 dark:text-zinc-400 dark:hover:bg-zinc-700 dark:hover:text-zinc-100"
                                 @click="increase()"
                                 aria-label="{{ __('Increase servings') }}"
                             >
@@ -109,7 +135,7 @@
                     @endif
 
                     @if ($recipe->complexity)
-                        <span class="inline-flex items-center gap-1.5 rounded-full bg-sky-100 px-2.5 py-1 text-xs font-semibold leading-none text-sky-800">
+                        <span class="inline-flex items-center gap-1.5 rounded-full bg-sky-100 px-2.5 py-1 text-xs font-semibold leading-none text-sky-800 dark:bg-sky-500/15 dark:text-sky-400">
                             @switch($recipe->complexity)
                                 @case(\App\Enums\Complexity::Simple)
                                     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" class="h-3.5 w-3.5">
@@ -135,7 +161,7 @@
                     @endif
 
                     @if ($recipe->preparation_time)
-                        <span class="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-semibold leading-none text-zinc-700">
+                        <span class="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-semibold leading-none text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">
                             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" class="h-3.5 w-3.5">
                                 <circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2" />
                                 <path d="M12 7v5l3 2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
@@ -223,8 +249,8 @@
                         <template x-for="(image, index) in images" :key="`dot-${index}`">
                             <button
                                 type="button"
-                                class="h-2.5 w-2.5 rounded-full bg-zinc-300 transition"
-                                :class="{ 'scale-110 bg-zinc-800': current === index }"
+                                class="h-2.5 w-2.5 rounded-full bg-zinc-300 transition dark:bg-zinc-700"
+                                :class="{ 'scale-110 bg-zinc-800 dark:bg-zinc-300': current === index }"
                                 @click="current = index"
                                 :aria-label="`{{ __('Image') }} ${index + 1}`"
                             ></button>
@@ -240,14 +266,14 @@
             @endif
 
             <div class="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)] md:gap-5">
-                <section class="rounded-xl border border-zinc-200 bg-white p-5 md:p-6">
-                    <h2 class="mb-3 text-[1.1rem] font-semibold leading-tight text-zinc-900">{{ __('Ingredients') }}</h2>
+                <section class="rounded-xl border border-zinc-200 bg-white p-5 md:p-6 dark:border-zinc-800 dark:bg-zinc-950">
+                    <h2 class="mb-3 text-[1.1rem] font-semibold leading-tight text-zinc-900 dark:text-zinc-100">{{ __('Ingredients') }}</h2>
 
                     <p
                         x-show="changed"
                         x-transition
                         x-cloak
-                        class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800"
+                        class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400"
                     >
                         {{ __('Servings amounts are recalculated automatically and may not be perfectly accurate.') }}
                     </p>
@@ -256,7 +282,7 @@
                         @php($ungroupedIngredients = $recipe->ingredients->whereNull('ingredient_group_id'))
 
                         @if ($ungroupedIngredients->isNotEmpty())
-                            <ul class="grid gap-1 text-sm leading-6 text-zinc-700">
+                            <ul class="grid gap-1 text-sm leading-6 text-zinc-700 dark:text-zinc-300">
                                 @foreach ($ungroupedIngredients->filter(fn ($ingredient) => ! $ingredient->ingredient_id) as $ingredient)
                                     <li
                                         x-data="{
@@ -281,11 +307,11 @@
                             @php($ingredients = $recipe->ingredients->where('ingredient_group_id', $group->id))
 
                             <div>
-                                <h3 class="mb-2 text-[0.95rem] font-semibold leading-tight text-zinc-700">
+                                <h3 class="mb-2 text-[0.95rem] font-semibold leading-tight text-zinc-700 dark:text-zinc-300">
                                     {{ $group->name }}
                                 </h3>
 
-                                <ul class="grid gap-1 text-sm leading-6 text-zinc-700">
+                                <ul class="grid gap-1 text-sm leading-6 text-zinc-700 dark:text-zinc-300">
                                     @foreach ($ingredients->filter(fn ($ingredient) => ! $ingredient->ingredient_id) as $ingredient)
                                         <li
                                             x-data="{
@@ -309,9 +335,9 @@
                     </div>
                 </section>
 
-                <section class="rounded-xl border border-zinc-200 bg-white p-5 md:p-6">
-                    <h2 class="mb-3 text-[1.1rem] font-semibold leading-tight text-zinc-900">{{ __('Preparation') }}</h2>
-                    <div class="text-sm leading-7 text-zinc-700 [&_blockquote]:mb-3 [&_blockquote]:text-zinc-700 [&_h1]:mb-3 [&_h1]:mt-4 [&_h1]:font-bold [&_h1]:text-zinc-900 [&_h2]:mb-3 [&_h2]:mt-4 [&_h2]:font-bold [&_h2]:text-zinc-900 [&_h3]:mb-3 [&_h3]:mt-4 [&_h3]:font-bold [&_h3]:text-zinc-900 [&_ol]:mb-3 [&_ol]:ml-4 [&_ol]:list-decimal [&_ol]:space-y-2 [&_p]:mb-3 [&_ul]:mb-3 [&_ul]:ml-4 [&_ul]:list-disc [&_ul]:space-y-2">
+                <section class="rounded-xl border border-zinc-200 bg-white p-5 md:p-6 dark:border-zinc-800 dark:bg-zinc-950">
+                    <h2 class="mb-3 text-[1.1rem] font-semibold leading-tight text-zinc-900 dark:text-zinc-100">{{ __('Preparation') }}</h2>
+                    <div class="text-sm leading-7 text-zinc-700 dark:text-zinc-300 [&_blockquote]:mb-3 [&_blockquote]:text-zinc-700 [&_h1]:mb-3 [&_h1]:mt-4 [&_h1]:font-bold [&_h1]:text-zinc-900 [&_h2]:mb-3 [&_h2]:mt-4 [&_h2]:font-bold [&_h2]:text-zinc-900 [&_h3]:mb-3 [&_h3]:mt-4 [&_h3]:font-bold [&_h3]:text-zinc-900 [&_ol]:mb-3 [&_ol]:ml-4 [&_ol]:list-decimal [&_ol]:space-y-2 [&_p]:mb-3 [&_ul]:mb-3 [&_ul]:ml-4 [&_ul]:list-disc [&_ul]:space-y-2 dark:[&_blockquote]:text-zinc-300 dark:[&_h1]:text-zinc-100 dark:[&_h2]:text-zinc-100 dark:[&_h3]:text-zinc-100">
                         {!! $recipe->instructions !!}
                     </div>
                 </section>
