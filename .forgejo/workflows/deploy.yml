@@ -1,0 +1,83 @@
+name: Deploy Laravel App
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: docker
+
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      - name: Build frontend assets
+        run: |
+          set -Eeuo pipefail
+          npm ci
+          npm run build
+
+      - name: Set up SSH
+        uses: webfactory/ssh-agent@v0.7.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_KEY }}
+
+      - name: Verify SSH fingerprint
+        env:
+          SSH_HOST: ${{ vars.SSH_HOST }}
+          SSH_FINGERPRINT: ${{ vars.SSH_FINGERPRINT }}
+        run: |
+          set -Eeuo pipefail
+
+          HOST_KEY_FILE="$(mktemp)"
+          ssh-keyscan -t ed25519 "${SSH_HOST}" > "${HOST_KEY_FILE}" 2>/dev/null
+
+          ACTUAL_FINGERPRINT="$(ssh-keygen -lf "${HOST_KEY_FILE}" -E sha256 | awk 'NR == 1 { print $2 }')"
+
+          if [[ "${ACTUAL_FINGERPRINT}" != "${SSH_FINGERPRINT}" ]]; then
+            echo "SSH host fingerprint mismatch. Expected: ${SSH_FINGERPRINT}, received: ${ACTUAL_FINGERPRINT}" >&2
+            exit 1
+          fi
+
+          install -d -m 700 ~/.ssh
+          install -m 600 "${HOST_KEY_FILE}" ~/.ssh/known_hosts
+
+      - name: Deploy to server
+        env:
+          SSH_HOST: ${{ vars.SSH_HOST }}
+          SSH_USER: ${{ vars.SSH_USER }}
+          DEPLOY_PATH: ${{ vars.DEPLOY_PATH }}
+        run: |
+          set -Eeuo pipefail
+
+          ssh "${SSH_USER}@${SSH_HOST}" "mkdir -p '${DEPLOY_PATH}/public/build'"
+          scp -r public/build/. "${SSH_USER}@${SSH_HOST}:${DEPLOY_PATH}/public/build/"
+
+          ssh "${SSH_USER}@${SSH_HOST}" "cd '${DEPLOY_PATH}' && bash -s" <<'REMOTE'
+          set -Eeuo pipefail
+
+          PHP=php85
+
+          $PHP artisan down
+
+          git pull --ff-only
+          composer install --optimize-autoloader --no-interaction --no-dev
+
+          $PHP artisan down
+          $PHP artisan migrate --force
+          $PHP artisan cache:clear
+          $PHP artisan view:clear
+          $PHP artisan optimize
+          $PHP artisan up
+          REMOTE
+
+      - name: Verify website availability
+        env:
+          PRIMARY_SITE_URL: ${{ vars.PRIMARY_SITE_URL }}
+        run: |
+          set -Eeuo pipefail
+          if [ -n "${PRIMARY_SITE_URL}" ]; then
+            curl --fail --silent --show-error --retry 3 "${PRIMARY_SITE_URL}" >/dev/null
+          fi

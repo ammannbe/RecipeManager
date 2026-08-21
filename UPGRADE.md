@@ -29,17 +29,18 @@ git pull origin <branch>
 composer install --no-dev --optimize-autoloader
 ```
 
-2. Install the required package (must be present before running migrations). The migrations convert recipe instructions from Markdown to HTML and require `spatie/laravel-markdown`:
+2. Run the deployment:
 ```bash
-composer require spatie/laravel-markdown
+composer install --optimize-autoloader --no-interaction --no-dev
+php artisan down
+php artisan migrate --force
+php artisan cache:clear
+php artisan view:clear
+php artisan optimize
+php artisan up
 ```
 
-3. Run the deploy script:
-```bash
-./project-deploy.sh
-```
-
-4. Post-migration cleanup: the old images folder can be removed:
+3. Post-migration cleanup: the old images folder can be removed:
 ```bash
 rm -rf storage/app/images
 ```
@@ -55,17 +56,11 @@ ddev ssh -c 'rm -rf storage/app/images'
 
 ## Post-upgrade tasks
 
-- Uninstall `spatie/laravel-markdown`:
-```bash
-composer remove spatie/laravel-markdown
-```
-
-- Verify:
-  - Open the app and spot-check several recipes to confirm instructions render as HTML.
-  - Confirm images and other attachments still resolve correctly.
+- Open the app and spot-check several recipes to confirm instructions render as HTML.
+- Confirm images and other attachments still resolve correctly.
 
 ## Notes & Tips
 
-- The key change is that recipe instructions are parsed from Markdown to HTML during migrations; `spatie/laravel-markdown` must be installed beforehand.
+- The key change is that recipe instructions are parsed from Markdown to HTML during migrations.
 - Mounting the full app directory in Docker is critical to avoid data loss because files may be moved by migrations.
 - After successful verification, you can permanently remove `storage/app/images` to reclaim space.
