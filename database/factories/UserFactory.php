@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\Author;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -16,6 +17,7 @@ class UserFactory extends Factory
     public function definition(): array
     {
         return [
+            'author_id' => Author::factory(),
             'email' => $this->faker->unique(reset: true)->safeEmail,
             'email_verified_at' => now(),
             'password' => \Hash::make('password'),

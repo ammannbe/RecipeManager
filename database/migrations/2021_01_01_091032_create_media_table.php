@@ -3,6 +3,7 @@
 use App\Models\Recipe;
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
 
 class CreateMediaTable extends Migration
@@ -43,10 +44,21 @@ class CreateMediaTable extends Migration
     }
 
     /**
-     * Migrate existing photos to new database schema
+     * Migrate existing photos to new database schema.
+     *
+     * One-time historical data migration; must not touch the filesystem on fresh
+     * installs or test databases, where there is nothing to migrate.
      */
     private function migratePhotos(): void
     {
+        if (app()->runningUnitTests()) {
+            return;
+        }
+
+        if (! File::isDirectory(storage_path('app/images/recipes'))) {
+            return;
+        }
+
         if (empty(Storage::disk('recipe_photos')->directories())) {
             return;
         }
