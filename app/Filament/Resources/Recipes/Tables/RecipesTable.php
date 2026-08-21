@@ -31,6 +31,7 @@ class RecipesTable
                     ->searchable()
                     ->sortable(),
                 TextColumn::make('complexity')
+                    ->label(__('Complexity'))
                     ->badge()
                     ->formatStateUsing(fn (?Complexity $state): string => $state?->label() ?? '-')
                     ->color(fn (?Complexity $state): string => $state?->color() ?? 'gray')
@@ -72,6 +73,7 @@ class RecipesTable
                     ->label(__('Max. 30 min'))
                     ->query(fn (Builder $query): Builder => $query->where('preparation_time', '<=', '00:30:00')),
                 SelectFilter::make('complexity')
+                    ->label(__('Complexity'))
                     ->options([
                         Complexity::Simple->value => Complexity::Simple->label(),
                         Complexity::Normal->value => Complexity::Normal->label(),

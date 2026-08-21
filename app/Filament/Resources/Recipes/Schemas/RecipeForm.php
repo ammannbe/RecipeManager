@@ -131,14 +131,17 @@ class RecipeForm
                     ->required()
                     ->maxLength(100),
                 TextInput::make('servings')
+                    ->label(__('Servings'))
                     ->numeric()
                     ->minValue(0)
                     ->step(0.5)
                     ->nullable(),
                 TextInput::make('serving_type')
+                    ->label(__('Serving type'))
                     ->maxLength(20)
                     ->nullable(),
                 Select::make('complexity')
+                    ->label(__('Complexity'))
                     ->required()
                     ->options([
                         Complexity::Simple->value => Complexity::Simple->label(),
@@ -150,6 +153,7 @@ class RecipeForm
                     ->seconds(false)
                     ->nullable(),
                 RichEditor::make('instructions')
+                    ->label(__('Instructions'))
                     ->required()
                     ->columnSpanFull(),
                 FileUpload::make('photos')

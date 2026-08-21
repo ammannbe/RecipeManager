@@ -31,7 +31,12 @@
 
     <main class="mx-auto grid w-full max-w-5xl gap-6 px-6 py-8 pb-32 lg:gap-8 lg:py-10">
         <div class="flex items-center justify-between gap-3">
-            <a href="{{ route('recipes.index') }}" class="text-sm font-bold text-zinc-600 transition hover:text-zinc-900">{{ __('Back to recipes') }}</a>
+            <a href="{{ route('recipes.index') }}" class="inline-flex items-center gap-1.5 text-sm font-bold text-zinc-600 transition hover:text-zinc-900">
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" class="h-4 w-4">
+                    <path d="M19 12H5M12 19L5 12L12 5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+                {{ __('Back to recipes') }}
+            </a>
 
             @if (user() && (user()->admin || user()->author_id === $recipe->author_id))
                 <a
@@ -43,14 +48,23 @@
             @endif
         </div>
 
-        <article class="grid gap-5 rounded-2xl border border-zinc-200 bg-white p-5 shadow-[0_18px_35px_-30px_rgba(15,23,42,0.75)] md:gap-6 md:p-6">
+        <article
+            class="grid gap-5 rounded-2xl border border-zinc-200 bg-white p-5 shadow-[0_18px_35px_-30px_rgba(15,23,42,0.75)] md:gap-6 md:p-6"
+            x-data="recipeServings({ initial: {{ $recipe->servings ?? 'null' }} })"
+        >
             <header class="grid gap-2">
             <h1 class="text-[clamp(2rem,1.5rem+1.4vw,2.75rem)] font-extrabold leading-none tracking-[-0.03em] text-zinc-900">{{ $recipe->name }}</h1>
 
                 <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-zinc-600">
                     <span>{{ $recipe->author?->name }}</span>
-                    <span>•</span>
-                    <span>{{ $recipe->category?->name }}</span>
+                    @if ($recipe->category)
+                        <span>•</span>
+                        <a
+                            href="{{ route('recipes.index', ['category' => $recipe->category->id]) }}"
+                            class="underline decoration-dotted transition hover:text-zinc-900"
+                            title="{{ __('View all recipes in this category') }}"
+                        >{{ $recipe->category->name }}</a>
+                    @endif
                     @if ($recipe->cookbook)
                         <span>•</span>
                         <span>{{ $recipe->cookbook->name }}</span>
@@ -59,16 +73,38 @@
 
                 <div class="flex flex-wrap items-center gap-1.5 pt-1">
                     @if ($recipe->servings)
-                        @php($servingsDisplay = floor($recipe->servings) == $recipe->servings ? (int) $recipe->servings : $recipe->servings)
-
-                        <span class="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-semibold leading-none text-zinc-700">
+                        <span class="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 py-1 pl-2.5 pr-1 text-xs font-semibold leading-none text-zinc-700">
                             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" class="h-3.5 w-3.5">
                                 <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                                 <circle cx="9" cy="7" r="4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                                 <path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                                 <path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                             </svg>
-                            {{ $servingsDisplay }}{{ $recipe->serving_type ? ' ' . $recipe->serving_type : '' }}
+
+                            <button
+                                type="button"
+                                class="inline-flex h-4 w-4 items-center justify-center rounded-full text-zinc-500 transition hover:bg-zinc-200 hover:text-zinc-900 disabled:pointer-events-none disabled:opacity-30"
+                                @click="decrease()"
+                                :disabled="servings <= 1"
+                                aria-label="{{ __('Decrease servings') }}"
+                            >
+                                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" class="h-3 w-3">
+                                    <path d="M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
+                                </svg>
+                            </button>
+
+                            <span x-text="formatServings()"></span>{{ $recipe->serving_type ? ' ' . $recipe->serving_type : '' }}
+
+                            <button
+                                type="button"
+                                class="inline-flex h-4 w-4 items-center justify-center rounded-full text-zinc-500 transition hover:bg-zinc-200 hover:text-zinc-900"
+                                @click="increase()"
+                                aria-label="{{ __('Increase servings') }}"
+                            >
+                                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" class="h-3 w-3">
+                                    <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" />
+                                </svg>
+                            </button>
                         </span>
                     @endif
 
@@ -207,14 +243,34 @@
                 <section class="rounded-xl border border-zinc-200 bg-white p-5 md:p-6">
                     <h2 class="mb-3 text-[1.1rem] font-semibold leading-tight text-zinc-900">{{ __('Ingredients') }}</h2>
 
+                    <p
+                        x-show="changed"
+                        x-transition
+                        x-cloak
+                        class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800"
+                    >
+                        {{ __('Servings amounts are recalculated automatically and may not be perfectly accurate.') }}
+                    </p>
+
                     <div class="space-y-5">
                         @php($ungroupedIngredients = $recipe->ingredients->whereNull('ingredient_group_id'))
 
                         @if ($ungroupedIngredients->isNotEmpty())
                             <ul class="grid gap-1 text-sm leading-6 text-zinc-700">
                                 @foreach ($ungroupedIngredients->filter(fn ($ingredient) => ! $ingredient->ingredient_id) as $ingredient)
-                                    <li>
-                                        <span class="font-bold">{{ $ingredient->getAmountAndUnit() }}</span>
+                                    <li
+                                        x-data="{
+                                            amount: {{ \Illuminate\Support\Js::from($ingredient->amount) }},
+                                            amountMax: {{ \Illuminate\Support\Js::from($ingredient->amount_max) }},
+                                            unit: {{ \Illuminate\Support\Js::from($ingredient->unit ? [
+                                                'name' => $ingredient->unit->name,
+                                                'nameShortcut' => $ingredient->unit->name_shortcut,
+                                                'namePlural' => $ingredient->unit->name_plural,
+                                                'namePluralShortcut' => $ingredient->unit->name_plural_shortcut,
+                                            ] : null) }},
+                                        }"
+                                    >
+                                        <span class="font-bold" x-text="formatAmount(amount, amountMax, unit)"></span>
                                         {{ $ingredient->food?->name }}
                                     </li>
                                 @endforeach
@@ -231,8 +287,19 @@
 
                                 <ul class="grid gap-1 text-sm leading-6 text-zinc-700">
                                     @foreach ($ingredients->filter(fn ($ingredient) => ! $ingredient->ingredient_id) as $ingredient)
-                                        <li>
-                                            <span class="font-bold">{{ $ingredient->getAmountAndUnit() }}</span>
+                                        <li
+                                            x-data="{
+                                                amount: {{ \Illuminate\Support\Js::from($ingredient->amount) }},
+                                                amountMax: {{ \Illuminate\Support\Js::from($ingredient->amount_max) }},
+                                                unit: {{ \Illuminate\Support\Js::from($ingredient->unit ? [
+                                                    'name' => $ingredient->unit->name,
+                                                    'nameShortcut' => $ingredient->unit->name_shortcut,
+                                                    'namePlural' => $ingredient->unit->name_plural,
+                                                    'namePluralShortcut' => $ingredient->unit->name_plural_shortcut,
+                                                ] : null) }},
+                                            }"
+                                        >
+                                            <span class="font-bold" x-text="formatAmount(amount, amountMax, unit)"></span>
                                             {{ $ingredient->food?->name }}
                                         </li>
                                     @endforeach

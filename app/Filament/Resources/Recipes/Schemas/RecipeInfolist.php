@@ -21,13 +21,17 @@ class RecipeInfolist
                     ->label('Author'),
                 TextEntry::make('name'),
                 TextEntry::make('servings')
+                    ->label(__('Servings'))
                     ->numeric()
                     ->placeholder('-'),
                 TextEntry::make('serving_type')
+                    ->label(__('Serving type'))
                     ->placeholder('-'),
                 TextEntry::make('complexity')
+                    ->label(__('Complexity'))
                     ->badge(),
                 TextEntry::make('instructions')
+                    ->label(__('Instructions'))
                     ->columnSpanFull(),
                 TextEntry::make('photos')
                     ->placeholder('-')

@@ -118,7 +118,7 @@
                 <article class="group overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_18px_35px_-30px_rgba(15,23,42,0.75)] transition hover:-translate-y-0.5 hover:shadow-[0_26px_40px_-28px_rgba(15,23,42,0.75)]">
                     <a href="{{ route('recipes.show', $recipe) }}">
                         @if ($recipe->photos->isNotEmpty())
-                            <div class="block aspect-video sm:aspect-square bg-linear-to-br from-zinc-200 to-zinc-50">
+                            <div class="block aspect-video sm:aspect-square overflow-hidden bg-linear-to-br from-zinc-200 to-zinc-50">
                                 <img
                                     src="{{ $recipe->photos->first()->url() }}?v={{ $recipe->updated_at->timestamp }}"
                                     alt="{{ $recipe->name }}"
@@ -126,7 +126,7 @@
                                 >
                             </div>
                         @else
-                            <div class="hidden sm:block aspect-video sm:aspect-square bg-linear-to-br from-zinc-200 to-zinc-50">
+                            <div class="hidden sm:block aspect-video sm:aspect-square overflow-hidden bg-linear-to-br from-zinc-200 to-zinc-50">
                                 <div class="grid h-full place-items-center text-sm font-semibold text-zinc-400">{{ __('No image') }}</div>
                             </div>
                         @endif

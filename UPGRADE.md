@@ -29,15 +29,11 @@ git pull origin <branch>
 composer install --no-dev --optimize-autoloader
 ```
 
-2. Run the deployment:
+2. Run the migrations:
 ```bash
-composer install --optimize-autoloader --no-interaction --no-dev
-php artisan down
 php artisan migrate --force
 php artisan cache:clear
 php artisan view:clear
-php artisan optimize
-php artisan up
 ```
 
 3. Post-migration cleanup: the old images folder can be removed:
