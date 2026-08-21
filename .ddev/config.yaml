@@ -18,6 +18,8 @@ web_extra_exposed_ports:
       container_port: 5173
       http_port: 5172
       https_port: 5173
+upload_dirs:
+  - storage/app/public
 
 # Key features of DDEV's config.yaml:
 
