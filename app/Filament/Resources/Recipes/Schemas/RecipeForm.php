@@ -6,10 +6,12 @@ use App\Enums\Complexity;
 use App\Models\Category;
 use App\Models\Cookbook;
 use App\Models\Food;
+use App\Models\IngredientAttribute;
 use App\Models\Unit;
 use Filament\Forms\Components\Field;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Repeater\TableColumn;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -45,6 +47,27 @@ class RecipeForm
                 ->searchable()
                 ->preload()
                 ->options(fn (): array => Food::query()->orderBy('name')->pluck('name', 'id')->all()),
+            Select::make('ingredientAttributes')
+                ->label(__('Attributes'))
+                ->relationship('ingredientAttributes', 'name')
+                ->multiple()
+                ->searchable()
+                ->preload()
+                ->options(fn (): array => IngredientAttribute::query()->orderBy('name')->pluck('name', 'id')->all()),
+        ];
+    }
+
+    /**
+     * @return array<int, TableColumn>
+     */
+    private static function ingredientTableColumns(): array
+    {
+        return [
+            TableColumn::make(__('Amount'))->width('6rem'),
+            TableColumn::make(__('Amount max'))->width('6rem'),
+            TableColumn::make(__('Unit'))->width('12rem'),
+            TableColumn::make(__('Food'))->width('16rem'),
+            TableColumn::make(__('Attributes'))->width('16rem'),
         ];
     }
 
@@ -148,9 +171,8 @@ class RecipeForm
                         return $data;
                     })
                     ->reorderable()
-                    ->collapsible()
+                    ->table(self::ingredientTableColumns())
                     ->schema(self::ingredientFields())
-                    ->columns(4)
                     ->columnSpanFull(),
                 Section::make(__('Ingredient groups'))
                     ->schema([
@@ -170,9 +192,8 @@ class RecipeForm
                                     ->relationship()
                                     ->orderColumn('position')
                                     ->reorderable()
-                                    ->collapsible()
+                                    ->table(self::ingredientTableColumns())
                                     ->schema(self::ingredientFields())
-                                    ->columns(4)
                                     ->columnSpanFull(),
                             ])
                             ->columnSpanFull(),
