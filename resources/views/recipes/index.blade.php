@@ -34,14 +34,14 @@
             <h1 class="text-3xl font-black leading-tight tracking-[-0.04em] text-zinc-900 md:text-5xl">{{ __('Recipes') }}</h1>
         </header>
 
-        <section class="grid gap-4 rounded-2xl border border-zinc-200 bg-white p-5 shadow-[0_12px_32px_-24px_rgba(15,23,42,0.6)] md:p-6">
-            <form method="GET" action="{{ route('recipes.index') }}" class="grid grid-cols-12 gap-5" data-auto-submit-filters>
-                <div class="col-span-12 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
-                    <div class="flex flex-wrap items-center gap-4">
-                        <p class="text-[0.66rem] font-bold uppercase tracking-widest text-zinc-500">{{ __('Quick') }}</p>
+        <section class="grid gap-3 rounded-2xl border border-zinc-200 bg-white p-3 shadow-[0_12px_32px_-24px_rgba(15,23,42,0.6)] md:p-4">
+            <form method="GET" action="{{ route('recipes.index') }}" class="grid grid-cols-12 gap-3" data-auto-submit-filters>
+                <div class="col-span-12 flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+                    <div class="flex flex-wrap items-center gap-2">
+                        <p class="text-[0.6rem] font-bold uppercase tracking-widest text-zinc-500">{{ __('Quick') }}</p>
 
                         <label @class([
-                            'inline-flex min-h-10 cursor-pointer select-none items-center rounded-full border px-5 py-2 text-[0.7rem] font-bold uppercase tracking-[0.1em] leading-none transition',
+                            'inline-flex min-h-7 cursor-pointer select-none items-center rounded-full border px-3 py-1 text-[0.65rem] font-bold uppercase tracking-[0.08em] leading-none transition',
                             'border-cyan-600 bg-cyan-50 text-cyan-700 shadow-sm' => $quick,
                             'border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400 hover:text-zinc-900' => ! $quick,
                         ])>
@@ -50,13 +50,13 @@
                         </label>
                     </div>
 
-                    <div class="flex flex-wrap items-center gap-4 border-t border-dashed border-zinc-300 pt-3 md:border-l md:border-t-0 md:pt-0 md:pl-4">
-                        <p class="text-[0.66rem] font-bold uppercase tracking-widest text-zinc-500">{{ __('Difficulty') }}</p>
+                    <div class="flex flex-wrap items-center gap-2 border-t border-dashed border-zinc-300 pt-2 md:border-l md:border-t-0 md:pt-0 md:pl-3">
+                        <p class="text-[0.6rem] font-bold uppercase tracking-widest text-zinc-500">{{ __('Difficulty') }}</p>
 
                         @php($complexityOptions = ['' => __('All'), 'simple' => __('Simple'), 'normal' => __('Normal'), 'difficult' => __('Difficult')])
                         @foreach ($complexityOptions as $value => $label)
                             <label @class([
-                                'inline-flex min-h-10 cursor-pointer select-none items-center rounded-full border px-5 py-2 text-[0.7rem] font-bold uppercase tracking-[0.1em] leading-none transition',
+                                'inline-flex min-h-7 cursor-pointer select-none items-center rounded-full border px-3 py-1 text-[0.65rem] font-bold uppercase tracking-[0.08em] leading-none transition',
                                 'border-cyan-600 bg-cyan-50 text-cyan-700 shadow-sm' => $complexity === $value,
                                 'border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400 hover:text-zinc-900' => $complexity !== $value,
                             ])>
@@ -74,20 +74,20 @@
                 </div>
 
                 <div class="col-span-12 grid gap-1 md:col-span-6">
-                    <label for="search" class="text-[0.66rem] font-bold uppercase tracking-widest text-zinc-500">{{ __('Search') }}</label>
+                    <label for="search" class="text-[0.6rem] font-bold uppercase tracking-widest text-zinc-500">{{ __('Search') }}</label>
                     <input
                         id="search"
                         type="text"
                         name="search"
                         value="{{ $search }}"
                         placeholder="{{ __('Search for recipes...') }}"
-                        class="h-12 w-full rounded-2xl border border-zinc-300 bg-white px-4 text-sm text-zinc-800 shadow-sm outline-none transition placeholder:text-zinc-400 focus:border-cyan-600 focus:ring-2 focus:ring-cyan-500/20"
+                        class="h-9 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm text-zinc-800 shadow-sm outline-none transition placeholder:text-zinc-400 focus:border-cyan-600 focus:ring-2 focus:ring-cyan-500/20"
                     >
                 </div>
 
                 <div class="col-span-12 grid gap-1 md:col-span-3">
-                    <label for="category" class="text-[0.66rem] font-bold uppercase tracking-widest text-zinc-500">{{ __('Category') }}</label>
-                    <select id="category" name="category" class="h-12 w-full rounded-2xl border border-zinc-300 bg-white px-4 text-sm text-zinc-800 shadow-sm outline-none transition focus:border-cyan-600 focus:ring-2 focus:ring-cyan-500/20">
+                    <label for="category" class="text-[0.6rem] font-bold uppercase tracking-widest text-zinc-500">{{ __('Category') }}</label>
+                    <select id="category" name="category" class="h-9 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm text-zinc-800 shadow-sm outline-none transition focus:border-cyan-600 focus:ring-2 focus:ring-cyan-500/20">
                         <option value="">{{ __('All categories') }}</option>
                         @foreach ($categories as $category)
                             <option value="{{ $category->id }}" @selected($selectedCategory === $category->id)>{{ $category->name }}</option>
@@ -96,8 +96,8 @@
                 </div>
 
                 <div class="col-span-12 grid gap-1 md:col-span-3">
-                    <label for="sort" class="text-[0.66rem] font-bold uppercase tracking-widest text-zinc-500">{{ __('Sort') }}</label>
-                    <select id="sort" name="sort" class="h-12 w-full rounded-2xl border border-zinc-300 bg-white px-4 text-sm text-zinc-800 shadow-sm outline-none transition focus:border-cyan-600 focus:ring-2 focus:ring-cyan-500/20">
+                    <label for="sort" class="text-[0.6rem] font-bold uppercase tracking-widest text-zinc-500">{{ __('Sort') }}</label>
+                    <select id="sort" name="sort" class="h-9 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm text-zinc-800 shadow-sm outline-none transition focus:border-cyan-600 focus:ring-2 focus:ring-cyan-500/20">
                         <option value="created_at_desc" @selected($selectedSort === 'created_at_desc')>{{ __('Newest first') }}</option>
                         <option value="created_at_asc" @selected($selectedSort === 'created_at_asc')>{{ __('Oldest first') }}</option>
                         <option value="name_asc" @selected($selectedSort === 'name_asc')>{{ __('Name A-Z') }}</option>
@@ -107,8 +107,8 @@
                     </select>
                 </div>
 
-                <div class="col-span-12 flex items-center gap-3 pt-2">
-                    <a href="{{ route('recipes.index') }}" class="inline-flex h-11 items-center rounded-2xl border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 shadow-sm transition hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900">{{ __('Reset') }}</a>
+                <div class="col-span-12 flex items-center gap-2 pt-1">
+                    <a href="{{ route('recipes.index') }}" class="inline-flex h-8 items-center rounded-xl border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-700 shadow-sm transition hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900">{{ __('Reset') }}</a>
                 </div>
             </form>
         </section>
