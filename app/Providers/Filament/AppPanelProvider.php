@@ -29,6 +29,7 @@ class AppPanelProvider extends PanelProvider
             ->default()
             ->id('app')
             ->path('admin')
+            ->favicon(asset('favicon.ico'))
             ->login()
             ->registration(Register::class)
             ->passwordReset()
