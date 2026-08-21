@@ -11,6 +11,7 @@ use Filament\Actions\RestoreBulkAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class CookbooksTable
 {
@@ -18,11 +19,13 @@ class CookbooksTable
     {
         return $table
             ->columns([
-                TextColumn::make('name')
-                    ->searchable(),
                 TextColumn::make('author.name')
                     ->searchable()
+                    ->sortable()
                     ->visible(fn (): bool => (bool) user()?->admin),
+                TextColumn::make('name')
+                    ->searchable()
+                    ->sortable(),
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
@@ -36,6 +39,13 @@ class CookbooksTable
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
+            ->defaultSort(function (Builder $query, string $direction): Builder {
+                $direction = $direction === 'desc' ? 'desc' : 'asc';
+
+                return $query
+                    ->orderBy('author_name', $direction)
+                    ->orderBy('name', $direction);
+            })
             ->filters([
                 TrashedFilter::make(),
             ])

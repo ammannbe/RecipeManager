@@ -33,6 +33,7 @@ class CategoriesTable
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
+            ->defaultSort('name')
             ->filters([
                 TrashedFilter::make(),
             ])

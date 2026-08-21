@@ -34,6 +34,7 @@ class FoodsTable
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
+            ->defaultSort('name')
             ->filters([
                 TrashedFilter::make(),
             ])

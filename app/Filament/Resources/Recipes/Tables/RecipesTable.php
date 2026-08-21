@@ -61,7 +61,12 @@ class RecipesTable
                 TextColumn::make('ratings_count')
                     ->label(__('Ratings'))
                     ->sortable(),
+                TextColumn::make('created_at')
+                    ->dateTime()
+                    ->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
+            ->defaultSort('name')
             ->filters([
                 Filter::make('quick')
                     ->label(__('Max. 30 min'))

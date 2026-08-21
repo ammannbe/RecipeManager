@@ -26,6 +26,8 @@ class FoodResource extends Resource
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
 
+    protected static ?int $navigationSort = 5;
+
     public static function getModelLabel(): string
     {
         return __('Food');

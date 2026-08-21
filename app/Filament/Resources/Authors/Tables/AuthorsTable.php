@@ -30,6 +30,7 @@ class AuthorsTable
                     ->label(__('Admin'))
                     ->boolean(),
             ])
+            ->defaultSort('name')
             ->filters([
                 TrashedFilter::make(),
             ])
