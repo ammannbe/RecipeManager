@@ -113,56 +113,58 @@
             </form>
         </section>
 
-        <section class="grid gap-4 md:grid-cols-2 xl:grid-cols-3 md:gap-5">
+        <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 md:gap-5">
             @forelse ($recipes as $recipe)
                 <article class="group overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_18px_35px_-30px_rgba(15,23,42,0.75)] transition hover:-translate-y-0.5 hover:shadow-[0_26px_40px_-28px_rgba(15,23,42,0.75)]">
-                    <a href="{{ route('recipes.show', $recipe) }}" class="block aspect-square overflow-hidden bg-linear-to-br from-zinc-200 to-zinc-50">
+                    <a href="{{ route('recipes.show', $recipe) }}">
                         @if ($recipe->photos->isNotEmpty())
-                            <img
-                                src="{{ $recipe->photos->first()->url() }}?v={{ $recipe->updated_at->timestamp }}"
-                                alt="{{ $recipe->name }}"
-                                class="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-                            >
+                            <div class="block aspect-video sm:aspect-square bg-linear-to-br from-zinc-200 to-zinc-50">
+                                <img
+                                    src="{{ $recipe->photos->first()->url() }}?v={{ $recipe->updated_at->timestamp }}"
+                                    alt="{{ $recipe->name }}"
+                                    class="h-full w-full object-cover transition duration-300 group-hover:scale-105"
+                                >
+                            </div>
                         @else
-                            <div class="grid h-full place-items-center text-sm font-semibold text-zinc-400">{{ __('No image') }}</div>
+                            <div class="hidden sm:block aspect-video sm:aspect-square bg-linear-to-br from-zinc-200 to-zinc-50">
+                                <div class="grid h-full place-items-center text-sm font-semibold text-zinc-400">{{ __('No image') }}</div>
+                            </div>
                         @endif
+
+                        <div class="grid gap-3 p-4 md:p-5">
+                            <div class="flex items-center justify-between gap-2">
+                                <span class="text-[0.68rem] font-bold uppercase tracking-[0.06em] text-zinc-500">{{ $recipe->category?->name }}</span>
+
+                                @if ($recipe->cookbook)
+                                    <span class="inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-semibold leading-none text-zinc-700">{{ $recipe->cookbook->name }}</span>
+                                @endif
+                            </div>
+
+                            <h2 class="text-lg font-semibold leading-tight text-zinc-900">{{ $recipe->name }}</h2>
+
+                            <p class="min-h-[5.2rem] overflow-hidden text-sm leading-6 text-zinc-600 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:4]">{{ \Illuminate\Support\Str::limit(strip_tags((string) $recipe->instructions), 170) }}</p>
+
+                            <div class="flex flex-wrap items-center gap-1.5">
+                                @if ($recipe->ratings_count > 0)
+                                    <span class="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold leading-none text-amber-800">
+                                        {{ str_repeat('★', (int) round((float) $recipe->ratings_avg_stars)) }}
+                                        {{ __(':stars / :ratings', ['stars' => number_format((float) $recipe->ratings_avg_stars, 1), 'ratings' => $recipe->ratings_count]) }}
+                                    </span>
+                                @endif
+
+                                <span class="inline-flex items-center rounded-full bg-sky-100 px-2.5 py-1 text-xs font-semibold leading-none text-sky-800">{{ $recipe->complexity?->label() }}</span>
+
+                                @if ($recipe->preparation_time)
+                                    <span class="inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-semibold leading-none text-zinc-700">{{ $recipe->preparation_time->format('H:i') }}</span>
+                                @endif
+                            </div>
+
+                            <div class="flex items-center justify-between gap-3 text-xs text-zinc-500">
+                                <span>{{ $recipe->author?->name }}</span>
+                                <span>{{ $recipe->created_at?->isoFormat('L') }}</span>
+                            </div>
+                        </div>
                     </a>
-
-                    <div class="grid gap-3 p-4 md:p-5">
-                        <div class="flex items-center justify-between gap-2">
-                            <span class="text-[0.68rem] font-bold uppercase tracking-[0.06em] text-zinc-500">{{ $recipe->category?->name }}</span>
-
-                            @if ($recipe->cookbook)
-                                <span class="inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-semibold leading-none text-zinc-700">{{ $recipe->cookbook->name }}</span>
-                            @endif
-                        </div>
-
-                        <h2 class="text-lg font-semibold leading-tight text-zinc-900">
-                            <a href="{{ route('recipes.show', $recipe) }}" class="transition hover:underline">{{ $recipe->name }}</a>
-                        </h2>
-
-                        <p class="min-h-[5.2rem] overflow-hidden text-sm leading-6 text-zinc-600 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:4]">{{ \Illuminate\Support\Str::limit(strip_tags((string) $recipe->instructions), 170) }}</p>
-
-                        <div class="flex flex-wrap items-center gap-1.5">
-                            @if ($recipe->ratings_count > 0)
-                                <span class="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold leading-none text-amber-800">
-                                    {{ str_repeat('★', (int) round((float) $recipe->ratings_avg_stars)) }}
-                                    {{ __(':stars / :ratings', ['stars' => number_format((float) $recipe->ratings_avg_stars, 1), 'ratings' => $recipe->ratings_count]) }}
-                                </span>
-                            @endif
-
-                            <span class="inline-flex items-center rounded-full bg-sky-100 px-2.5 py-1 text-xs font-semibold leading-none text-sky-800">{{ $recipe->complexity?->label() }}</span>
-
-                            @if ($recipe->preparation_time)
-                                <span class="inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-semibold leading-none text-zinc-700">{{ $recipe->preparation_time->format('H:i') }}</span>
-                            @endif
-                        </div>
-
-                        <div class="flex items-center justify-between gap-3 text-xs text-zinc-500">
-                            <span>{{ $recipe->author?->name }}</span>
-                            <span>{{ $recipe->created_at?->isoFormat('L') }}</span>
-                        </div>
-                    </div>
                 </article>
             @empty
                 <p class="col-span-full rounded-2xl border border-zinc-200 bg-white p-4 text-center text-sm text-zinc-600">{{ __('No recipes found.') }}</p>
