@@ -1,0 +1,33 @@
+# SSH_USER, SSH_HOST, PROJECT_PATH are provided via .ddev/config.local.yaml (git-ignored)
+auth_command:
+  command: |
+    set -eu -o pipefail
+    ssh-add -l >/dev/null || ( echo "Please 'ddev auth ssh' before running this command." && exit 1 )
+
+db_pull_command:
+  command: |
+    set -eu -o pipefail
+    ssh "${SSH_USER}@${SSH_HOST}" "cd '${PROJECT_PATH}' && bash -s" <<'REMOTE'
+    set -eu -o pipefail
+    set -a; source .env; set +a
+    mysqldump --single-transaction --quick --no-tablespaces \
+      -h "${DB_HOST:-127.0.0.1}" -P "${DB_PORT:-3306}" \
+      -u "${DB_USERNAME}" -p"${DB_PASSWORD}" "${DB_DATABASE}" \
+      | gzip > storage/backups/db.sql.gz
+    REMOTE
+    scp "${SSH_USER}@${SSH_HOST}:${PROJECT_PATH}/storage/backups/db.sql.gz" /var/www/html/.ddev/.downloads/db.sql.gz
+  service: web
+
+files_pull_command:
+  command: |
+    set -eu -o pipefail
+    rsync -azv --mkpath "${SSH_USER}@${SSH_HOST}:${PROJECT_PATH}/storage/app/public/" /var/www/html/.ddev/.downloads/files/
+  service: web
+
+db_push_command:
+  command: |
+    echo "ddev push is not implemented."
+
+files_push_command:
+  command: |
+    echo "ddev push is not implemented."
