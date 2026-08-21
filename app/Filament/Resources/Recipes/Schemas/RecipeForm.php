@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Recipes\Schemas;
 
 use App\Enums\Complexity;
+use App\Models\Author;
 use App\Models\Category;
 use App\Models\Cookbook;
 use App\Models\Food;
@@ -74,7 +75,15 @@ class RecipeForm
     public static function configure(Schema $schema): Schema
     {
         return $schema
+            ->columns(3)
             ->components([
+                Select::make('author_id')
+                    ->label(__('Author'))
+                    ->required()
+                    ->searchable()
+                    ->preload()
+                    ->visible(fn (): bool => (bool) user()?->admin)
+                    ->options(fn (): array => Author::query()->orderBy('name')->pluck('name', 'id')->all()),
                 Select::make('cookbook_id')
                     ->label(__('Cookbook'))
                     ->nullable()

@@ -23,6 +23,7 @@ class Recipe extends Model
     use SoftDeletes;
 
     protected $fillable = [
+        'author_id',
         'cookbook_id',
         'category_id',
         'name',
