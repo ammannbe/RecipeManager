@@ -95,8 +95,7 @@ class ImportRecipe extends Page
     {
         return $schema->components([
             Form::make([EmbeddedSchema::make('form')])
-                ->id('form')
-                ->livewireSubmitHandler('import'),
+                ->id('form'),
         ]);
     }
 
@@ -200,8 +199,12 @@ class ImportRecipe extends Page
                 ->options($options)
                 ->searchable()
                 ->native(false)
-                ->required(fn (callable $get): bool => $get($statePath.'.create') !== true)
+                ->required(fn (callable $get): bool => ! $type->isOptional() && $get($statePath.'.create') !== true)
                 ->disabled(fn (callable $get): bool => $get($statePath.'.create') === true);
+
+            if ($type->isOptional()) {
+                $select->placeholder(__('Omit'));
+            }
 
             $components = [$select];
 
@@ -284,11 +287,13 @@ class ImportRecipe extends Page
             });
     }
 
-    private function importAction(): Action
+    public function importAction(): Action
     {
         return Action::make('import')
             ->label(__('Import recipe'))
-            ->submit('import');
+            ->action(function (): void {
+                $this->import();
+            });
     }
 
     /**
@@ -332,21 +337,20 @@ class ImportRecipe extends Page
     }
 
     /**
-     * Seeds the review step with confident suggestions, without overwriting anything the
-     * user already picked.
+     * Every unresolved value needs a decision entry before the review step renders,
+     * otherwise its fields have nothing to bind to. Confident suggestions are filled in,
+     * without overwriting anything the user already picked.
      */
     private function preselectDecisions(): void
     {
         foreach ($this->unresolved as $item) {
-            if ($item['preselectedId'] === null) {
-                continue;
-            }
-
             $key = $this->stateKey($item['key']);
+            $decision = $this->data['decisions'][$key] ?? [];
 
-            if (($this->data['decisions'][$key]['id'] ?? null) === null) {
-                $this->data['decisions'][$key]['id'] = $item['preselectedId'];
-            }
+            $decision['id'] ??= $item['preselectedId'];
+            $decision['create'] ??= false;
+
+            $this->data['decisions'][$key] = $decision;
         }
     }
 
@@ -376,6 +380,12 @@ class ImportRecipe extends Page
             $id = $state['id'] ?? null;
 
             if (! is_numeric($id)) {
+                if ($type->isOptional()) {
+                    $decisions[$item['key']] = null;
+
+                    continue;
+                }
+
                 throw ValidationException::withMessages([
                     'data.decisions' => __('Please resolve :type ":value".', [
                         'type' => $type->label(),
@@ -390,8 +400,17 @@ class ImportRecipe extends Page
         try {
             $recipe = app(RecipeImporter::class)->import($parsed, user(), $decisions);
         } catch (ValidationException $exception) {
+            $messages = $exception->validator->errors()->all();
+
+            Notification::make()
+                ->danger()
+                ->title(__('Recipe could not be imported'))
+                ->body(implode(' ', $messages))
+                ->persistent()
+                ->send();
+
             throw ValidationException::withMessages([
-                'data.json' => $exception->validator->errors()->all(),
+                'data.json' => $messages,
             ]);
         }
 

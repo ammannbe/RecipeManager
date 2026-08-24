@@ -13,13 +13,13 @@ use Illuminate\Validation\ValidationException;
 
 class RecipeImporter
 {
-    /** @var array<string, int> */
+    /** @var array<string, int|null> */
     private array $lookup = [];
 
     public function __construct(private readonly RelationResolver $resolver) {}
 
     /**
-     * @param  array<string, int>  $decisions  lookup key => chosen model id
+     * @param  array<string, int|null>  $decisions  lookup key => chosen model id, or null to omit
      *
      * @throws ValidationException
      */
@@ -33,6 +33,12 @@ class RecipeImporter
             $key = $unresolved->key();
 
             if (! array_key_exists($key, $decisions)) {
+                if ($unresolved->type->isOptional()) {
+                    $this->lookup[$key] = null;
+
+                    continue;
+                }
+
                 throw ValidationException::withMessages([
                     'json' => __('Unresolved :type ":value".', [
                         'type' => $unresolved->type->label(),
@@ -50,9 +56,9 @@ class RecipeImporter
             $recipe = new Recipe;
             $recipe->fill([
                 'name' => $parsed->name,
-                'category_id' => $this->id(LookupType::Category, $parsed->category),
+                'category_id' => $this->requiredId(LookupType::Category, $parsed->category),
                 'cookbook_id' => $parsed->cookbook !== null
-                    ? $this->id(LookupType::Cookbook, $parsed->cookbook)
+                    ? $this->requiredId(LookupType::Cookbook, $parsed->cookbook)
                     : null,
                 'servings' => $parsed->servings,
                 'serving_type' => $parsed->servingType,
@@ -75,7 +81,7 @@ class RecipeImporter
     private function authorId(ParsedRecipe $parsed, ?User $user): int
     {
         if ($user?->admin && $parsed->author !== null) {
-            return $this->id(LookupType::Author, $parsed->author);
+            return $this->requiredId(LookupType::Author, $parsed->author);
         }
 
         return (int) $user?->author_id;
@@ -87,7 +93,7 @@ class RecipeImporter
     private function guardDuplicate(ParsedRecipe $parsed, ?User $user): void
     {
         $cookbookId = $parsed->cookbook !== null
-            ? $this->id(LookupType::Cookbook, $parsed->cookbook)
+            ? $this->requiredId(LookupType::Cookbook, $parsed->cookbook)
             : null;
 
         $exists = Recipe::withTrashed()
@@ -107,10 +113,10 @@ class RecipeImporter
 
     private function syncTags(Recipe $recipe, ParsedRecipe $parsed): void
     {
-        $ids = array_map(
-            fn (string $tag): int => $this->id(LookupType::Tag, $tag),
+        $ids = array_filter(array_map(
+            fn (string $tag): ?int => $this->id(LookupType::Tag, $tag),
             $parsed->tags
-        );
+        ), fn (?int $id): bool => $id !== null);
 
         $recipe->tags()->sync(array_unique($ids));
     }
@@ -151,7 +157,7 @@ class RecipeImporter
             'amount' => $parsed->amount,
             'amount_max' => $parsed->amountMax,
             'unit_id' => $parsed->unit !== null ? $this->id(LookupType::Unit, $parsed->unit) : null,
-            'food_id' => $this->id(LookupType::Food, $parsed->food),
+            'food_id' => $this->requiredId(LookupType::Food, $parsed->food),
             'ingredient_group_id' => $group?->getKey(),
             'position' => $position,
         ]);
@@ -168,7 +174,7 @@ class RecipeImporter
                 'amount' => $alternative->amount,
                 'amount_max' => $alternative->amountMax,
                 'unit_id' => $alternative->unit !== null ? $this->id(LookupType::Unit, $alternative->unit) : null,
-                'food_id' => $this->id(LookupType::Food, $alternative->food),
+                'food_id' => $this->requiredId(LookupType::Food, $alternative->food),
                 'position' => $alternativePosition++,
             ]);
 
@@ -182,10 +188,10 @@ class RecipeImporter
             return;
         }
 
-        $ids = array_map(
-            fn (string $attribute): int => $this->id(LookupType::Attribute, $attribute),
+        $ids = array_filter(array_map(
+            fn (string $attribute): ?int => $this->id(LookupType::Attribute, $attribute),
             $parsed->attributes
-        );
+        ), fn (?int $id): bool => $id !== null);
 
         $ingredient->ingredientAttributes()->sync(array_unique($ids));
     }
@@ -257,11 +263,30 @@ class RecipeImporter
         }];
     }
 
-    private function id(LookupType $type, string $value): int
+    private function requiredId(LookupType $type, string $value): int
+    {
+        $id = $this->id($type, $value);
+
+        if ($id === null) {
+            throw ValidationException::withMessages([
+                'json' => __('Unresolved :type ":value".', [
+                    'type' => $type->label(),
+                    'value' => $value,
+                ]),
+            ]);
+        }
+
+        return $id;
+    }
+
+    /**
+     * Returns null when an optional lookup was deliberately left unassigned.
+     */
+    private function id(LookupType $type, string $value): ?int
     {
         $key = ResolutionReport::key($type, $value);
 
-        if (! isset($this->lookup[$key])) {
+        if (! array_key_exists($key, $this->lookup)) {
             throw ValidationException::withMessages([
                 'json' => __('Unresolved :type ":value".', [
                     'type' => $type->label(),

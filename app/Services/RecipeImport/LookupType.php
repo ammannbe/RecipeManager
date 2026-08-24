@@ -84,6 +84,18 @@ enum LookupType: string
     }
 
     /**
+     * Whether the value may simply be dropped: units are nullable on an ingredient, and
+     * attributes and tags are pivot rows. A food or category is mandatory.
+     */
+    public function isOptional(): bool
+    {
+        return match ($this) {
+            self::Unit, self::Attribute, self::Tag => true,
+            default => false,
+        };
+    }
+
+    /**
      * Mirrors the create permissions of RecipeForm: everyone may add cookbooks and
      * categories on the fly, the remaining lookup tables are admin only.
      */
