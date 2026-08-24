@@ -5,13 +5,16 @@ namespace App\Filament\Resources\Recipes\Pages;
 use App\Filament\Resources\Recipes\RecipeResource;
 use App\Models\Recipe;
 use App\Services\Document;
+use App\Services\RecipeImport\RecipeJsonExporter;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ForceDeleteAction;
 use Filament\Actions\RestoreAction;
 use Filament\Resources\Pages\EditRecord;
+use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Storage;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class EditRecipe extends EditRecord
 {
@@ -75,6 +78,20 @@ class EditRecipe extends EditRecord
                 ->label(__('View'))
                 ->url(fn (): string => route('recipes.show', $this->getRecord()))
                 ->openUrlInNewTab(),
+            Action::make('exportJson')
+                ->label(__('Export as JSON'))
+                ->icon(Heroicon::OutlinedArrowDownTray)
+                ->color('gray')
+                ->action(function (RecipeJsonExporter $exporter): StreamedResponse {
+                    /** @var Recipe $record */
+                    $record = $this->getRecord();
+
+                    return response()->streamDownload(
+                        fn () => print ($exporter->toJson($record)),
+                        $exporter->filename($record),
+                        ['Content-Type' => 'application/json'],
+                    );
+                }),
             DeleteAction::make(),
             ForceDeleteAction::make(),
             RestoreAction::make(),

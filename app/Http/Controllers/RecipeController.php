@@ -108,6 +108,7 @@ class RecipeController extends Controller
             'ingredients.ingredientGroup',
             'ingredients.food',
             'ingredients.unit',
+            'ingredients.ingredientAttributes',
             'ingredientGroups',
         ]);
 
