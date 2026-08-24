@@ -303,6 +303,10 @@
                                     >
                                         <span class="font-bold" x-text="formatAmount(amount, amountMax, unit)"></span>
                                         {{ $ingredient->food?->name }}
+
+                                        @if ($ingredient->ingredientAttributes->isNotEmpty())
+                                            <span class="text-zinc-500 dark:text-zinc-400">({{ $ingredient->ingredientAttributes->pluck('name')->implode(', ') }})</span>
+                                        @endif
                                     </li>
                                 @endforeach
                             </ul>
@@ -332,6 +336,10 @@
                                         >
                                             <span class="font-bold" x-text="formatAmount(amount, amountMax, unit)"></span>
                                             {{ $ingredient->food?->name }}
+
+                                            @if ($ingredient->ingredientAttributes->isNotEmpty())
+                                                <span class="text-zinc-500 dark:text-zinc-400">({{ $ingredient->ingredientAttributes->pluck('name')->implode(', ') }})</span>
+                                            @endif
                                         </li>
                                     @endforeach
                                 </ul>
