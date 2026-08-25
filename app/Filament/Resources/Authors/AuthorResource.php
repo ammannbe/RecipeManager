@@ -83,9 +83,4 @@ class AuthorResource extends Resource
     {
         return (bool) user()?->admin;
     }
-
-    public static function canCreate(): bool
-    {
-        return false;
-    }
 }

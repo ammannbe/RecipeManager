@@ -7,10 +7,16 @@ use Filament\Actions\DeleteAction;
 use Filament\Actions\ForceDeleteAction;
 use Filament\Actions\RestoreAction;
 use Filament\Resources\Pages\EditRecord;
+use Filament\Support\Enums\Width;
 
 class EditAuthor extends EditRecord
 {
     protected static string $resource = AuthorResource::class;
+
+    public function getMaxContentWidth(): Width
+    {
+        return Width::TwoExtraLarge;
+    }
 
     protected function getHeaderActions(): array
     {

@@ -25,6 +25,7 @@ class User extends Authenticatable implements FilamentUser, HasName, MustVerifyE
 
     protected $fillable = [
         'email',
+        'email_verified_at',
         'password',
         'admin',
     ];
