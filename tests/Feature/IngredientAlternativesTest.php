@@ -81,6 +81,8 @@ class IngredientAlternativesTest extends TestCase
     }
 
     /**
+     * Applies the modal and then saves the form, which is when alternatives persist.
+     *
      * @param  array<int, array<string, mixed>>  $alternatives
      */
     private function callAlternativesAction(Recipe $recipe, Ingredient $parent, array $alternatives): void
@@ -92,7 +94,9 @@ class IngredientAlternativesTest extends TestCase
                     ->schemaComponent('ungroupedIngredients'),
                 data: ['alternatives' => $alternatives],
             )
-            ->assertHasNoActionErrors();
+            ->assertHasNoActionErrors()
+            ->call('save')
+            ->assertHasNoFormErrors();
     }
 
     public function test_the_action_prefills_the_existing_alternatives(): void
@@ -104,14 +108,37 @@ class IngredientAlternativesTest extends TestCase
 
         $this->actingAs($user);
 
-        Livewire::test(EditRecipe::class, ['record' => $recipe->getRouteKey()])
+        $component = Livewire::test(EditRecipe::class, ['record' => $recipe->getRouteKey()])
             ->mountAction(
                 TestAction::make('alternatives')
                     ->arguments(['item' => 'record-'.$parent->id])
                     ->schemaComponent('ungroupedIngredients'),
-            )
-            ->assertActionDataSet(fn (array $data): bool => count($data['alternatives']) === 1
-                && (int) reset($data['alternatives'])['id'] === $alternative->id);
+            );
+
+        // Asserted outside the closure: a failing closure inside assertActionDataSet
+        // still counts as a passing assertion.
+        $mounted = $component->get('mountedActions');
+        $rows = array_values($mounted[0]['data']['alternatives'] ?? []);
+
+        $this->assertCount(1, $rows);
+        $this->assertEquals($alternative->id, $rows[0]['id']);
+        $this->assertEquals($alternative->food_id, $rows[0]['food_id']);
+    }
+
+    public function test_the_badge_counts_the_stored_alternatives(): void
+    {
+        $user = User::factory()->admin()->create();
+        $recipe = Recipe::factory()->create(['author_id' => $user->author_id]);
+        $parent = $this->parent($recipe);
+        $this->alternativeOf($parent);
+        $this->alternativeOf($parent);
+
+        $this->actingAs($user);
+
+        $state = Livewire::test(EditRecipe::class, ['record' => $recipe->getRouteKey()])
+            ->get('data')['ungroupedIngredients'];
+
+        $this->assertCount(2, reset($state)['alternatives']);
     }
 
     public function test_an_alternative_can_be_added_through_the_action(): void
@@ -205,12 +232,87 @@ class IngredientAlternativesTest extends TestCase
                     'ingredientAttributes' => [],
                 ]]],
             )
-            ->assertHasNoActionErrors();
+            ->assertHasNoActionErrors()
+            ->call('save')
+            ->assertHasNoFormErrors();
 
         $alternative = Ingredient::query()->where('ingredient_id', $parent->id)->firstOrFail();
 
         $this->assertSame($group->id, $alternative->ingredient_group_id);
         $this->assertSame($recipe->id, $alternative->recipe_id);
+    }
+
+    public function test_applying_the_modal_does_not_persist_until_the_form_is_saved(): void
+    {
+        $user = User::factory()->admin()->create();
+        $recipe = Recipe::factory()->create(['author_id' => $user->author_id]);
+        $parent = $this->parent($recipe);
+        $food = Food::factory()->create();
+
+        $this->actingAs($user);
+
+        $component = Livewire::test(EditRecipe::class, ['record' => $recipe->getRouteKey()])
+            ->callAction(
+                TestAction::make('alternatives')
+                    ->arguments(['item' => 'record-'.$parent->id])
+                    ->schemaComponent('ungroupedIngredients'),
+                data: ['alternatives' => [[
+                    'id' => null,
+                    'amount' => 1,
+                    'amount_max' => null,
+                    'unit_id' => null,
+                    'food_id' => $food->id,
+                    'ingredientAttributes' => [],
+                ]]],
+            )
+            ->assertHasNoActionErrors();
+
+        $this->assertSame(0, $parent->ingredients()->count());
+
+        $component->call('save')->assertHasNoFormErrors();
+
+        $this->assertSame(1, $parent->ingredients()->count());
+    }
+
+    public function test_discarding_the_page_keeps_the_stored_alternatives(): void
+    {
+        $user = User::factory()->admin()->create();
+        $recipe = Recipe::factory()->create(['author_id' => $user->author_id]);
+        $parent = $this->parent($recipe);
+        $alternative = $this->alternativeOf($parent);
+
+        $this->actingAs($user);
+
+        // Applied in the modal but never saved, so the database must be untouched.
+        Livewire::test(EditRecipe::class, ['record' => $recipe->getRouteKey()])
+            ->callAction(
+                TestAction::make('alternatives')
+                    ->arguments(['item' => 'record-'.$parent->id])
+                    ->schemaComponent('ungroupedIngredients'),
+                data: ['alternatives' => []],
+            )
+            ->assertHasNoActionErrors();
+
+        $this->assertNotSoftDeleted($alternative);
+        $this->assertSame(1, $parent->ingredients()->count());
+    }
+
+    public function test_saving_without_touching_the_modal_keeps_the_alternatives(): void
+    {
+        $user = User::factory()->admin()->create();
+        $recipe = Recipe::factory()->create(['author_id' => $user->author_id]);
+        $parent = $this->parent($recipe);
+        $alternative = $this->alternativeOf($parent);
+
+        $this->actingAs($user);
+
+        Livewire::test(EditRecipe::class, ['record' => $recipe->getRouteKey()])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $this->assertNotSoftDeleted($alternative);
+        $this->assertSame(1, $parent->ingredients()->count());
+        $this->assertSame($alternative->id, $parent->ingredients()->first()?->id);
     }
 
     public function test_an_alternative_inherits_the_group_of_its_parent(): void

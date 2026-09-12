@@ -24,6 +24,7 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\TimePicker;
 use Filament\Notifications\Notification;
+use Filament\Schemas\Components\Component;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Enums\Width;
@@ -81,7 +82,50 @@ class RecipeForm
      */
     private static function ingredientFields(): array
     {
-        return self::ingredientBaseFields();
+        return [
+            ...self::ingredientBaseFields(),
+            // Carries the alternatives edited in the modal until the form is saved.
+            // A table repeater gives every other component its own cell, so this has
+            // to be a Hidden field, which it renders without consuming a column.
+            Hidden::make('alternatives')
+                ->dehydrated(false)
+                ->afterStateHydrated(function (Hidden $component, ?Ingredient $record): void {
+                    $component->state(self::alternativesOf($record));
+                })
+                ->saveRelationshipsUsing(function (Hidden $component, ?Ingredient $record): void {
+                    if ($record === null) {
+                        return;
+                    }
+
+                    $state = $component->getState();
+
+                    if (! is_array($state)) {
+                        return;
+                    }
+
+                    self::syncAlternatives($record, $state);
+                }),
+        ];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private static function alternativesOf(?Ingredient $ingredient): array
+    {
+        return $ingredient
+            ?->ingredients()
+            ->with('ingredientAttributes')
+            ->get()
+            ->map(fn (Ingredient $alternative): array => [
+                'id' => $alternative->id,
+                'amount' => $alternative->amount,
+                'amount_max' => $alternative->amount_max,
+                'unit_id' => $alternative->unit_id,
+                'food_id' => $alternative->food_id,
+                'ingredientAttributes' => $alternative->ingredientAttributes->pluck('id')->all(),
+            ])
+            ->all() ?? [];
     }
 
     /**
@@ -100,7 +144,8 @@ class RecipeForm
 
     /**
      * Edits an ingredient's alternatives in a modal, because a nested repeater cannot
-     * live inside a table repeater's cell.
+     * live inside a table repeater's cell. The modal only writes to the hidden
+     * `alternatives` field, so nothing is persisted until the form is saved.
      */
     private static function alternativesAction(): Action
     {
@@ -108,27 +153,15 @@ class RecipeForm
             ->label(__('Alternatives'))
             ->icon(Heroicon::OutlinedSwatch)
             ->modalHeading(__('Alternatives'))
+            ->modalSubmitActionLabel(__('Apply'))
             ->modalWidth(Width::FiveExtraLarge)
-            ->badge(function (array $arguments): ?string {
-                $count = self::alternativeCount($arguments);
+            ->badge(function (Repeater $component, array $arguments): ?string {
+                $count = count(self::pendingAlternatives($component, $arguments));
 
                 return $count > 0 ? (string) $count : null;
             })
-            ->visible(fn (array $arguments): bool => self::ingredientFromItemKey($arguments) !== null)
-            ->fillForm(fn (array $arguments): array => [
-                'alternatives' => self::ingredientFromItemKey($arguments)
-                    ?->ingredients()
-                    ->with('ingredientAttributes')
-                    ->get()
-                    ->map(fn (Ingredient $alternative): array => [
-                        'id' => $alternative->id,
-                        'amount' => $alternative->amount,
-                        'amount_max' => $alternative->amount_max,
-                        'unit_id' => $alternative->unit_id,
-                        'food_id' => $alternative->food_id,
-                        'ingredientAttributes' => $alternative->ingredientAttributes->pluck('id')->all(),
-                    ])
-                    ->all() ?? [],
+            ->fillForm(fn (Repeater $component, array $arguments): array => [
+                'alternatives' => self::pendingAlternatives($component, $arguments),
             ])
             ->schema([
                 Repeater::make('alternatives')
@@ -142,34 +175,52 @@ class RecipeForm
                     ])
                     ->columnSpanFull(),
             ])
-            ->action(function (array $data, array $arguments): void {
-                $ingredient = self::ingredientFromItemKey($arguments);
+            ->action(function (array $data, Repeater $component, array $arguments): void {
+                $itemKey = $arguments['item'] ?? null;
 
-                if ($ingredient === null) {
+                if (! is_string($itemKey)) {
                     return;
                 }
 
-                self::syncAlternatives($ingredient, $data['alternatives'] ?? []);
-
-                Notification::make()
-                    ->success()
-                    ->title(__('Alternatives saved'))
-                    ->send();
+                self::alternativesField($component, $itemKey)
+                    ?->state(array_values($data['alternatives'] ?? []));
             });
     }
 
     /**
-     * @param  array<string, mixed>  $arguments
+     * The hidden field holding a row's pending alternatives.
      */
-    private static function alternativeCount(array $arguments): int
+    private static function alternativesField(Repeater $component, string $itemKey): ?Hidden
     {
-        return (int) self::ingredientFromItemKey($arguments)?->ingredients()->count();
+        $field = $component->getChildSchema($itemKey)
+            ?->getComponent(fn (Component $child): bool => $child instanceof Hidden
+                && $child->getName() === 'alternatives');
+
+        return $field instanceof Hidden ? $field : null;
     }
 
     /**
-     * Alternatives are written straight to the database: the modal is detached from the
-     * parent repeater's form state, so Filament cannot persist them on save.
+     * The alternatives currently held in the row's form state, which may differ from
+     * the database until the form is saved.
      *
+     * @param  array<string, mixed>  $arguments
+     * @return array<int, array<string, mixed>>
+     */
+    private static function pendingAlternatives(Repeater $component, array $arguments): array
+    {
+        $itemKey = $arguments['item'] ?? null;
+
+        if (! is_string($itemKey)) {
+            return [];
+        }
+
+        // Read the field itself: getRawItemState() dehydrates, which drops this field.
+        $state = self::alternativesField($component, $itemKey)?->getState();
+
+        return is_array($state) ? array_values($state) : [];
+    }
+
+    /**
      * @param  array<int|string, array<string, mixed>>  $rows
      */
     private static function syncAlternatives(Ingredient $ingredient, array $rows): void
