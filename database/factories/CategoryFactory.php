@@ -16,7 +16,8 @@ class CategoryFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => $this->faker->unique()->words(asText: true),
+            // Column is 50 chars, so cap the words before the unique suffix.
+            'name' => \Str::limit($this->faker->word().' '.$this->faker->word(), 40, '').' '.$this->faker->unique()->numberBetween(1, 999999),
         ];
     }
 }

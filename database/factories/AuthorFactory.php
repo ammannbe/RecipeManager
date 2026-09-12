@@ -16,7 +16,8 @@ class AuthorFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => $this->faker->name(),
+            // authors.name is unique and Faker repeats names, so suffix it.
+            'name' => \Str::limit($this->faker->name(), 40, '').' '.$this->faker->unique()->numberBetween(1, 999999),
         ];
     }
 }

@@ -5,6 +5,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\Storage;
 
 class CreateMediaTable extends Migration
 {
@@ -66,8 +67,15 @@ class CreateMediaTable extends Migration
         $path = storage_path('app/images/recipes');
         $pathOld = storage_path('app/images/recipes.old');
 
+        // A previous run already moved the directory aside; nothing left to migrate.
+        if (File::isDirectory($pathOld)) {
+            return;
+        }
+
         File::moveDirectory($path, $pathOld);
         Storage::disk('recipe_photos')->makeDirectory('');
+        File::ensureDirectoryExists($path);
+
         if (File::exists("{$pathOld}/.gitignore")) {
             File::copy("{$pathOld}/.gitignore", "{$path}/.gitignore");
         }
@@ -96,7 +104,7 @@ class CreateMediaTable extends Migration
         Schema::dropIfExists('media');
 
         Schema::table('recipes', function (Blueprint $table) {
-            $table->json('photos')->nullable()->default(null)->after('insructions');
+            $table->json('photos')->nullable()->default(null)->after('instructions');
         });
     }
 }

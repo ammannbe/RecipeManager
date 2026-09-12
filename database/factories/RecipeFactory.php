@@ -27,11 +27,12 @@ class RecipeFactory extends Factory
                 );
             },
             'category_id' => Category::factory(),
-            'name' => $this->faker->unique(reset: true)->word(),
+            // Faker's word pool is far smaller than the number of seeded recipes.
+            'name' => $this->faker->unique()->words(asText: true),
             'servings' => $this->faker->optional()->numberBetween(1, 20),
             'serving_type' => $this->faker->optional()->word(),
             'complexity' => $this->faker->randomElement(Complexity::cases()),
-            'instructions' => $this->faker->unique(reset: true)->randomHtml(),
+            'instructions' => $this->faker->randomHtml(),
             'preparation_time' => $this->faker->optional()->time('H:i:00', '23:59'),
         ];
     }

@@ -16,19 +16,19 @@ class AuthorSeeder extends Seeder
     public function run()
     {
         if (! User::whereEmail(config('mail.from.address'))->exists()) {
-            Author::factory()
-                ->create(['email' => config('mail.from.address')])
-                ->each(function (Author $author) {
-                    $user = User::factory()->make([
-                        'name' => config('mail.from.name'),
-                    ]);
+            $author = Author::factory()->create([
+                'name' => config('mail.from.name'),
+            ]);
 
-                    return $author->user()->save($user);
-                });
+            User::factory()->create([
+                'author_id' => $author->id,
+                'email' => config('mail.from.address'),
+                'admin' => true,
+            ]);
         }
 
-        Author::factory(20)->create()->each(function (Author $author) {
-            return $author->user()->save(User::factory()->make());
-        });
+        Author::factory(20)
+            ->create()
+            ->each(fn (Author $author) => User::factory()->create(['author_id' => $author->id]));
     }
 }

@@ -16,7 +16,8 @@ class FoodFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => $this->faker->unique()->word(),
+            // Faker's word pool is smaller than the seeded row count, so suffix it.
+            'name' => \Str::limit($this->faker->word(), 40, '').'-'.$this->faker->unique()->numberBetween(1, 999999),
         ];
     }
 }

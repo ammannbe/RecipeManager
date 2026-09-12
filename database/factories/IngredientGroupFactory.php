@@ -18,7 +18,8 @@ class IngredientGroupFactory extends Factory
     {
         return [
             'recipe_id' => Recipe::factory(),
-            'name' => $this->faker->unique(reset: true)->word(),
+            // Column is only 20 chars, so keep the word short and suffix it to stay unique.
+            'name' => \Str::limit($this->faker->word(), 12, '').'-'.$this->faker->unique()->numberBetween(1, 999999),
         ];
     }
 }

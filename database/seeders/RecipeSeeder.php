@@ -2,10 +2,10 @@
 
 namespace Database\Seeders;
 
+use App\Models\Author;
 use App\Models\Category;
 use App\Models\Recipe;
 use App\Models\Tag;
-use App\Models\User;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Collection;
 
@@ -22,7 +22,7 @@ class RecipeSeeder extends Seeder
         $tags = Tag::get();
 
         Recipe::factory(100)
-            ->recycle(User::get())
+            ->recycle(Author::get())
             ->recycle(Category::get())
             ->create()
             ->each(function (Recipe $recipe) use ($tags) {

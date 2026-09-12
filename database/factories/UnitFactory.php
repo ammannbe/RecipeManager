@@ -16,7 +16,8 @@ class UnitFactory extends Factory
     public function definition(): array
     {
         return [
-            'name' => $this->faker->unique()->word(),
+            // Column is only 20 chars, so keep the word short and suffix it to stay unique.
+            'name' => \Str::limit($this->faker->word(), 12, '').'-'.$this->faker->unique()->numberBetween(1, 999999),
             'name_shortcut' => $this->faker->optional()->randomLetter(),
             'name_plural' => $this->faker->optional()->word(),
             'name_plural_shortcut' => $this->faker->optional()->randomLetter(),
