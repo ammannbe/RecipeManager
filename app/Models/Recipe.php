@@ -74,6 +74,8 @@ class Recipe extends Model
     }
 
     /**
+     * Unfiltered on purpose: the delete cascade has to reach alternatives too.
+     *
      * @return HasMany<Ingredient, $this>
      */
     public function ingredients(): HasMany
@@ -82,12 +84,15 @@ class Recipe extends Model
     }
 
     /**
+     * Top-level ingredients without a group; alternatives hang off their parent instead.
+     *
      * @return HasMany<Ingredient, $this>
      */
     public function ungroupedIngredients(): HasMany
     {
         return $this->hasMany(Ingredient::class)
             ->whereNull('ingredient_group_id')
+            ->whereNull('ingredient_id')
             ->orderBy('position');
     }
 

@@ -130,7 +130,7 @@ class RecipeIngredientMoveTest extends TestCase
             ->callAction(
                 TestAction::make('moveToGroup')
                     ->arguments(['item' => 'record-'.$ingredient->id])
-                    ->schemaComponent('ingredientGroups.record-'.$from->id.'.ingredients'),
+                    ->schemaComponent('ingredientGroups.record-'.$from->id.'.topLevelIngredients'),
                 data: ['ingredient_group_id' => $to->id],
             );
 

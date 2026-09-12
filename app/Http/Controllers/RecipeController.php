@@ -102,11 +102,13 @@ class RecipeController extends Controller
             'category',
             'cookbook',
             'ingredients',
-            'ingredients.ingredients',
             'ingredients.ingredientGroup',
             'ingredients.food',
             'ingredients.unit',
             'ingredients.ingredientAttributes',
+            'ingredients.ingredients.food',
+            'ingredients.ingredients.unit',
+            'ingredients.ingredients.ingredientAttributes',
             'ingredientGroups',
         ]);
 

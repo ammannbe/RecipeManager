@@ -4,8 +4,10 @@
     "A likely match is preselected. Please verify it.": "Ein wahrscheinlicher Treffer ist vorausgewählt. Bitte prüfen.",
     "AI prompt": "KI-Anweisung",
     "Admin": "Administrator",
+    "Add alternative": "Alternative hinzufügen",
     "All": "Alle",
     "All categories": "Alle Kategorien",
+    "Alternatives": "Alternativen",
     "Amount": "Menge",
     "Amount max": "Menge max.",
     "Attributes": "Attribute",
@@ -110,5 +112,6 @@
     "User account": "Benutzerkonto",
     "User email": "Benutzer-E-Mail",
     "View": "Ansehen",
-    "View all recipes in this category": "Alle Rezepte dieser Kategorie ansehen"
+    "View all recipes in this category": "Alle Rezepte dieser Kategorie ansehen",
+    "or": "oder"
 }

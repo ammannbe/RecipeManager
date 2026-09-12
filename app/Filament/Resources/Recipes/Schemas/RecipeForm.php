@@ -17,12 +17,12 @@ use Filament\Actions\Action;
 use Filament\Forms\Components\Field;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Repeater;
-use Filament\Forms\Components\Repeater\TableColumn;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\TimePicker;
 use Filament\Notifications\Notification;
+use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
@@ -30,16 +30,20 @@ use Filament\Support\Icons\Heroicon;
 class RecipeForm
 {
     /**
+     * The fields describing a single ingredient row, without its alternatives.
+     *
      * @return array<int, Field>
      */
-    private static function ingredientFields(): array
+    private static function ingredientBaseFields(): array
     {
         return [
             TextInput::make('amount')
+                ->label(__('Amount'))
                 ->numeric()
                 ->step(0.01)
                 ->nullable(),
             TextInput::make('amount_max')
+                ->label(__('Amount max'))
                 ->numeric()
                 ->step(0.01)
                 ->nullable(),
@@ -66,17 +70,40 @@ class RecipeForm
     }
 
     /**
-     * @return array<int, TableColumn>
+     * @return array<int, Field|Grid>
      */
-    private static function ingredientTableColumns(): array
+    private static function ingredientFields(): array
     {
         return [
-            TableColumn::make(__('Amount'))->width('6rem'),
-            TableColumn::make(__('Amount max'))->width('6rem'),
-            TableColumn::make(__('Unit'))->width('12rem'),
-            TableColumn::make(__('Food'))->width('16rem'),
-            TableColumn::make(__('Attributes'))->width('16rem'),
+            Grid::make(5)->schema(self::ingredientBaseFields()),
+            // Alternatives are ingredients themselves, but must not nest any further.
+            Repeater::make('ingredients')
+                ->label(__('Alternatives'))
+                ->relationship('ingredients')
+                ->orderColumn('position')
+                ->reorderable()
+                ->collapsed()
+                ->addActionLabel(__('Add alternative'))
+                ->itemLabel(fn (array $state): ?string => self::alternativeLabel($state))
+                ->schema([
+                    Grid::make(5)->schema(self::ingredientBaseFields()),
+                ])
+                ->columnSpanFull(),
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $state
+     */
+    private static function alternativeLabel(array $state): ?string
+    {
+        $foodId = $state['food_id'] ?? null;
+
+        if ($foodId === null || $foodId === '') {
+            return null;
+        }
+
+        return Food::query()->whereKey($foodId)->value('name');
     }
 
     /**
@@ -280,7 +307,7 @@ class RecipeForm
                     })
                     ->reorderable()
                     ->extraItemActions([self::moveIngredientAction()])
-                    ->table(self::ingredientTableColumns())
+                    ->itemLabel(fn (array $state): ?string => self::alternativeLabel($state))
                     ->schema(self::ingredientFields())
                     ->columnSpanFull(),
                 Section::make(__('Ingredient groups'))
@@ -296,13 +323,12 @@ class RecipeForm
                                 TextInput::make('name')
                                     ->required()
                                     ->maxLength(20),
-                                Repeater::make('ingredients')
+                                Repeater::make('topLevelIngredients')
                                     ->label(__('Ingredients'))
-                                    ->relationship()
+                                    ->relationship('topLevelIngredients')
                                     ->orderColumn('position')
                                     ->reorderable()
                                     ->extraItemActions([self::moveIngredientAction()])
-                                    ->table(self::ingredientTableColumns())
                                     ->schema(self::ingredientFields())
                                     ->columnSpanFull(),
                             ])

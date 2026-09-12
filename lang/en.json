@@ -4,8 +4,10 @@
     "A likely match is preselected. Please verify it.": "A likely match is preselected. Please verify it.",
     "AI prompt": "AI prompt",
     "Admin": "Admin",
+    "Add alternative": "Add alternative",
     "All": "All",
     "All categories": "All categories",
+    "Alternatives": "Alternatives",
     "Amount": "Amount",
     "Amount max": "Amount max",
     "Attributes": "Attributes",
@@ -110,5 +112,6 @@
     "User account": "User account",
     "User email": "User email",
     "View": "View",
-    "View all recipes in this category": "View all recipes in this category"
+    "View all recipes in this category": "View all recipes in this category",
+    "or": "or"
 }

@@ -8,7 +8,8 @@ class IngredientObserver
 {
     public function saving(Ingredient $ingredient): void
     {
-        if ($ingredient->ingredient_id) {
+        // The parent is gone while a cascade soft-deletes it, so leave the group as is.
+        if ($ingredient->ingredient_id && $ingredient->ingredient !== null) {
             $ingredient->ingredient_group_id = $ingredient->ingredient->ingredient_group_id;
         }
 

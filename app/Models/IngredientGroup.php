@@ -30,10 +30,22 @@ class IngredientGroup extends Model
     }
 
     /**
+     * Unfiltered on purpose: the delete cascade has to reach alternatives too.
+     *
      * @return HasMany<Ingredient, $this>
      */
     public function ingredients(): HasMany
     {
         return $this->hasMany(Ingredient::class)->orderBy('position');
+    }
+
+    /**
+     * @return HasMany<Ingredient, $this>
+     */
+    public function topLevelIngredients(): HasMany
+    {
+        return $this->hasMany(Ingredient::class)
+            ->whereNull('ingredient_id')
+            ->orderBy('position');
     }
 }

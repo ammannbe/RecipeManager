@@ -289,25 +289,7 @@
                         @if ($ungroupedIngredients->isNotEmpty())
                             <ul class="grid gap-1 text-sm leading-6 text-zinc-700 dark:text-zinc-300">
                                 @foreach ($ungroupedIngredients->filter(fn ($ingredient) => ! $ingredient->ingredient_id) as $ingredient)
-                                    <li
-                                        x-data="{
-                                            amount: {{ \Illuminate\Support\Js::from($ingredient->amount) }},
-                                            amountMax: {{ \Illuminate\Support\Js::from($ingredient->amount_max) }},
-                                            unit: {{ \Illuminate\Support\Js::from($ingredient->unit ? [
-                                                'name' => $ingredient->unit->name,
-                                                'nameShortcut' => $ingredient->unit->name_shortcut,
-                                                'namePlural' => $ingredient->unit->name_plural,
-                                                'namePluralShortcut' => $ingredient->unit->name_plural_shortcut,
-                                            ] : null) }},
-                                        }"
-                                    >
-                                        <span class="font-bold" x-text="formatAmount(amount, amountMax, unit)"></span>
-                                        {{ $ingredient->food?->name }}
-
-                                        @if ($ingredient->ingredientAttributes->isNotEmpty())
-                                            <span class="text-zinc-500 dark:text-zinc-400">({{ $ingredient->ingredientAttributes->pluck('name')->implode(', ') }})</span>
-                                        @endif
-                                    </li>
+                                    @include('recipes.partials.ingredient', ['ingredient' => $ingredient])
                                 @endforeach
                             </ul>
                         @endif
@@ -322,25 +304,7 @@
 
                                 <ul class="grid gap-1 text-sm leading-6 text-zinc-700 dark:text-zinc-300">
                                     @foreach ($ingredients->filter(fn ($ingredient) => ! $ingredient->ingredient_id) as $ingredient)
-                                        <li
-                                            x-data="{
-                                                amount: {{ \Illuminate\Support\Js::from($ingredient->amount) }},
-                                                amountMax: {{ \Illuminate\Support\Js::from($ingredient->amount_max) }},
-                                                unit: {{ \Illuminate\Support\Js::from($ingredient->unit ? [
-                                                    'name' => $ingredient->unit->name,
-                                                    'nameShortcut' => $ingredient->unit->name_shortcut,
-                                                    'namePlural' => $ingredient->unit->name_plural,
-                                                    'namePluralShortcut' => $ingredient->unit->name_plural_shortcut,
-                                                ] : null) }},
-                                            }"
-                                        >
-                                            <span class="font-bold" x-text="formatAmount(amount, amountMax, unit)"></span>
-                                            {{ $ingredient->food?->name }}
-
-                                            @if ($ingredient->ingredientAttributes->isNotEmpty())
-                                                <span class="text-zinc-500 dark:text-zinc-400">({{ $ingredient->ingredientAttributes->pluck('name')->implode(', ') }})</span>
-                                            @endif
-                                        </li>
+                                        @include('recipes.partials.ingredient', ['ingredient' => $ingredient])
                                     @endforeach
                                 </ul>
                             </div>
