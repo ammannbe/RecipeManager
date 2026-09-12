@@ -106,7 +106,7 @@ class RecipeForm
     {
         return Action::make('alternatives')
             ->label(__('Alternatives'))
-            ->icon(Heroicon::OutlinedArrowsUpDown)
+            ->icon(Heroicon::OutlinedSwatch)
             ->modalHeading(__('Alternatives'))
             ->modalWidth(Width::FiveExtraLarge)
             ->badge(function (array $arguments): ?string {
