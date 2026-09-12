@@ -176,13 +176,6 @@
                             <p class="min-h-[5.2rem] overflow-hidden text-sm leading-6 text-zinc-600 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:4] dark:text-zinc-400">{{ \Illuminate\Support\Str::limit(strip_tags((string) $recipe->instructions), 170) }}</p>
 
                             <div class="flex flex-wrap items-center gap-1.5">
-                                @if ($recipe->ratings_count > 0)
-                                    <span class="inline-flex items-center rounded-full bg-amber-100 px-2.5 py-1 text-xs font-semibold leading-none text-amber-800 dark:bg-amber-500/15 dark:text-amber-400">
-                                        {{ str_repeat('★', (int) round((float) $recipe->ratings_avg_stars)) }}
-                                        {{ __(':stars / :ratings', ['stars' => number_format((float) $recipe->ratings_avg_stars, 1), 'ratings' => $recipe->ratings_count]) }}
-                                    </span>
-                                @endif
-
                                 <span class="inline-flex items-center rounded-full bg-sky-100 px-2.5 py-1 text-xs font-semibold leading-none text-sky-800 dark:bg-sky-500/15 dark:text-sky-400">{{ $recipe->complexity?->label() }}</span>
 
                                 @if ($recipe->preparation_time)

@@ -3,14 +3,12 @@
 namespace App\Models;
 
 use Database\Factories\IngredientFactory;
-use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
-use Lamansky\Fraction\Fraction;
 
 class Ingredient extends Model
 {
@@ -28,58 +26,6 @@ class Ingredient extends Model
         'ingredient_id',
         'position',
     ];
-
-    /**
-     * Generate a human-readable name (e.g. 200 - 300 g Ananas (fresh, diced))
-     *
-     * @return Attribute<string, never>
-     */
-    public function name(): Attribute
-    {
-        return Attribute::make(
-            get: function () {
-                $amount = Fraction::fromFloat((float) $this->amount)->toUnicodeString();
-                $amount_max = Fraction::fromFloat((float) $this->amount_max)->toUnicodeString();
-                $amountString = collect([$amount, $amount_max])->filter()->implode(' - ');
-
-                $unit = $this->unit?->getMatchingName($this->amount_max ?? $this->amount);
-
-                $ingredientAttributes = $this->ingredientAttributes->isNotEmpty()
-                    ? '('.$this->ingredientAttributes->pluck('name')->implode(', ').')'
-                    : null;
-
-                $values = [
-                    $amountString,
-                    $unit,
-                    $this->food?->name,
-                    $ingredientAttributes,
-                ];
-
-                return collect($values)
-                    ->filter()
-                    ->implode(' ');
-            },
-        );
-    }
-
-    public function getAmountAndUnit(float $multiply = 1): string
-    {
-        $amount = Fraction::fromFloat((float) $this->amount * $multiply)->toUnicodeString();
-        $amount_max = Fraction::fromFloat((float) $this->amount_max * $multiply)->toUnicodeString();
-
-        $amountString = collect([$amount, $amount_max])
-            ->filter()
-            ->implode(' - ');
-
-        $values = [
-            $amountString,
-            $this->unit?->getMatchingName($this->amount_max ?? $this->amount),
-        ];
-
-        return collect($values)
-            ->filter()
-            ->implode(' ');
-    }
 
     /**
      * @return BelongsTo<Recipe, $this>

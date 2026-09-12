@@ -4,7 +4,6 @@ namespace App\Models;
 
 use Database\Factories\CookbookFactory;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -33,16 +32,6 @@ class Cookbook extends Model
         static::addGlobalScope('author_name', function (Builder $builder) {
             $builder->withAggregate('author', 'name');
         });
-    }
-
-    /**
-     * @return Attribute<string, never>
-     */
-    public function slug(): Attribute
-    {
-        return Attribute::make(
-            get: fn () => \Str::slug($this->name),
-        );
     }
 
     /**

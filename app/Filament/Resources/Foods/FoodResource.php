@@ -15,7 +15,6 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class FoodResource extends Resource
@@ -75,21 +74,5 @@ class FoodResource extends Resource
             ->withoutGlobalScopes([
                 SoftDeletingScope::class,
             ]);
-    }
-
-    public static function canCreate(): bool
-    {
-        return (bool) user()?->admin;
-    }
-
-    public static function canEdit(Model $record): bool
-    {
-        return (bool) user()?->admin;
-    }
-
-    public static function canDelete(Model $record): bool
-    {
-        /** @var Food $record */
-        return (bool) user()?->admin && $record->ingredients()->count() === 0;
     }
 }

@@ -9,6 +9,10 @@ class IngredientAttributePolicy
 {
     public function before(User $user, string $ability): ?bool
     {
+        if (in_array($ability, ['delete', 'forceDelete'])) {
+            return null;
+        }
+
         if ($user->admin) {
             return true;
         }
@@ -38,7 +42,7 @@ class IngredientAttributePolicy
 
     public function delete(User $user, IngredientAttribute $attribute): bool
     {
-        return $attribute->ingredients->isEmpty();
+        return $user->admin && $attribute->ingredients->isEmpty();
     }
 
     public function restore(User $user, IngredientAttribute $attribute): bool
@@ -48,6 +52,6 @@ class IngredientAttributePolicy
 
     public function forceDelete(User $user, IngredientAttribute $attribute): bool
     {
-        return $attribute->ingredients->isEmpty();
+        return $user->admin && $attribute->ingredients->isEmpty();
     }
 }

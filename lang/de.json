@@ -79,7 +79,6 @@
     "Prompt copied": "Anweisung kopiert",
     "Quick": "Schnell",
     "Recipe": "Rezept",
-    "Ratings": "Bewertungen",
     "Recipe JSON": "Rezept-JSON",
     "Recipe could not be imported": "Rezept konnte nicht importiert werden",
     "Recipe images": "Rezeptbilder",
@@ -96,7 +95,6 @@
     "Simple": "Einfach",
     "Sort": "Sortierung",
     "Units": "Einheiten",
-    "Stars": "Sterne",
     "Switch to dark mode": "Zum dunklen Modus wechseln",
     "Switch to light mode": "Zum hellen Modus wechseln",
     "Tag": "Schlagwort",
@@ -112,6 +110,5 @@
     "User account": "Benutzerkonto",
     "User email": "Benutzer-E-Mail",
     "View": "Ansehen",
-    "View all recipes in this category": "Alle Rezepte dieser Kategorie ansehen",
-    ":stars / :ratings": ":stars / :ratings"
+    "View all recipes in this category": "Alle Rezepte dieser Kategorie ansehen"
 }

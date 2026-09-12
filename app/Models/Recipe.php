@@ -6,7 +6,6 @@ use App\Casts\AsDocuments;
 use App\Enums\Complexity;
 use App\Traits\Searchable;
 use Database\Factories\RecipeFactory;
-use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -41,16 +40,6 @@ class Recipe extends Model
         'preparation_time' => 'datetime:H:i',
         'photos' => AsDocuments::class.':recipes',
     ];
-
-    /**
-     * @return Attribute<string, never>
-     */
-    public function slug(): Attribute
-    {
-        return Attribute::make(
-            get: fn () => \Str::slug($this->name),
-        );
-    }
 
     /**
      * @return BelongsTo<Author, $this>
@@ -108,13 +97,5 @@ class Recipe extends Model
     public function ingredientGroups(): HasMany
     {
         return $this->hasMany(IngredientGroup::class)->orderBy('position');
-    }
-
-    /**
-     * @return HasMany<Rating, $this>
-     */
-    public function ratings(): HasMany
-    {
-        return $this->hasMany(Rating::class);
     }
 }

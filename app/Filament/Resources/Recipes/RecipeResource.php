@@ -79,9 +79,7 @@ class RecipeResource extends Resource
         $user = user();
 
         $query = parent::getEloquentQuery()
-            ->with(['author', 'category', 'cookbook'])
-            ->withCount('ratings')
-            ->withAvg('ratings', 'stars');
+            ->with(['author', 'category', 'cookbook']);
 
         if ($user?->admin) {
             return $query;

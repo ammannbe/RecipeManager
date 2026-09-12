@@ -54,14 +54,6 @@ class RecipesTable
                     ->time('H:i')
                     ->placeholder('-')
                     ->sortable(),
-                TextColumn::make('ratings_avg_stars')
-                    ->label(__('Stars'))
-                    ->numeric(decimalPlaces: 1)
-                    ->placeholder('0.0')
-                    ->sortable(),
-                TextColumn::make('ratings_count')
-                    ->label(__('Ratings'))
-                    ->sortable(),
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()

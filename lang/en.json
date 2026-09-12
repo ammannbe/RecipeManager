@@ -77,7 +77,6 @@
     "Prompt copied": "Prompt copied",
     "Quick": "Quick",
     "Recipe": "Recipe",
-    "Ratings": "Ratings",
     "Recipe JSON": "Recipe JSON",
     "Recipe could not be imported": "Recipe could not be imported",
     "Recipe images": "Recipe images",
@@ -93,7 +92,6 @@
     "Servings amounts are recalculated automatically and may not be perfectly accurate.": "Servings amounts are recalculated automatically and may not be perfectly accurate.",
     "Simple": "Simple",
     "Sort": "Sort",
-    "Stars": "Stars",
     "Switch to dark mode": "Switch to dark mode",
     "Switch to light mode": "Switch to light mode",
     "Tag": "Tag",
@@ -112,6 +110,5 @@
     "User account": "User account",
     "User email": "User email",
     "View": "View",
-    "View all recipes in this category": "View all recipes in this category",
-    ":stars / :ratings": ":stars / :ratings"
+    "View all recipes in this category": "View all recipes in this category"
 }

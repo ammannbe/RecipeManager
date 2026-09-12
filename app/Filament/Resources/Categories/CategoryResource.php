@@ -15,7 +15,6 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletingScope;
 
 class CategoryResource extends Resource
@@ -73,21 +72,5 @@ class CategoryResource extends Resource
             ->withoutGlobalScopes([
                 SoftDeletingScope::class,
             ]);
-    }
-
-    public static function canCreate(): bool
-    {
-        return (bool) user()?->admin;
-    }
-
-    public static function canEdit(Model $record): bool
-    {
-        return (bool) user()?->admin;
-    }
-
-    public static function canDelete(Model $record): bool
-    {
-        /** @var Category $record */
-        return (bool) user()?->admin && $record->recipes()->count() === 0;
     }
 }

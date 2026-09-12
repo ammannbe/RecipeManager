@@ -18,7 +18,6 @@ class DatabaseSeeder extends Seeder
             CategorySeeder::class,
             FoodSeeder::class,
             IngredientAttributeSeeder::class,
-            RatingCriterionSeeder::class,
             TagSeeder::class,
             UnitSeeder::class,
 
@@ -26,7 +25,6 @@ class DatabaseSeeder extends Seeder
             RecipeSeeder::class,
             IngredientGroupSeeder::class,
             IngredientSeeder::class,
-            RatingSeeder::class,
         ]);
     }
 }

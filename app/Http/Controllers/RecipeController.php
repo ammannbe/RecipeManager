@@ -41,8 +41,6 @@ class RecipeController extends Controller
 
         $recipes = Recipe::query()
             ->with(['author', 'category', 'cookbook'])
-            ->withCount('ratings')
-            ->withAvg('ratings', 'stars')
             ->where(function (Builder $query): void {
                 $query->whereNull('cookbook_id');
 

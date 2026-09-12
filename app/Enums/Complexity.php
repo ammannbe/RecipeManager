@@ -17,15 +17,6 @@ enum Complexity: string
         };
     }
 
-    public function icon(): string
-    {
-        return match ($this) {
-            Complexity::Simple => 'signal-cellular-1',
-            Complexity::Normal => 'signal-cellular-2',
-            Complexity::Difficult => 'signal-cellular-3',
-        };
-    }
-
     public function color(): string
     {
         return match ($this) {
