@@ -5,12 +5,14 @@ namespace Tests\Feature;
 use App\Filament\Resources\Categories\CategoryResource;
 use App\Filament\Resources\Foods\FoodResource;
 use App\Filament\Resources\IngredientAttributes\IngredientAttributeResource;
+use App\Filament\Resources\Tags\TagResource;
 use App\Filament\Resources\Units\UnitResource;
 use App\Models\Category;
 use App\Models\Food;
 use App\Models\Ingredient;
 use App\Models\IngredientAttribute;
 use App\Models\Recipe;
+use App\Models\Tag;
 use App\Models\Unit;
 use App\Models\User;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -34,6 +36,7 @@ class LookupResourceAuthorizationTest extends TestCase
             'food' => [FoodResource::class, Food::class],
             'unit' => [UnitResource::class, Unit::class],
             'attribute' => [IngredientAttributeResource::class, IngredientAttribute::class],
+            'tag' => [TagResource::class, Tag::class],
         ];
     }
 
@@ -118,6 +121,16 @@ class LookupResourceAuthorizationTest extends TestCase
         $this->assertFalse(IngredientAttributeResource::canDelete($attribute->fresh()));
     }
 
+    public function test_an_admin_cannot_delete_a_tag_still_used_by_a_recipe(): void
+    {
+        $this->actingAs(User::factory()->create(['admin' => true]));
+
+        $tag = Tag::factory()->create();
+        Recipe::factory()->create()->tags()->attach($tag);
+
+        $this->assertFalse(TagResource::canDelete($tag->fresh()));
+    }
+
     public function test_lookup_lists_stay_readable_for_non_admins(): void
     {
         $this->actingAs(User::factory()->create(['admin' => false]));
@@ -126,5 +139,6 @@ class LookupResourceAuthorizationTest extends TestCase
         $this->assertTrue(FoodResource::canViewAny());
         $this->assertTrue(UnitResource::canViewAny());
         $this->assertTrue(IngredientAttributeResource::canViewAny());
+        $this->assertTrue(TagResource::canViewAny());
     }
 }

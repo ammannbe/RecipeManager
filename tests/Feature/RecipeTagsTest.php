@@ -4,6 +4,9 @@ namespace Tests\Feature;
 
 use App\Enums\Complexity;
 use App\Filament\Resources\Recipes\Pages\EditRecipe;
+use App\Filament\Resources\Tags\Pages\CreateTag;
+use App\Filament\Resources\Tags\Pages\EditTag;
+use App\Filament\Resources\Tags\TagResource;
 use App\Models\Recipe;
 use App\Models\Tag;
 use App\Models\User;
@@ -122,6 +125,64 @@ class RecipeTagsTest extends TestCase
         $this->get(route('recipes.show', $recipe))
             ->assertOk()
             ->assertSee('Herbst');
+    }
+
+    public function test_an_admin_can_list_tags_with_their_recipe_count(): void
+    {
+        $user = User::factory()->admin()->create();
+        $tag = Tag::factory()->create(['name' => 'Herbst']);
+        Recipe::factory()->create()->tags()->attach($tag);
+
+        $this->actingAs($user)
+            ->get(TagResource::getUrl('index'))
+            ->assertOk()
+            ->assertSee('Herbst');
+    }
+
+    public function test_an_admin_can_create_a_tag_from_the_resource(): void
+    {
+        $this->actingAs(User::factory()->admin()->create());
+
+        Livewire::test(CreateTag::class)
+            ->fillForm(['name' => 'Winter'])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $this->assertDatabaseHas('tags', ['name' => 'Winter']);
+    }
+
+    public function test_a_tag_name_must_be_unique(): void
+    {
+        Tag::factory()->create(['name' => 'Sommer']);
+
+        $this->actingAs(User::factory()->admin()->create());
+
+        Livewire::test(CreateTag::class)
+            ->fillForm(['name' => 'Sommer'])
+            ->call('create')
+            ->assertHasFormErrors(['name']);
+    }
+
+    public function test_an_admin_can_rename_a_tag(): void
+    {
+        $user = User::factory()->admin()->create();
+        $tag = Tag::factory()->create(['name' => 'Alt']);
+
+        $this->actingAs($user);
+
+        Livewire::test(EditTag::class, ['record' => $tag->getRouteKey()])
+            ->fillForm(['name' => 'Neu'])
+            ->call('save')
+            ->assertHasNoFormErrors();
+
+        $this->assertSame('Neu', $tag->refresh()->name);
+    }
+
+    public function test_a_non_admin_cannot_reach_the_tag_create_page(): void
+    {
+        $this->actingAs(User::factory()->create(['admin' => false]))
+            ->get(TagResource::getUrl('create'))
+            ->assertForbidden();
     }
 
     /**

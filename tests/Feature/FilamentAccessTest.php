@@ -30,4 +30,9 @@ class FilamentAccessTest extends TestCase
     {
         $this->get('/admin/ingredient-attributes')->assertRedirect('/admin/login');
     }
+
+    public function test_guest_is_redirected_to_login_from_admin_tag_resource(): void
+    {
+        $this->get('/admin/tags')->assertRedirect('/admin/login');
+    }
 }
