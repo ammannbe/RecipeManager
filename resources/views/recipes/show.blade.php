@@ -175,6 +175,19 @@
                         </span>
                     @endif
                 </div>
+
+                @if ($recipe->tags->isNotEmpty())
+                    <div class="flex flex-wrap items-center gap-1.5">
+                        @foreach ($recipe->tags as $tag)
+                            <a
+                                href="{{ route('recipes.index', ['tags' => [$tag->id]]) }}"
+                                class="inline-flex items-center rounded-full border border-zinc-300 px-2.5 py-1 text-xs font-semibold leading-none text-zinc-700 transition hover:border-cyan-600 hover:text-cyan-700 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-cyan-500 dark:hover:text-cyan-400"
+                            >
+                                {{ $tag->name }}
+                            </a>
+                        @endforeach
+                    </div>
+                @endif
             </header>
 
             @php($photoUrls = $recipe->photos->map(fn ($photo) => $photo->url().'?v='.$recipe->updated_at->timestamp)->values())
@@ -314,7 +327,7 @@
 
                 <section class="rounded-xl border border-zinc-200 bg-white p-5 md:p-6 dark:border-zinc-800 dark:bg-zinc-950">
                     <h2 class="mb-3 text-[1.1rem] font-semibold leading-tight text-zinc-900 dark:text-zinc-100">{{ __('Preparation') }}</h2>
-                    <div class="text-sm leading-7 text-zinc-700 dark:text-zinc-300 [&_blockquote]:mb-3 [&_blockquote]:text-zinc-700 [&_h1]:mb-3 [&_h1]:mt-4 [&_h1]:font-bold [&_h1]:text-zinc-900 [&_h2]:mb-3 [&_h2]:mt-4 [&_h2]:font-bold [&_h2]:text-zinc-900 [&_h3]:mb-3 [&_h3]:mt-4 [&_h3]:font-bold [&_h3]:text-zinc-900 [&_ol]:mb-3 [&_ol]:ml-4 [&_ol]:list-decimal [&_ol]:space-y-2 [&_p]:mb-3 [&_ul]:mb-3 [&_ul]:ml-4 [&_ul]:list-disc [&_ul]:space-y-2 dark:[&_blockquote]:text-zinc-300 dark:[&_h1]:text-zinc-100 dark:[&_h2]:text-zinc-100 dark:[&_h3]:text-zinc-100">
+                    <div class="text-sm leading-7 text-zinc-700 dark:text-zinc-300 [&_blockquote]:mb-3 [&_blockquote]:text-zinc-700 [&_h1]:mb-3 [&_h1]:mt-4 [&_h1]:font-bold [&_h1]:text-zinc-900 [&_h2]:mb-3 [&_h2]:mt-4 [&_h2]:font-bold [&_h2]:text-zinc-900 [&_h3]:mb-3 [&_h3]:mt-4 [&_h3]:font-bold [&_h3]:text-zinc-900 [&_ol]:mb-3 [&_ol]:ml-4 [&_ol]:list-decimal [&_ol]:space-y-2 [&_p]:mb-3 [&_ul]:mb-3 [&_ul]:ml-4 [&_ul]:list-disc [&_li>p]:mb-0 dark:[&_blockquote]:text-zinc-300 dark:[&_h1]:text-zinc-100 dark:[&_h2]:text-zinc-100 dark:[&_h3]:text-zinc-100">
                         {!! $recipe->instructions !!}
                     </div>
                 </section>

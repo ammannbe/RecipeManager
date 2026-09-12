@@ -54,6 +54,11 @@ class RecipesTable
                     ->time('H:i')
                     ->placeholder('-')
                     ->sortable(),
+                TextColumn::make('tags.name')
+                    ->label(__('Tags'))
+                    ->badge()
+                    ->placeholder('-')
+                    ->toggleable(),
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
@@ -74,6 +79,11 @@ class RecipesTable
                 SelectFilter::make('category_id')
                     ->label(__('Category'))
                     ->options(fn (): array => Category::query()->orderBy('name')->pluck('name', 'id')->all()),
+                SelectFilter::make('tags')
+                    ->label(__('Tags'))
+                    ->relationship('tags', 'name')
+                    ->multiple()
+                    ->preload(),
                 SelectFilter::make('author_id')
                     ->label(__('Author'))
                     ->visible(fn (): bool => (bool) user()?->admin)

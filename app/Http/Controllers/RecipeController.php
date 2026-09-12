@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Enums\Complexity;
 use App\Models\Category;
 use App\Models\Recipe;
+use App\Models\Tag;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -18,6 +19,11 @@ class RecipeController extends Controller
         $complexity = (string) $request->string('complexity');
         $category = $request->integer('category');
         $selectedSort = (string) $request->string('sort', 'created_at_desc');
+
+        $selectedTags = Tag::query()
+            ->whereIn('id', array_map('intval', (array) $request->input('tags', [])))
+            ->pluck('id')
+            ->all();
 
         $sortOptions = [
             'created_at_desc' => ['created_at', 'desc'],
@@ -40,7 +46,7 @@ class RecipeController extends Controller
         );
 
         $recipes = Recipe::query()
-            ->with(['author', 'category', 'cookbook'])
+            ->with(['author', 'category', 'cookbook', 'tags'])
             ->where(function (Builder $query): void {
                 $query->whereNull('cookbook_id');
 
@@ -55,6 +61,13 @@ class RecipeController extends Controller
                 fn (Builder $query): Builder => $query->where('complexity', $complexity),
             )
             ->when($category > 0, fn (Builder $query): Builder => $query->where('category_id', $category))
+            ->when(
+                $selectedTags !== [],
+                fn (Builder $query): Builder => $query->whereHas(
+                    'tags',
+                    fn (Builder $tags): Builder => $tags->whereIn('tags.id', $selectedTags),
+                ),
+            )
             ->orderBy($sortBy, $sortDirection)
             ->orderByDesc('id')
             ->paginate(15)
@@ -83,10 +96,12 @@ class RecipeController extends Controller
         return view('recipes.index', [
             'recipes' => $recipes,
             'categories' => Category::query()->orderBy('name')->get(),
+            'tags' => Tag::query()->orderBy('name')->get(),
             'search' => $search,
             'quick' => $quick,
             'complexity' => $complexity,
             'selectedCategory' => $category > 0 ? $category : null,
+            'selectedTags' => $selectedTags,
             'selectedSort' => $selectedSort,
             'paginationPages' => $paginationPages,
             'currentPage' => $currentPage,
@@ -101,6 +116,7 @@ class RecipeController extends Controller
             'author',
             'category',
             'cookbook',
+            'tags',
             'ingredients',
             'ingredients.ingredientGroup',
             'ingredients.food',

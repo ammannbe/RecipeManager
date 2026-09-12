@@ -24,10 +24,12 @@ class PublicRecipesViewTest extends TestCase
         $view = $this->view('recipes.index', [
             'recipes' => $recipes,
             'categories' => new Collection,
+            'tags' => new Collection,
             'search' => '',
             'quick' => false,
             'complexity' => '',
             'selectedCategory' => null,
+            'selectedTags' => [],
             'selectedSort' => 'created_at_desc',
             'paginationPages' => [],
             'currentPage' => 1,

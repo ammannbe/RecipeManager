@@ -138,6 +138,27 @@
                     </select>
                 </div>
 
+                @if ($tags->isNotEmpty())
+                    <div class="col-span-12 grid gap-1">
+                        <p class="text-[0.6rem] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">{{ __('Tags') }}</p>
+
+                        <div class="flex flex-wrap items-center gap-2">
+                            @foreach ($tags as $tag)
+                                @php($isSelected = in_array($tag->id, $selectedTags, true))
+
+                                <label @class([
+                                    'inline-flex min-h-7 cursor-pointer select-none items-center rounded-full border px-3 py-1 text-[0.65rem] font-bold uppercase tracking-[0.08em] leading-none transition',
+                                    'border-cyan-600 bg-cyan-50 text-cyan-700 shadow-sm dark:border-cyan-500 dark:bg-cyan-500/10 dark:text-cyan-400' => $isSelected,
+                                    'border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:text-zinc-100' => ! $isSelected,
+                                ])>
+                                    <input type="checkbox" name="tags[]" value="{{ $tag->id }}" class="sr-only" @checked($isSelected)>
+                                    {{ $tag->name }}
+                                </label>
+                            @endforeach
+                        </div>
+                    </div>
+                @endif
+
                 <div class="col-span-12 flex items-center gap-2 pt-1">
                     <a href="{{ route('recipes.index') }}" class="inline-flex h-8 items-center rounded-xl border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-700 shadow-sm transition hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-100">{{ __('Reset') }}</a>
                 </div>

@@ -30,6 +30,10 @@ class RecipeInfolist
                 TextEntry::make('complexity')
                     ->label(__('Complexity'))
                     ->badge(),
+                TextEntry::make('tags.name')
+                    ->label(__('Tags'))
+                    ->badge()
+                    ->placeholder('-'),
                 TextEntry::make('instructions')
                     ->label(__('Instructions'))
                     ->columnSpanFull(),

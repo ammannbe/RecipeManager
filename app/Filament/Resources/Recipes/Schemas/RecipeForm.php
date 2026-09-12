@@ -12,7 +12,9 @@ use App\Models\Ingredient;
 use App\Models\IngredientAttribute;
 use App\Models\IngredientGroup;
 use App\Models\Recipe;
+use App\Models\Tag;
 use App\Models\Unit;
+use App\Services\RecipeImport\RecipeJsonSchema;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Field;
 use Filament\Forms\Components\FileUpload;
@@ -432,6 +434,26 @@ class RecipeForm
                     ->label(__('Preparation time'))
                     ->seconds(false)
                     ->nullable(),
+                Select::make('tags')
+                    ->label(__('Tags'))
+                    ->relationship('tags', 'name')
+                    ->multiple()
+                    ->searchable()
+                    ->preload()
+                    ->options(fn (): array => Tag::query()->orderBy('name')->pluck('name', 'id')->all())
+                    // Mirrors LookupType::canBeCreatedBy(): only admins add new tags.
+                    ->createOptionForm(fn (): ?array => user()?->admin ? [
+                        TextInput::make('name')
+                            ->required()
+                            ->maxLength(RecipeJsonSchema::MAX_TAG_NAME)
+                            ->unique(Tag::class, 'name'),
+                    ] : null)
+                    ->createOptionUsing(function (array $data): int {
+                        abort_unless((bool) user()?->admin, 403);
+
+                        return Tag::query()->create(['name' => $data['name']])->id;
+                    })
+                    ->columnSpanFull(),
                 RichEditor::make('instructions')
                     ->label(__('Instructions'))
                     ->required()
