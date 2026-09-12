@@ -16,25 +16,29 @@ use App\Models\Unit;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Field;
 use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Repeater\TableColumn;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\TimePicker;
 use Filament\Notifications\Notification;
-use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
+use Filament\Support\Enums\Width;
 use Filament\Support\Icons\Heroicon;
 
 class RecipeForm
 {
     /**
-     * The fields describing a single ingredient row, without its alternatives.
+     * The fields describing a single ingredient row.
      *
+     * @param  bool  $withAttributeRelationship  False inside the alternatives modal, which
+     *                                           is detached from any ingredient record.
      * @return array<int, Field>
      */
-    private static function ingredientBaseFields(): array
+    private static function ingredientBaseFields(bool $withAttributeRelationship = true): array
     {
         return [
             TextInput::make('amount')
@@ -61,7 +65,10 @@ class RecipeForm
                 ->options(fn (): array => Food::query()->orderBy('name')->pluck('name', 'id')->all()),
             Select::make('ingredientAttributes')
                 ->label(__('Attributes'))
-                ->relationship('ingredientAttributes', 'name')
+                ->when(
+                    $withAttributeRelationship,
+                    fn (Select $select): Select => $select->relationship('ingredientAttributes', 'name'),
+                )
                 ->multiple()
                 ->searchable()
                 ->preload()
@@ -70,40 +77,140 @@ class RecipeForm
     }
 
     /**
-     * @return array<int, Field|Grid>
+     * @return array<int, Field>
      */
     private static function ingredientFields(): array
     {
+        return self::ingredientBaseFields();
+    }
+
+    /**
+     * @return array<int, TableColumn>
+     */
+    private static function ingredientTableColumns(): array
+    {
         return [
-            Grid::make(5)->schema(self::ingredientBaseFields()),
-            // Alternatives are ingredients themselves, but must not nest any further.
-            Repeater::make('ingredients')
-                ->label(__('Alternatives'))
-                ->relationship('ingredients')
-                ->orderColumn('position')
-                ->reorderable()
-                ->collapsed()
-                ->addActionLabel(__('Add alternative'))
-                ->itemLabel(fn (array $state): ?string => self::alternativeLabel($state))
-                ->schema([
-                    Grid::make(5)->schema(self::ingredientBaseFields()),
-                ])
-                ->columnSpanFull(),
+            TableColumn::make(__('Amount'))->width('6rem'),
+            TableColumn::make(__('Amount max'))->width('6rem'),
+            TableColumn::make(__('Unit'))->width('12rem'),
+            TableColumn::make(__('Food'))->width('16rem'),
+            TableColumn::make(__('Attributes'))->width('16rem'),
         ];
     }
 
     /**
-     * @param  array<string, mixed>  $state
+     * Edits an ingredient's alternatives in a modal, because a nested repeater cannot
+     * live inside a table repeater's cell.
      */
-    private static function alternativeLabel(array $state): ?string
+    private static function alternativesAction(): Action
     {
-        $foodId = $state['food_id'] ?? null;
+        return Action::make('alternatives')
+            ->label(__('Alternatives'))
+            ->icon(Heroicon::OutlinedArrowsUpDown)
+            ->modalHeading(__('Alternatives'))
+            ->modalWidth(Width::FiveExtraLarge)
+            ->badge(function (array $arguments): ?string {
+                $count = self::alternativeCount($arguments);
 
-        if ($foodId === null || $foodId === '') {
-            return null;
+                return $count > 0 ? (string) $count : null;
+            })
+            ->visible(fn (array $arguments): bool => self::ingredientFromItemKey($arguments) !== null)
+            ->fillForm(fn (array $arguments): array => [
+                'alternatives' => self::ingredientFromItemKey($arguments)
+                    ?->ingredients()
+                    ->with('ingredientAttributes')
+                    ->get()
+                    ->map(fn (Ingredient $alternative): array => [
+                        'id' => $alternative->id,
+                        'amount' => $alternative->amount,
+                        'amount_max' => $alternative->amount_max,
+                        'unit_id' => $alternative->unit_id,
+                        'food_id' => $alternative->food_id,
+                        'ingredientAttributes' => $alternative->ingredientAttributes->pluck('id')->all(),
+                    ])
+                    ->all() ?? [],
+            ])
+            ->schema([
+                Repeater::make('alternatives')
+                    ->hiddenLabel()
+                    ->addActionLabel(__('Add alternative'))
+                    ->reorderable()
+                    ->table(self::ingredientTableColumns())
+                    ->schema([
+                        ...self::ingredientBaseFields(withAttributeRelationship: false),
+                        Hidden::make('id'),
+                    ])
+                    ->columnSpanFull(),
+            ])
+            ->action(function (array $data, array $arguments): void {
+                $ingredient = self::ingredientFromItemKey($arguments);
+
+                if ($ingredient === null) {
+                    return;
+                }
+
+                self::syncAlternatives($ingredient, $data['alternatives'] ?? []);
+
+                Notification::make()
+                    ->success()
+                    ->title(__('Alternatives saved'))
+                    ->send();
+            });
+    }
+
+    /**
+     * @param  array<string, mixed>  $arguments
+     */
+    private static function alternativeCount(array $arguments): int
+    {
+        return (int) self::ingredientFromItemKey($arguments)?->ingredients()->count();
+    }
+
+    /**
+     * Alternatives are written straight to the database: the modal is detached from the
+     * parent repeater's form state, so Filament cannot persist them on save.
+     *
+     * @param  array<int|string, array<string, mixed>>  $rows
+     */
+    private static function syncAlternatives(Ingredient $ingredient, array $rows): void
+    {
+        $keptIds = [];
+        $position = 1;
+
+        foreach ($rows as $row) {
+            if (($row['food_id'] ?? null) === null) {
+                continue;
+            }
+
+            $attributes = [
+                'amount' => $row['amount'] ?? null,
+                'amount_max' => $row['amount_max'] ?? null,
+                'unit_id' => $row['unit_id'] ?? null,
+                'food_id' => $row['food_id'],
+                'position' => $position++,
+            ];
+
+            $id = $row['id'] ?? null;
+
+            $alternative = $id
+                ? $ingredient->ingredients()->whereKey($id)->first()
+                : null;
+
+            if ($alternative) {
+                $alternative->update($attributes);
+            } else {
+                /** @var Ingredient $alternative */
+                $alternative = $ingredient->ingredients()->create($attributes);
+            }
+
+            $alternative->ingredientAttributes()->sync($row['ingredientAttributes'] ?? []);
+
+            $keptIds[] = $alternative->id;
         }
 
-        return Food::query()->whereKey($foodId)->value('name');
+        $ingredient->ingredients()
+            ->when($keptIds !== [], fn ($query) => $query->whereKeyNot($keptIds))
+            ->each(fn (Ingredient $removed) => $removed->delete());
     }
 
     /**
@@ -306,8 +413,8 @@ class RecipeForm
                         return $data;
                     })
                     ->reorderable()
-                    ->extraItemActions([self::moveIngredientAction()])
-                    ->itemLabel(fn (array $state): ?string => self::alternativeLabel($state))
+                    ->extraItemActions([self::alternativesAction(), self::moveIngredientAction()])
+                    ->table(self::ingredientTableColumns())
                     ->schema(self::ingredientFields())
                     ->columnSpanFull(),
                 Section::make(__('Ingredient groups'))
@@ -328,7 +435,8 @@ class RecipeForm
                                     ->relationship('topLevelIngredients')
                                     ->orderColumn('position')
                                     ->reorderable()
-                                    ->extraItemActions([self::moveIngredientAction()])
+                                    ->extraItemActions([self::alternativesAction(), self::moveIngredientAction()])
+                                    ->table(self::ingredientTableColumns())
                                     ->schema(self::ingredientFields())
                                     ->columnSpanFull(),
                             ])
