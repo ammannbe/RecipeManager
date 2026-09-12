@@ -25,6 +25,7 @@ use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\TimePicker;
+use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Schemas\Components\Component;
 use Filament\Schemas\Components\Section;
@@ -434,6 +435,10 @@ class RecipeForm
                     ->label(__('Preparation time'))
                     ->seconds(false)
                     ->nullable(),
+                Toggle::make('is_public')
+                    ->label(__('Public'))
+                    ->helperText(__('Public recipes and their images are visible to everyone, including visitors who are not logged in.'))
+                    ->default(false),
                 Select::make('tags')
                     ->label(__('Tags'))
                     ->relationship('tags', 'name')
@@ -464,11 +469,9 @@ class RecipeForm
                     ->multiple()
                     ->reorderable()
                     ->appendFiles()
-                    ->openable()
-                    ->downloadable()
                     ->disk('recipes')
                     ->directory(fn ($record): ?string => $record ? (string) $record->getKey() : null)
-                    ->visibility('public')
+                    ->visibility('private')
                     ->visibleOn('edit')
                     ->columnSpanFull(),
                 Repeater::make('ungroupedIngredients')

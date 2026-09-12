@@ -14,9 +14,11 @@ use Filament\Actions\EditAction;
 use Filament\Actions\ForceDeleteBulkAction;
 use Filament\Actions\RestoreBulkAction;
 use Filament\Actions\ViewAction;
+use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -54,6 +56,10 @@ class RecipesTable
                     ->time('H:i')
                     ->placeholder('-')
                     ->sortable(),
+                IconColumn::make('is_public')
+                    ->label(__('Public'))
+                    ->boolean()
+                    ->sortable(),
                 TextColumn::make('tags.name')
                     ->label(__('Tags'))
                     ->badge()
@@ -84,6 +90,8 @@ class RecipesTable
                     ->relationship('tags', 'name')
                     ->multiple()
                     ->preload(),
+                TernaryFilter::make('is_public')
+                    ->label(__('Public')),
                 SelectFilter::make('author_id')
                     ->label(__('Author'))
                     ->visible(fn (): bool => (bool) user()?->admin)

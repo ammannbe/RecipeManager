@@ -47,13 +47,15 @@ return [
             'report' => false,
         ],
 
+        // Private: photos are served through the authorized recipes.photo route.
         'recipes' => [
             'driver' => 'local',
-            'root' => storage_path('app/public/recipes'),
-            'url' => rtrim(env('APP_URL', 'http://localhost'), '/').'/storage/recipes',
-            'visibility' => 'public',
+            'root' => storage_path('app/private/recipes'),
+            'visibility' => 'private',
+            'throw' => false,
         ],
 
+        // Only referenced by the legacy 2021 media migration.
         'recipe_photos' => [
             'driver' => 'local',
             'root' => storage_path('app/public/recipes'),

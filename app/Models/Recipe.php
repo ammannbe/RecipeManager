@@ -6,6 +6,7 @@ use App\Casts\AsDocuments;
 use App\Enums\Complexity;
 use App\Traits\Searchable;
 use Database\Factories\RecipeFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -26,6 +27,7 @@ class Recipe extends Model
         'cookbook_id',
         'category_id',
         'name',
+        'is_public',
         'servings',
         'serving_type',
         'complexity',
@@ -35,11 +37,33 @@ class Recipe extends Model
     ];
 
     protected $casts = [
+        'is_public' => 'boolean',
         'servings' => 'float',
         'complexity' => Complexity::class,
         'preparation_time' => 'datetime:H:i',
         'photos' => AsDocuments::class.':recipes',
     ];
+
+    /**
+     * The single source of truth for who may see a recipe. RecipePolicy::view()
+     * mirrors this for individual records.
+     *
+     * @param  Builder<$this>  $query
+     */
+    public function scopeVisibleTo(Builder $query, ?User $user): void
+    {
+        if ($user?->admin) {
+            return;
+        }
+
+        $query->where(function (Builder $query) use ($user): void {
+            $query->where('recipes.is_public', true);
+
+            if ($user?->author_id) {
+                $query->orWhere('recipes.author_id', $user->author_id);
+            }
+        });
+    }
 
     /**
      * @return BelongsTo<Author, $this>

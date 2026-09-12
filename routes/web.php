@@ -6,5 +6,7 @@ use Illuminate\Support\Facades\Route;
 
 Route::get('/', [RecipeController::class, 'index'])->name('recipes.index');
 Route::get('/recipes/{recipe}', [RecipeController::class, 'show'])->name('recipes.show');
+Route::get('/recipes/{recipe}/photos/{filename}', [RecipeController::class, 'photo'])
+    ->name('recipes.photo');
 
 Route::post('/profile/{locale}', [ProfileController::class, 'locale'])->name('profile.locale');

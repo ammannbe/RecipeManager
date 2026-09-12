@@ -6,9 +6,11 @@ use App\Enums\Complexity;
 use App\Models\Category;
 use App\Models\Recipe;
 use App\Models\Tag;
+use App\Services\Document;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\BinaryFileResponse;
 
 class RecipeController extends Controller
 {
@@ -47,13 +49,7 @@ class RecipeController extends Controller
 
         $recipes = Recipe::query()
             ->with(['author', 'category', 'cookbook', 'tags'])
-            ->where(function (Builder $query): void {
-                $query->whereNull('cookbook_id');
-
-                if (user()) {
-                    $query->orWhere('author_id', user()->author_id);
-                }
-            })
+            ->visibleTo(user())
             ->search(['name', 'instructions'], $search)
             ->when($quick, fn (Builder $query): Builder => $query->where('preparation_time', '<=', '00:30:00'))
             ->when(
@@ -110,7 +106,8 @@ class RecipeController extends Controller
 
     public function show(Recipe $recipe): View
     {
-        abort_unless($this->canView($recipe), 404);
+        // 404 rather than 403 so a private recipe's existence is not leaked.
+        abort_unless(user()?->can('view', $recipe) ?? $recipe->is_public, 404);
 
         $recipe->load([
             'author',
@@ -133,12 +130,20 @@ class RecipeController extends Controller
         ]);
     }
 
-    private function canView(Recipe $recipe): bool
+    /**
+     * Serves a photo from the private disk, guarded by the same rule as the recipe itself.
+     */
+    public function photo(Recipe $recipe, string $filename): BinaryFileResponse
     {
-        if (! $recipe->cookbook_id) {
-            return true;
-        }
+        abort_unless(user()?->can('view', $recipe) ?? $recipe->is_public, 404);
 
-        return user()?->author_id === $recipe->author_id;
+        // Only filenames the recipe actually stores; blocks traversal and guessing.
+        $document = $recipe->photos->first(
+            fn (Document $photo): bool => $photo->name() === $filename
+        );
+
+        abort_if($document === null, 404);
+
+        return $document->response() ?? abort(404);
     }
 }

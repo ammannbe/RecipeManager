@@ -23,7 +23,7 @@ class RecipePolicy
 
     public function view(User $user, Recipe $recipe): bool
     {
-        return ! $recipe->cookbook_id || $user->author_id === $recipe->author_id;
+        return $recipe->is_public || $user->author_id === $recipe->author_id;
     }
 
     public function create(User $user): bool

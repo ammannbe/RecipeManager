@@ -27,6 +27,8 @@ class RecipeFactory extends Factory
                 );
             },
             'category_id' => Category::factory(),
+            // Mirrors the pre-is_public rule: a recipe outside a cookbook was public.
+            'is_public' => fn (array $attributes): bool => $attributes['cookbook_id'] === null,
             // Faker's word pool is far smaller than the number of seeded recipes.
             'name' => $this->faker->unique()->words(asText: true),
             'servings' => $this->faker->optional()->numberBetween(1, 20),

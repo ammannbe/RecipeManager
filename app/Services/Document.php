@@ -99,6 +99,15 @@ class Document implements \JsonSerializable
             return null;
         }
 
+        // Recipe photos live on a private disk and are served through an authorized route.
+        if ($this->disk === 'recipes') {
+            [$recipe, $filename] = array_pad(explode('/', $this->path, 2), 2, null);
+
+            if ($recipe !== null && $filename !== null) {
+                return route('recipes.photo', ['recipe' => $recipe, 'filename' => $filename]);
+            }
+        }
+
         return $this->disk()->url($this->path);
     }
 

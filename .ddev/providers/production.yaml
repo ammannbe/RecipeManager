@@ -21,7 +21,7 @@ db_pull_command:
 files_pull_command:
   command: |
     set -eu -o pipefail
-    rsync -azv --mkpath "${SSH_USER}@${SSH_HOST}:${PROJECT_PATH}/storage/app/public/" /var/www/html/.ddev/.downloads/files/
+    rsync -azv --mkpath --exclude="livewire-tmp" "${SSH_USER}@${SSH_HOST}:${PROJECT_PATH}/storage/app/" /var/www/html/.ddev/.downloads/files/
   service: web
 
 db_push_command:

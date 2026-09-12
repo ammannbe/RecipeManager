@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Recipes\Schemas;
 
 use App\Models\Recipe;
+use Filament\Infolists\Components\IconEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Schema;
 
@@ -30,6 +31,9 @@ class RecipeInfolist
                 TextEntry::make('complexity')
                     ->label(__('Complexity'))
                     ->badge(),
+                IconEntry::make('is_public')
+                    ->label(__('Public'))
+                    ->boolean(),
                 TextEntry::make('tags.name')
                     ->label(__('Tags'))
                     ->badge()
