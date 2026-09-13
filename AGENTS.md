@@ -5,9 +5,8 @@
 This is a Laravel recipe management application.
 
 The app manages:
-- cookbooks
-- recipes
-- recipe ratings
+- cookbooks, shared with other users via e-mail invitations
+- recipes, private by default and publishable individually or per cookbook
 - foods
 - tags
 
@@ -18,7 +17,7 @@ The app manages:
 - MariaDB
 - Filament v5
 - Laravel Livewire v4
-- Pest
+- PHPUnit
 - Laravel Pint
 - Larastan
 
@@ -51,11 +50,12 @@ If any command fails, repeat the process from the beginning.
 * Do not edit vendor files.
 * Use Form Requests for validation in custom controllers.
 * Use Policies for authorization.
-* Use Pest for tests.
+* Use PHPUnit test classes in `tests/Feature`.
 * Use factories for test data.
 * Use Filament for main CRUD interfaces.
-* Only authenticated users can access the app.
-* Guests must not access the app backend.
+* Only authenticated users can access the app backend.
+* Guests may only see recipes that are published.
+* Recipe photos live on the private `recipes` disk and are served through an authorized route. Never move them back under `public/`.
 
 ## Authentication Rules
 
@@ -64,12 +64,14 @@ If any command fails, repeat the process from the beginning.
 
 ## Testing Rules
 
-Add or update Pest tests for every functional change.
+Add or update tests for every functional change.
 
 Important test areas:
 
 * authentication
 * policies
+* cookbook sharing and invitations
+* recipe visibility, including photo access
 * filament pages
 * filament resources
 * profile update

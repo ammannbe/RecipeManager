@@ -14,14 +14,16 @@ Written with the PHP Framework [Laravel](https://laravel.com/).
 ## Why is this so awesome?
 
 -   **Manage your recipes** - You and your friends can save, edit and delete recipes.
--   **Share recipes** - You can share recipes by one click via Telegram or E-Mail.
+-   **Share cookbooks** - Invite others by e-mail and decide per person whether they may read, add, edit or delete recipes.
+-   **Publish what you want** - Recipes and whole cookbooks stay private until you publish them.
+-   **Import with AI** - Turn a photo, PDF or text of a recipe into a ready-to-import JSON file ([how it works](docs/ai-recipe-import.md)).
 -   **Calculate servings** - Calculate servings directly in the recipe on the fly.
 -   **Reuse recipe properties** - ..like author, category, tags, ingredients, units and more.
+-   **German and English** - Switch the language at any time.
 
 ## What features are planned?
 
 -   Nutrition informations
--   Rating system (the API code is already written ;-) )
 -   A feature you think is missing...
 
 ## Getting Started
@@ -141,13 +143,13 @@ ddev artisan migrate:fresh --seed
 # The secret of the seeded users is 'password'
 ```
 
-Before every commit, run the composer quality command:
+Before every commit, run the test suite, the code style fixer and the static analyser:
 
 ```bash
-ddev composer run quality
+ddev composer test
+ddev composer pint
+ddev composer phpstan
 ```
-
-This will execute the PHP code style fixer, static code analytics and the IDE helper.
 
 ## Contributing
 
