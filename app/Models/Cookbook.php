@@ -20,6 +20,11 @@ class Cookbook extends Model
     protected $fillable = [
         'author_id',
         'name',
+        'is_public',
+    ];
+
+    protected $casts = [
+        'is_public' => 'boolean',
     ];
 
     /**

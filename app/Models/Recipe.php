@@ -45,8 +45,17 @@ class Recipe extends Model
     ];
 
     /**
+     * Visible to everyone, either on its own or through a published cookbook.
+     * The record-level counterpart of the is_public half of scopeVisibleTo().
+     */
+    public function isPublished(): bool
+    {
+        return $this->is_public || (bool) $this->cookbook?->is_public;
+    }
+
+    /**
      * The single source of truth for who may see a recipe. RecipePolicy::view()
-     * mirrors this for individual records.
+     * and isPublished() mirror this for individual records.
      *
      * @param  Builder<$this>  $query
      */
@@ -57,7 +66,8 @@ class Recipe extends Model
         }
 
         $query->where(function (Builder $query) use ($user): void {
-            $query->where('recipes.is_public', true);
+            $query->where('recipes.is_public', true)
+                ->orWhereHas('cookbook', fn (Builder $cookbook) => $cookbook->where('is_public', true));
 
             if ($user?->author_id) {
                 $query->orWhere('recipes.author_id', $user->author_id);

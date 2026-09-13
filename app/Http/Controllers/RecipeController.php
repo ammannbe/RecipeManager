@@ -107,7 +107,7 @@ class RecipeController extends Controller
     public function show(Recipe $recipe): View
     {
         // 404 rather than 403 so a private recipe's existence is not leaked.
-        abort_unless(user()?->can('view', $recipe) ?? $recipe->is_public, 404);
+        abort_unless(user()?->can('view', $recipe) ?? $recipe->isPublished(), 404);
 
         $recipe->load([
             'author',
@@ -135,7 +135,7 @@ class RecipeController extends Controller
      */
     public function photo(Recipe $recipe, string $filename): BinaryFileResponse
     {
-        abort_unless(user()?->can('view', $recipe) ?? $recipe->is_public, 404);
+        abort_unless(user()?->can('view', $recipe) ?? $recipe->isPublished(), 404);
 
         // Only filenames the recipe actually stores; blocks traversal and guessing.
         $document = $recipe->photos->first(

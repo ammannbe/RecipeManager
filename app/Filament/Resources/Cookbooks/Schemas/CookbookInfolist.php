@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Cookbooks\Schemas;
 
 use App\Models\Cookbook;
+use Filament\Infolists\Components\IconEntry;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Schema;
 
@@ -15,6 +16,9 @@ class CookbookInfolist
                 TextEntry::make('name'),
                 TextEntry::make('author.name')
                     ->label('Author'),
+                IconEntry::make('is_public')
+                    ->label(__('Public'))
+                    ->boolean(),
                 TextEntry::make('created_at')
                     ->dateTime()
                     ->placeholder('-'),

@@ -20,4 +20,18 @@ class EditCookbook extends EditRecord
             RestoreAction::make(),
         ];
     }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array<string, mixed>
+     */
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        // Never trust a submitted owner: only admins may reassign one.
+        if (! user()?->admin) {
+            unset($data['author_id']);
+        }
+
+        return $data;
+    }
 }

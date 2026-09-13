@@ -8,7 +8,9 @@ use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\ForceDeleteBulkAction;
 use Filament\Actions\RestoreBulkAction;
+use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
@@ -24,7 +26,16 @@ class CookbooksTable
                     ->sortable()
                     ->visible(fn (): bool => (bool) user()?->admin),
                 TextColumn::make('name')
+                    ->label(__('Name'))
                     ->searchable()
+                    ->sortable(),
+                IconColumn::make('is_public')
+                    ->label(__('Public'))
+                    ->boolean()
+                    ->sortable(),
+                TextColumn::make('recipes_count')
+                    ->label(__('Recipes'))
+                    ->counts('recipes')
                     ->sortable(),
                 TextColumn::make('created_at')
                     ->dateTime()
@@ -47,6 +58,8 @@ class CookbooksTable
                     ->orderBy('name', $direction);
             })
             ->filters([
+                TernaryFilter::make('is_public')
+                    ->label(__('Public')),
                 TrashedFilter::make(),
             ])
             ->recordUrl(fn ($record): string => CookbookResource::getUrl('edit', ['record' => $record]))
