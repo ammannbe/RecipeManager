@@ -9,6 +9,8 @@ class UserObserver
 {
     public function deleting(User $user): void
     {
-        $user->author->cookbooks()->each(fn (Cookbook $cookbook) => $cookbook->delete());
+        $user->author?->cookbooks()->each(fn (Cookbook $cookbook) => $cookbook->delete());
+
+        $user->sharedCookbooks()->detach();
     }
 }

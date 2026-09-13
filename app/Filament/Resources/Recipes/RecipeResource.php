@@ -85,6 +85,15 @@ class RecipeResource extends Resource
             return $query;
         }
 
-        return $query->where('author_id', $user?->author_id);
+        return $query->where(function (Builder $query) use ($user): void {
+            $query->where('author_id', $user?->author_id);
+
+            if ($user !== null) {
+                $query->orWhereHas(
+                    'cookbook',
+                    fn (Builder $cookbook) => $cookbook->whereHas('members', fn (Builder $member) => $member->whereKey($user->getKey())),
+                );
+            }
+        });
     }
 }

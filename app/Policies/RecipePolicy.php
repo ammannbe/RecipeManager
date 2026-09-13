@@ -23,7 +23,9 @@ class RecipePolicy
 
     public function view(User $user, Recipe $recipe): bool
     {
-        return $recipe->isPublished() || $user->author_id === $recipe->author_id;
+        return $recipe->isPublished()
+            || $user->author_id === $recipe->author_id
+            || $this->cookbookGrants($user, $recipe, 'can_read');
     }
 
     public function create(User $user): bool
@@ -33,21 +35,31 @@ class RecipePolicy
 
     public function update(User $user, Recipe $recipe): bool
     {
-        return $user->author_id === $recipe->author_id;
+        return $user->author_id === $recipe->author_id
+            || $this->cookbookGrants($user, $recipe, 'can_update');
     }
 
     public function delete(User $user, Recipe $recipe): bool
     {
-        return $user->author_id === $recipe->author_id;
+        return $user->author_id === $recipe->author_id
+            || $this->cookbookGrants($user, $recipe, 'can_delete');
     }
 
     public function restore(User $user, Recipe $recipe): bool
     {
-        return $user->author_id === $recipe->author_id;
+        return $this->delete($user, $recipe);
     }
 
     public function forceDelete(User $user, Recipe $recipe): bool
     {
-        return $user->author_id === $recipe->author_id;
+        return $this->delete($user, $recipe);
+    }
+
+    /**
+     * Grants on the containing cookbook apply to every recipe in it, whoever wrote it.
+     */
+    private function cookbookGrants(User $user, Recipe $recipe, string $grant): bool
+    {
+        return (bool) $recipe->cookbook?->grants($user, $grant);
     }
 }

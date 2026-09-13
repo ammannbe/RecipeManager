@@ -72,6 +72,17 @@ class Recipe extends Model
             if ($user?->author_id) {
                 $query->orWhere('recipes.author_id', $user->author_id);
             }
+
+            if ($user !== null) {
+                $query->orWhereHas(
+                    'cookbook',
+                    fn (Builder $cookbook) => $cookbook->whereHas(
+                        'members',
+                        fn (Builder $member) => $member->whereKey($user->getKey())
+                            ->where(fn (Builder $grant) => $grant->where('can_read', true)->orWhere('can_admin', true)),
+                    ),
+                );
+            }
         });
     }
 

@@ -23,7 +23,7 @@ class CookbookPolicy
 
     public function view(User $user, Cookbook $cookbook): bool
     {
-        return $user->author_id === $cookbook->author_id;
+        return $cookbook->grants($user, 'can_read');
     }
 
     public function create(User $user): bool
@@ -33,21 +33,29 @@ class CookbookPolicy
 
     public function update(User $user, Cookbook $cookbook): bool
     {
-        return $user->author_id === $cookbook->author_id;
+        return $this->share($user, $cookbook);
     }
 
     public function delete(User $user, Cookbook $cookbook): bool
     {
-        return $user->author_id === $cookbook->author_id;
+        return $this->share($user, $cookbook);
     }
 
     public function restore(User $user, Cookbook $cookbook): bool
     {
-        return $user->author_id === $cookbook->author_id;
+        return $this->share($user, $cookbook);
     }
 
     public function forceDelete(User $user, Cookbook $cookbook): bool
     {
         return false;
+    }
+
+    /**
+     * Renaming, publishing, deleting and managing members of the cookbook itself.
+     */
+    public function share(User $user, Cookbook $cookbook): bool
+    {
+        return $cookbook->isOwnedBy($user) || $cookbook->grants($user, 'can_admin');
     }
 }
