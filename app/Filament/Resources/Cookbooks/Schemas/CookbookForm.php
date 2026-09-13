@@ -6,6 +6,7 @@ use App\Models\Cookbook;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 use Illuminate\Validation\Rules\Unique;
 
@@ -23,10 +24,10 @@ class CookbookForm
                         Cookbook::class,
                         'name',
                         ignoreRecord: true,
-                        modifyRuleUsing: fn (Unique $rule): Unique => $rule->where(
-                            'author_id',
-                            user()?->admin ? null : user()?->author_id,
-                        ),
+                        // Scoped to the owner, and trashed cookbooks free their name again.
+                        modifyRuleUsing: fn (Unique $rule, Get $get): Unique => $rule
+                            ->where('author_id', user()?->admin ? $get('author_id') : user()?->author_id)
+                            ->whereNull('deleted_at'),
                     ),
                 Select::make('author_id')
                     ->label(__('Author'))

@@ -8,7 +8,6 @@ use App\Models\Author;
 use App\Models\Cookbook;
 use App\Models\Recipe;
 use App\Models\User;
-use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -62,14 +61,70 @@ class CookbookPublishingTest extends TestCase
         $this->assertSame($other->id, Cookbook::query()->where('name', 'Assigned')->firstOrFail()->author_id);
     }
 
+    /**
+     * The index includes deleted_at so trashed names are reusable. MariaDB treats NULLs
+     * as distinct, so live duplicates are caught by form validation rather than the index.
+     */
     public function test_a_cookbook_name_must_be_unique_per_author(): void
     {
-        $author = Author::factory()->create();
-        Cookbook::factory()->create(['author_id' => $author->id, 'name' => 'Backbuch']);
+        $user = User::factory()->create(['admin' => false]);
+        Cookbook::factory()->create(['author_id' => $user->author_id, 'name' => 'Backbuch']);
 
-        $this->expectException(QueryException::class);
+        $this->actingAs($user);
 
-        Cookbook::factory()->create(['author_id' => $author->id, 'name' => 'Backbuch']);
+        Livewire::test(CreateCookbook::class)
+            ->fillForm(['name' => 'Backbuch'])
+            ->call('create')
+            ->assertHasFormErrors(['name']);
+
+        $this->assertSame(1, Cookbook::query()->where('name', 'Backbuch')->count());
+    }
+
+    /**
+     * A trashed cookbook must not keep its name reserved forever.
+     */
+    public function test_a_deleted_cookbook_name_can_be_used_again(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        Cookbook::factory()->create(['author_id' => $admin->author_id, 'name' => 'Backbuch'])->delete();
+
+        $this->actingAs($admin);
+
+        Livewire::test(CreateCookbook::class)
+            ->fillForm(['name' => 'Backbuch', 'author_id' => $admin->author_id])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $this->assertSame(1, Cookbook::query()->where('name', 'Backbuch')->count());
+    }
+
+    public function test_a_duplicate_name_is_reported_as_a_validation_error(): void
+    {
+        $admin = User::factory()->admin()->create();
+
+        Cookbook::factory()->create(['author_id' => $admin->author_id, 'name' => 'Taken']);
+
+        $this->actingAs($admin);
+
+        Livewire::test(CreateCookbook::class)
+            ->fillForm(['name' => 'Taken', 'author_id' => $admin->author_id])
+            ->call('create')
+            ->assertHasFormErrors(['name']);
+    }
+
+    public function test_a_non_admin_gets_a_validation_error_for_a_duplicate_name(): void
+    {
+        $user = User::factory()->create(['admin' => false]);
+
+        Cookbook::factory()->create(['author_id' => $user->author_id, 'name' => 'Taken']);
+
+        $this->actingAs($user);
+
+        Livewire::test(CreateCookbook::class)
+            ->fillForm(['name' => 'Taken'])
+            ->call('create')
+            ->assertHasFormErrors(['name']);
     }
 
     public function test_two_authors_may_use_the_same_cookbook_name(): void
