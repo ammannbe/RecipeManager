@@ -34,6 +34,8 @@
             </a>
 
             <div class="flex items-center gap-2" x-data="themeToggle">
+                @include('partials.locale-switcher')
+
                 <button
                     type="button"
                     class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-300 bg-white text-zinc-700 shadow-sm transition hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"

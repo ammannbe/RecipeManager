@@ -14,4 +14,4 @@ Route::get('/cookbook-invitations/{token}', [CookbookInvitationController::class
     ->middleware('throttle:10,1')
     ->name('cookbook-invitations.show');
 
-Route::post('/profile/{locale}', [ProfileController::class, 'locale'])->name('profile.locale');
+Route::get('/locale/{locale}', [ProfileController::class, 'locale'])->name('profile.locale');

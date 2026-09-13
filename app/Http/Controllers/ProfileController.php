@@ -2,18 +2,19 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Middleware\SetLocale;
 use Illuminate\Http\RedirectResponse;
 
 class ProfileController extends Controller
 {
     public function locale(string $locale): RedirectResponse
     {
-        if (! array_key_exists($locale, config('app.locales'))) {
-            abort(400);
-        }
+        abort_unless(SetLocale::isAvailable($locale), 404);
 
         session()->put('locale', $locale);
-        app()->setLocale($locale);
+
+        // Logged-in users keep their choice across sessions and devices.
+        user()?->forceFill(['locale' => $locale])->save();
 
         return back();
     }
