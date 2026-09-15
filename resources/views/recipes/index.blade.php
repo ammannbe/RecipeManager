@@ -62,7 +62,7 @@
         </div>
     </nav>
 
-    <main class="mx-auto grid w-full max-w-5xl gap-6 px-6 py-8 pb-20 lg:gap-8 lg:py-10">
+    <main class="mx-auto grid w-full max-w-7xl gap-6 px-6 py-8 pb-20 lg:gap-8 lg:py-10">
         <header class="grid gap-2">
             <h1 class="text-3xl font-black leading-tight tracking-[-0.04em] text-zinc-900 md:text-5xl dark:text-zinc-100">{{ __('Recipes') }}</h1>
         </header>
@@ -167,7 +167,7 @@
             </form>
         </section>
 
-        <section class="grid gap-4 sm:grid-cols-2 xl:grid-cols-3 md:gap-5">
+        <section class="grid gap-4 sm:grid-cols-2 cards:grid-cols-3 md:gap-5">
             @forelse ($recipes as $recipe)
                 <article class="group overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_18px_35px_-30px_rgba(15,23,42,0.75)] transition hover:-translate-y-0.5 hover:shadow-[0_26px_40px_-28px_rgba(15,23,42,0.75)] dark:border-zinc-800 dark:bg-zinc-900">
                     <a href="{{ route('recipes.show', $recipe) }}">

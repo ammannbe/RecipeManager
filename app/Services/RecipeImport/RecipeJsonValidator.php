@@ -68,7 +68,10 @@ class RecipeJsonValidator
             'ingredient_groups.*.ingredients' => ['required', 'array', 'min:1'],
             'photos' => ['nullable', 'array', 'max:'.RecipeJsonSchema::MAX_PHOTOS],
             'photos.*.filename' => ['nullable', 'string', 'max:255'],
-            'photos.*.data' => ['required', 'string'],
+            'photos.*.data' => ['required_without:photos.*.url', 'nullable', 'string'],
+            'photos.*.url' => ['required_without:photos.*.data', 'nullable', 'url'],
+            'photos.*.source' => ['nullable', 'string', 'max:255'],
+            'photos.*.is_ai_generated' => ['nullable', 'boolean'],
         ];
 
         foreach ($ingredients as $suffix => $rule) {

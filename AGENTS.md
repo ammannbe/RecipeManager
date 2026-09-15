@@ -5,8 +5,9 @@
 This is a Laravel recipe management application.
 
 The app manages:
-- cookbooks, shared with other users via e-mail invitations
-- recipes, private by default and publishable individually or per cookbook
+- cookbooks, shared with other users via e-mail invitations, public or private
+- recipes, public by default and publishable individually or per cookbook; a recipe
+  defaults to private when created in a private cookbook
 - foods
 - tags
 

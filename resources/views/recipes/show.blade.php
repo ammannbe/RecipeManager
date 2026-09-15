@@ -147,12 +147,15 @@
                                 @case(\App\Enums\Complexity::Simple)
                                     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" class="h-3.5 w-3.5">
                                         <rect x="3" y="14" width="4" height="7" rx="1" fill="currentColor" />
+                                        <rect x="10" y="9" width="4" height="12" rx="1" stroke="currentColor" />
+                                        <rect x="17" y="4" width="4" height="17" rx="1" stroke="currentColor" />
                                     </svg>
                                     @break
                                 @case(\App\Enums\Complexity::Normal)
                                     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" class="h-3.5 w-3.5">
                                         <rect x="3" y="14" width="4" height="7" rx="1" fill="currentColor" />
                                         <rect x="10" y="9" width="4" height="12" rx="1" fill="currentColor" />
+                                        <rect x="17" y="4" width="4" height="17" rx="1" stroke="currentColor" />
                                     </svg>
                                     @break
                                 @case(\App\Enums\Complexity::Difficult)
@@ -192,7 +195,11 @@
                 @endif
             </header>
 
-            @php($photoUrls = $recipe->photos->map(fn ($photo) => $photo->url().'?v='.$recipe->updated_at->timestamp)->values())
+            @php($photoUrls = $recipe->photos->map(fn ($photo) => [
+                'url' => $photo->url().'?v='.$recipe->updated_at->timestamp,
+                'source' => $photo->source(),
+                'is_ai_generated' => $photo->isAiGenerated(),
+            ])->values())
 
             @if ($photoUrls->count() > 1)
                 <div
@@ -237,10 +244,17 @@
                         @touchend.passive="onTouchEnd($event)"
                     >
                         <img
-                            :src="images[current]"
+                            :src="images[current].url"
                             alt="{{ $recipe->name }}"
                             class="h-full w-full object-cover"
                         >
+
+                        <span
+                            x-show="images[current].source || images[current].is_ai_generated"
+                            x-cloak
+                            class="absolute bottom-2 right-2 inline-flex items-center rounded-full border border-white/80 bg-zinc-900/65 px-2.5 py-1 text-[0.7rem] font-medium text-white backdrop-blur-[3px]"
+                            x-text="images[current].is_ai_generated ? '{{ __('AI generated') }}' + (images[current].source ? ' · ' + images[current].source : '') : images[current].source"
+                        ></span>
 
                         <button
                             type="button"
@@ -278,11 +292,23 @@
                     </div>
                 </div>
             @elseif ($photoUrls->isNotEmpty())
-                <img
-                    src="{{ $photoUrls->first() }}"
-                    alt="{{ $recipe->name }}"
-                    class="max-h-112 w-full rounded-xl object-cover"
-                >
+                <div class="relative overflow-hidden rounded-xl">
+                    <img
+                        src="{{ $photoUrls->first()['url'] }}"
+                        alt="{{ $recipe->name }}"
+                        class="max-h-112 w-full rounded-xl object-cover"
+                    >
+
+                    @if ($photoUrls->first()['source'] || $photoUrls->first()['is_ai_generated'])
+                        <span class="absolute bottom-2 right-2 inline-flex items-center rounded-full border border-white/80 bg-zinc-900/65 px-2.5 py-1 text-[0.7rem] font-medium text-white backdrop-blur-[3px]">
+                            @if ($photoUrls->first()['is_ai_generated'])
+                                {{ __('AI generated') }}{{ $photoUrls->first()['source'] ? ' · '.$photoUrls->first()['source'] : '' }}
+                            @else
+                                {{ $photoUrls->first()['source'] }}
+                            @endif
+                        </span>
+                    @endif
+                </div>
             @endif
 
             <div class="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)] md:gap-5">
@@ -332,6 +358,12 @@
                     <div class="text-sm leading-7 text-zinc-700 dark:text-zinc-300 [&_blockquote]:mb-3 [&_blockquote]:text-zinc-700 [&_h1]:mb-3 [&_h1]:mt-4 [&_h1]:font-bold [&_h1]:text-zinc-900 [&_h2]:mb-3 [&_h2]:mt-4 [&_h2]:font-bold [&_h2]:text-zinc-900 [&_h3]:mb-3 [&_h3]:mt-4 [&_h3]:font-bold [&_h3]:text-zinc-900 [&_ol]:mb-3 [&_ol]:ml-4 [&_ol]:list-decimal [&_ol]:space-y-2 [&_p]:my-3 [&_ul]:my-3 [&_p:has(+_ul)]:mb-0 [&_p+ul]:mt-0 [&_ul]:ml-4 [&_ul]:list-disc [&_li>p]:my-0 *:first:mt-0 *:last:mb-0 dark:[&_blockquote]:text-zinc-300 dark:[&_h1]:text-zinc-100 dark:[&_h2]:text-zinc-100 dark:[&_h3]:text-zinc-100">
                         {!! $recipe->instructions !!}
                     </div>
+
+                    @if ($recipe->source)
+                        <p class="mt-4 border-t border-zinc-200 pt-3 text-xs text-zinc-500 dark:border-zinc-800 dark:text-zinc-400">
+                            {{ __('Source') }}: {{ $recipe->source }}
+                        </p>
+                    @endif
                 </section>
             </div>
         </article>

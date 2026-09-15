@@ -29,6 +29,8 @@ use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Schemas\Components\Component;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Support\Enums\Width;
 use Filament\Support\Icons\Heroicon;
@@ -372,17 +374,8 @@ class RecipeForm
                     ->nullable()
                     ->searchable()
                     ->preload()
-                    ->options(function (): array {
-                        if (user()?->admin) {
-                            return Cookbook::query()->orderBy('name')->pluck('name', 'id')->all();
-                        }
-
-                        return Cookbook::query()
-                            ->where('author_id', user()?->author_id)
-                            ->orderBy('name')
-                            ->pluck('name', 'id')
-                            ->all();
-                    })
+                    ->live()
+                    ->options(fn (): array => Cookbook::query()->administeredBy(user())->orderBy('name')->pluck('name', 'id')->all())
                     ->createOptionForm([
                         TextInput::make('name')
                             ->required()
@@ -393,6 +386,14 @@ class RecipeForm
                             'name' => $data['name'],
                             'author_id' => user()->author_id,
                         ])->id;
+                    })
+                    ->afterStateUpdated(function (Set $set, ?string $state, ?Recipe $record): void {
+                        if ($record !== null) {
+                            return;
+                        }
+
+                        $cookbook = $state ? Cookbook::query()->find($state) : null;
+                        $set('is_public', $cookbook === null || $cookbook->is_public);
                     }),
                 Select::make('category_id')
                     ->label(__('Category'))
@@ -413,6 +414,11 @@ class RecipeForm
                 TextInput::make('name')
                     ->required()
                     ->maxLength(100),
+                TextInput::make('source')
+                    ->label(__('Source'))
+                    ->helperText(__('Where the recipe originally comes from, e.g. a website name or URL.'))
+                    ->maxLength(255)
+                    ->nullable(),
                 TextInput::make('servings')
                     ->label(__('Servings'))
                     ->numeric()
@@ -438,7 +444,13 @@ class RecipeForm
                 Toggle::make('is_public')
                     ->label(__('Public'))
                     ->helperText(__('Public recipes and their images are visible to everyone, including visitors who are not logged in.'))
-                    ->default(false),
+                    ->live()
+                    ->default(function (Get $get): bool {
+                        /** @var Cookbook|null $cookbook */
+                        $cookbook = Cookbook::query()->find($get('cookbook_id'));
+
+                        return $cookbook === null || $cookbook->is_public;
+                    }),
                 Select::make('tags')
                     ->label(__('Tags'))
                     ->relationship('tags', 'name')
@@ -463,16 +475,26 @@ class RecipeForm
                     ->label(__('Instructions'))
                     ->required()
                     ->columnSpanFull(),
-                FileUpload::make('photos')
+                Repeater::make('photos')
                     ->label(__('Images'))
-                    ->image()
-                    ->multiple()
                     ->reorderable()
-                    ->appendFiles()
-                    ->disk('recipes')
-                    ->directory(fn ($record): ?string => $record ? (string) $record->getKey() : null)
-                    ->visibility('private')
                     ->visibleOn('edit')
+                    ->grid(['default' => 1, 'md' => 3])
+                    ->schema([
+                        FileUpload::make('path')
+                            ->label(__('Image'))
+                            ->image()
+                            ->disk('recipes')
+                            ->directory(fn ($record): ?string => $record ? (string) $record->getKey() : null)
+                            ->visibility('private')
+                            ->required(),
+                        TextInput::make('source')
+                            ->label(__('Source'))
+                            ->maxLength(255)
+                            ->nullable(),
+                        Toggle::make('is_ai_generated')
+                            ->label(__('AI generated')),
+                    ])
                     ->columnSpanFull(),
                 Repeater::make('ungroupedIngredients')
                     ->label(__('Ingredients without group'))

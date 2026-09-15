@@ -27,6 +27,7 @@ class Recipe extends Model
         'cookbook_id',
         'category_id',
         'name',
+        'source',
         'is_public',
         'servings',
         'serving_type',

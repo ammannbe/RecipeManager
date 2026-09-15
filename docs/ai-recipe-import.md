@@ -8,8 +8,12 @@ einem Foto, PDF, Screenshot oder Text erzeugen.
 1. Im Backend `Rezepte → Rezept importieren` öffnen.
 2. Im ersten Schritt die Anweisung mit **Anweisung kopieren** in die Zwischenablage
    übernehmen. Sie enthält zusätzlich die im System bereits vorhandenen Kategorien,
-   Einheiten, Zutatenattribute, Schlagwörter und Kochbücher.
+   Einheiten, Zutatenattribute, Schlagwörter und Kochbücher. Zusätzlich lassen sich hier
+   das Zielkochbuch und die Sichtbarkeit (öffentlich/privat) wählen; ohne Kochbuch ist das
+   Rezept standardmässig öffentlich, bei einem privaten Kochbuch standardmässig privat.
 3. Die Anweisung in einen KI-Chat einfügen und das Rezept als Foto, PDF oder Text anhängen.
+   Alternativ kann auch eine öffentliche Rezept-URL eingefügt werden, sofern die KI diese
+   selbst abrufen kann.
 4. Die JSON-Antwort der KI in den zweiten Schritt einfügen.
 5. Im dritten Schritt werden alle Werte aufgelistet, die keiner bestehenden Zeile zugeordnet
    werden konnten. Pro Wert lässt sich ein bestehender Eintrag auswählen; Administratoren
@@ -50,7 +54,10 @@ anderes Kochbuch zu kopieren. Bilder werden beim Export standardmässig weggelas
 ## Grenzen
 
 - Pro Datei genau ein Rezept.
-- Bilder nur als Base64-Data-URI, keine URLs. Erlaubt sind JPEG, PNG, WebP und GIF bis 5 MB,
-  maximal 10 Bilder.
+- Bilder entweder als Base64-Data-URI oder als öffentliche, direkt herunterladbare URL.
+  Erlaubt sind JPEG, PNG, WebP und GIF bis 5 MB, maximal 10 Bilder. Optional lassen sich pro
+  Bild eine Quelle (`source`) und ein KI-generiert-Kennzeichen (`is_ai_generated`) angeben.
 - Bewertungen werden nicht importiert.
 - Ein Rezept mit gleichem Namen im selben Kochbuch wird abgelehnt.
+- Die KI-Bildgenerierung während des Imports ist nicht implementiert (kein KI-Anbieter
+  angebunden); Bilder müssen als Data-URI oder URL vorliegen.

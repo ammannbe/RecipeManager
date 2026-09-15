@@ -98,17 +98,7 @@ class RecipesTable
                     ->options(fn (): array => Author::query()->orderBy('name')->pluck('name', 'id')->all()),
                 SelectFilter::make('cookbook_id')
                     ->label(__('Cookbook'))
-                    ->options(function (): array {
-                        if (user()?->admin) {
-                            return Cookbook::query()->orderBy('name')->pluck('name', 'id')->all();
-                        }
-
-                        return Cookbook::query()
-                            ->where('author_id', user()?->author_id)
-                            ->orderBy('name')
-                            ->pluck('name', 'id')
-                            ->all();
-                    }),
+                    ->options(fn (): array => Cookbook::query()->administeredBy(user())->orderBy('name')->pluck('name', 'id')->all()),
                 TrashedFilter::make(),
             ])
             ->recordUrl(fn (Recipe $record): string => RecipeResource::getUrl('edit', ['record' => $record]))

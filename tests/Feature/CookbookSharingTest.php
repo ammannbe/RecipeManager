@@ -5,7 +5,9 @@ namespace Tests\Feature;
 use App\Filament\Resources\Cookbooks\Pages\EditCookbook;
 use App\Filament\Resources\Cookbooks\RelationManagers\InvitationsRelationManager;
 use App\Filament\Resources\Cookbooks\RelationManagers\MembersRelationManager;
+use App\Filament\Resources\Recipes\Pages\CreateRecipe;
 use App\Mail\CookbookInvitationMail;
+use App\Models\Category;
 use App\Models\Cookbook;
 use App\Models\CookbookInvitation;
 use App\Models\Recipe;
@@ -297,5 +299,47 @@ class CookbookSharingTest extends TestCase
         $this->assertNotNull($token);
         $this->assertNotSame($token, $invitation->token_hash);
         $this->assertSame(CookbookInvitation::hash((string) $token), $invitation->token_hash);
+    }
+
+    public function test_an_admin_member_can_assign_a_recipe_to_the_shared_cookbook(): void
+    {
+        $member = User::factory()->create(['admin' => false]);
+        $cookbook = $this->sharedWith($member, ['can_admin' => true]);
+        $cookbook->update(['name' => 'Shared admin book']);
+        $category = Category::factory()->create();
+
+        $this->actingAs($member);
+
+        Livewire::test(CreateRecipe::class)
+            ->fillForm([
+                'cookbook_id' => $cookbook->id,
+                'category_id' => $category->id,
+                'name' => 'Recipe in shared cookbook',
+                'complexity' => 'simple',
+                'instructions' => 'Do stuff',
+                'ungroupedIngredients' => [],
+                'ingredientGroups' => [],
+            ])
+            ->call('create')
+            ->assertHasNoFormErrors();
+
+        $this->assertDatabaseHas(Recipe::class, [
+            'name' => 'Recipe in shared cookbook',
+            'cookbook_id' => $cookbook->id,
+        ]);
+    }
+
+    public function test_administered_by_scope_includes_cookbooks_with_admin_membership(): void
+    {
+        $member = User::factory()->create(['admin' => false]);
+        $cookbook = $this->sharedWith($member, ['can_admin' => true]);
+        $readOnlyCookbook = $this->sharedWith($member, ['can_read' => true]);
+        $unrelatedCookbook = Cookbook::factory()->create();
+
+        $ids = Cookbook::query()->administeredBy($member)->pluck('id');
+
+        $this->assertTrue($ids->contains($cookbook->id));
+        $this->assertFalse($ids->contains($readOnlyCookbook->id));
+        $this->assertFalse($ids->contains($unrelatedCookbook->id));
     }
 }

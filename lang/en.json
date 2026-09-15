@@ -7,6 +7,7 @@
     "Add alternative": "Add alternative",
     "Admin": "Admin",
     "Administrate": "Administrate",
+    "AI generated": "AI generated",
     "AI prompt": "AI prompt",
     "All": "All",
     "All categories": "All categories",
@@ -88,6 +89,7 @@
     "Paste the prompt below into an AI chat and attach the recipe photo, PDF or text. The AI answers with JSON that you paste into the next step.": "Paste the prompt below into an AI chat and attach the recipe photo, PDF or text. The AI answers with JSON that you paste into the next step.",
     "Paste the raw JSON object. Code fences are removed automatically.": "Paste the raw JSON object. Code fences are removed automatically.",
     "Pending invitations": "Pending invitations",
+    "You can also paste a public recipe URL instead. If your AI tool can browse the web, it may fetch and read the page directly.": "You can also paste a public recipe URL instead. If your AI tool can browse the web, it may fetch and read the page directly.",
     "Permissions": "Permissions",
     "Please resolve :type \":value\".": "Please resolve :type \":value\".",
     "Preparation": "Preparation",
@@ -121,6 +123,7 @@
     "Simple": "Simple",
     "Someone would like to share a cookbook with you.": "Someone would like to share a cookbook with you.",
     "Sort": "Sort",
+    "Source": "Source",
     "Switch to dark mode": "Switch to dark mode",
     "Switch to light mode": "Switch to light mode",
     "Tag": "Tag",
@@ -143,5 +146,6 @@
     "User email": "User email",
     "View": "View",
     "View all recipes in this category": "View all recipes in this category",
+    "Where the recipe originally comes from, e.g. a website name or URL.": "Where the recipe originally comes from, e.g. a website name or URL.",
     "You have been invited to the cookbook \":name\"": "You have been invited to the cookbook \":name\""
 }

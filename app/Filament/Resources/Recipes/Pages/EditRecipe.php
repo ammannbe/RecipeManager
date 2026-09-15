@@ -30,7 +30,11 @@ class EditRecipe extends EditRecord
         $record = $this->getRecord();
 
         $data['photos'] = $record->photos
-            ->map(fn (Document $document): string => $record->getKey().'/'.$document->name())
+            ->map(fn (Document $document): array => [
+                'path' => $record->getKey().'/'.$document->name(),
+                'source' => $document->source(),
+                'is_ai_generated' => $document->isAiGenerated(),
+            ])
             ->values()
             ->all();
 
@@ -48,11 +52,14 @@ class EditRecipe extends EditRecord
         $recordKey = (string) $record->getKey();
 
         $incoming = collect(Arr::wrap($data['photos'] ?? []))
-            ->filter(fn (mixed $path): bool => is_string($path) && $path !== '')
-            ->map(fn (string $path): string => basename($path))
-            ->unique()
-            ->values()
-            ->all();
+            ->filter(fn (mixed $photo): bool => is_array($photo) && ! empty($photo['path']))
+            ->map(fn (array $photo): array => [
+                'path' => basename($photo['path']),
+                'source' => $photo['source'] ?? null,
+                'is_ai_generated' => (bool) ($photo['is_ai_generated'] ?? false),
+            ])
+            ->unique('path')
+            ->values();
 
         $existing = [];
 
@@ -60,13 +67,13 @@ class EditRecipe extends EditRecord
             $existing[] = $document->name();
         }
 
-        $removed = array_diff($existing, $incoming);
+        $removed = array_diff($existing, $incoming->pluck('path')->all());
 
         foreach ($removed as $filename) {
             Storage::disk('recipes')->delete($recordKey.'/'.$filename);
         }
 
-        $data['photos'] = $incoming;
+        $data['photos'] = $incoming->all();
 
         return $data;
     }

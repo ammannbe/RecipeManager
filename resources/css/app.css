@@ -14,6 +14,7 @@
 
     --breakpoint-xxs: 26rem;
     --breakpoint-xs: 30rem;
+    --breakpoint-cards: 53.75rem;
 
     --color-zinc-50: var(--color-gray-50);
     --color-zinc-100: var(--color-gray-100);

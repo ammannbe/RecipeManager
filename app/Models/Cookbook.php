@@ -117,4 +117,28 @@ class Cookbook extends Model
 
         return $membership;
     }
+
+    /**
+     * Cookbooks the user owns or has a can_admin membership on. Global admins see every
+     * cookbook. Mirrors the record-level grants() check but as a query scope.
+     *
+     * @param  Builder<$this>  $query
+     */
+    public function scopeAdministeredBy(Builder $query, ?User $user): void
+    {
+        if ($user?->admin) {
+            return;
+        }
+
+        $query->where(function (Builder $query) use ($user): void {
+            $query->where('author_id', $user?->author_id);
+
+            if ($user !== null) {
+                $query->orWhereHas(
+                    'members',
+                    fn (Builder $member) => $member->whereKey($user->getKey())->where('can_admin', true),
+                );
+            }
+        });
+    }
 }

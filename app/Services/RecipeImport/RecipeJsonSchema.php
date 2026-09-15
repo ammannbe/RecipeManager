@@ -100,8 +100,13 @@ class RecipeJsonSchema
 
         Photos are optional and are normally omitted. When present:
 
-        - "photos" (array, max 10) of objects with "filename" (string) and "data"
-          (a base64 data URI such as "data:image/jpeg;base64,...").
+        - "photos" (array, max 10) of objects with "filename" (string), and either "data"
+          (a base64 data URI such as "data:image/jpeg;base64,...") or "url" (a public,
+          directly downloadable image URL). Optionally add "source" (string, max 255,
+          e.g. the website or photographer) and "is_ai_generated" (boolean).
+
+        You can also paste a public recipe URL instead of a photo/PDF/text. If your AI
+        tool can browse the web, it may fetch and read the page directly.
         TXT;
     }
 

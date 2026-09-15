@@ -21,6 +21,9 @@ class RecipeInfolist
                 TextEntry::make('author.name')
                     ->label('Author'),
                 TextEntry::make('name'),
+                TextEntry::make('source')
+                    ->label(__('Source'))
+                    ->placeholder('-'),
                 TextEntry::make('servings')
                     ->label(__('Servings'))
                     ->numeric()
@@ -42,6 +45,7 @@ class RecipeInfolist
                     ->label(__('Instructions'))
                     ->columnSpanFull(),
                 TextEntry::make('photos')
+                    ->formatStateUsing(fn ($state) => $state->map(fn ($document) => $document->name())->implode(', '))
                     ->placeholder('-')
                     ->columnSpanFull(),
                 TextEntry::make('preparation_time')

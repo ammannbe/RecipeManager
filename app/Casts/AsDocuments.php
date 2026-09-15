@@ -8,7 +8,7 @@ use Illuminate\Contracts\Database\Eloquent\CastsAttributes;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * @implements CastsAttributes<Documents, array<string>>
+ * @implements CastsAttributes<Documents, array<int, array<string, mixed>|string>>
  */
 class AsDocuments implements CastsAttributes
 {
@@ -29,7 +29,7 @@ class AsDocuments implements CastsAttributes
     }
 
     /**
-     * @param  Documents<int, Document>|array<string>|null  $value
+     * @param  Documents<int, Document>|array<int, array<string, mixed>|string>|null  $value
      */
     public function set(Model $model, string $key, mixed $value, array $attributes): string|false
     {

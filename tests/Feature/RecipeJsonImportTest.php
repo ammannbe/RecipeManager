@@ -18,6 +18,8 @@ use App\Services\RecipeImport\RecipeJsonSchema;
 use App\Services\RecipeImport\RecipeJsonValidator;
 use App\Services\RecipeImport\RelationResolver;
 use App\Services\RecipeImport\ResolutionReport;
+use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
@@ -407,5 +409,65 @@ class RecipeJsonImportTest extends TestCase
         $this->expectException(ValidationException::class);
 
         $this->import($this->payload(), $user);
+    }
+
+    public function test_an_explicit_cookbook_and_visibility_override_the_json(): void
+    {
+        $this->seedLookups();
+
+        $user = User::factory()->admin()->create();
+        Cookbook::factory()->create(['name' => 'Omas Backbuch', 'author_id' => $user->author_id]);
+        $chosen = Cookbook::factory()->create(['author_id' => $user->author_id, 'is_public' => false]);
+
+        $parsed = app(RecipeJsonValidator::class)->validate($this->payload());
+        $recipe = app(RecipeImporter::class)->import($parsed, $user, [], cookbookId: $chosen->id, isPublic: true);
+
+        $this->assertSame($chosen->id, $recipe->cookbook_id);
+        $this->assertTrue($recipe->is_public);
+    }
+
+    public function test_visibility_defaults_to_the_chosen_cookbooks_visibility_when_not_given(): void
+    {
+        $this->seedLookups();
+
+        $user = User::factory()->admin()->create();
+        $private = Cookbook::factory()->create(['author_id' => $user->author_id, 'is_public' => false]);
+
+        $parsed = app(RecipeJsonValidator::class)->validate($this->payload(['cookbook' => null]));
+        $recipe = app(RecipeImporter::class)->import($parsed, $user, [], cookbookId: $private->id);
+
+        $this->assertFalse($recipe->is_public);
+    }
+
+    public function test_it_downloads_a_photo_from_a_url(): void
+    {
+        Http::fake([
+            'example.com/*' => Http::response(
+                base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='),
+                200,
+                ['Content-Type' => 'image/png']
+            ),
+        ]);
+
+        $this->seedLookups();
+
+        $user = User::factory()->admin()->create();
+
+        $recipe = $this->import($this->payload([
+            'cookbook' => null,
+            'photos' => [[
+                'filename' => 'cover',
+                'url' => 'https://example.com/cover.png',
+                'source' => 'example.com',
+                'is_ai_generated' => false,
+            ]],
+        ]), $user);
+
+        $document = $recipe->photos->first();
+
+        $this->assertNotNull($document);
+        $this->assertSame('example.com', $document->source());
+        $this->assertFalse($document->isAiGenerated());
+        $this->assertTrue(Storage::disk('recipes')->exists($recipe->getKey().'/'.$document->name()));
     }
 }

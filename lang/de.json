@@ -7,6 +7,7 @@
     "Add alternative": "Alternative hinzufügen",
     "Admin": "Administrator",
     "Administrate": "Verwalten",
+    "AI generated": "KI-generiert",
     "AI prompt": "KI-Anweisung",
     "All": "Alle",
     "All categories": "Alle Kategorien",
@@ -88,6 +89,7 @@
     "Paste the prompt below into an AI chat and attach the recipe photo, PDF or text. The AI answers with JSON that you paste into the next step.": "Kopiere die Anweisung unten in einen KI-Chat und hänge das Rezeptfoto, PDF oder den Text an. Die KI antwortet mit JSON, das du im nächsten Schritt einfügst.",
     "Paste the raw JSON object. Code fences are removed automatically.": "Füge das rohe JSON-Objekt ein. Code-Fences werden automatisch entfernt.",
     "Pending invitations": "Offene Einladungen",
+    "You can also paste a public recipe URL instead. If your AI tool can browse the web, it may fetch and read the page directly.": "Du kannst stattdessen auch eine öffentliche Rezept-URL einfügen. Falls deine KI das Web durchsuchen kann, kann sie die Seite direkt abrufen und lesen.",
     "Permissions": "Berechtigungen",
     "Please resolve :type \":value\".": "Bitte :type \":value\" zuordnen.",
     "Preparation": "Zubereitung",
@@ -117,6 +119,7 @@
     "Servings amounts are recalculated automatically and may not be perfectly accurate.": "Die Mengenangaben werden automatisch neu berechnet und sind möglicherweise nicht exakt.",
     "Share": "Teilen",
     "Share cookbook": "Kochbuch teilen",
+    "Source": "Quelle",
     "Shared with": "Geteilt mit",
     "Simple": "Einfach",
     "Someone would like to share a cookbook with you.": "Jemand möchte ein Kochbuch mit dir teilen.",
@@ -143,5 +146,6 @@
     "User email": "Benutzer-E-Mail",
     "View": "Ansehen",
     "View all recipes in this category": "Alle Rezepte dieser Kategorie ansehen",
+    "Where the recipe originally comes from, e.g. a website name or URL.": "Woher das Rezept ursprünglich stammt, z. B. ein Webseitenname oder eine URL.",
     "You have been invited to the cookbook \":name\"": "Du wurdest zum Kochbuch \":name\" eingeladen"
 }

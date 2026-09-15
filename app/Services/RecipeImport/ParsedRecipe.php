@@ -8,7 +8,7 @@ class ParsedRecipe
      * @param  array<int, string>  $tags
      * @param  array<int, ParsedIngredient>  $ingredients
      * @param  array<int, ParsedGroup>  $groups
-     * @param  array<int, array{filename: string, data: string}>  $photos
+     * @param  array<int, array{filename: string, data: ?string, url: ?string, source: ?string, is_ai_generated: bool}>  $photos
      */
     public function __construct(
         public readonly string $name,
@@ -58,10 +58,13 @@ class ParsedRecipe
         $photos = [];
 
         foreach (self::wrap($data['photos'] ?? []) as $photo) {
-            if (is_array($photo) && is_string($photo['data'] ?? null)) {
+            if (is_array($photo) && (is_string($photo['data'] ?? null) || is_string($photo['url'] ?? null))) {
                 $photos[] = [
                     'filename' => trim((string) ($photo['filename'] ?? '')),
-                    'data' => $photo['data'],
+                    'data' => is_string($photo['data'] ?? null) ? $photo['data'] : null,
+                    'url' => is_string($photo['url'] ?? null) ? $photo['url'] : null,
+                    'source' => self::string($photo['source'] ?? null),
+                    'is_ai_generated' => (bool) ($photo['is_ai_generated'] ?? false),
                 ];
             }
         }

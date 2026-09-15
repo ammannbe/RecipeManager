@@ -13,13 +13,23 @@ use Illuminate\Support\Collection;
 class Documents extends Collection implements Castable
 {
     /**
-     * Create a new Documents instance from an array.
+     * Create a new Documents instance from an array. Accepts both legacy plain filename
+     * strings and the current {path, source, is_ai_generated} shape for back-compat.
      *
-     * @param  ?array<string>  $items
+     * @param  ?array<int, array<string, mixed>|string>  $items
      */
     public static function fromArray(string $disk, ?string $directory = null, ?array $items = null): self
     {
         $items = array_map(function ($photo) use ($disk, $directory) {
+            if (is_array($photo)) {
+                return new Document(
+                    implode('/', [$directory, $photo['path']]),
+                    $disk,
+                    $photo['source'] ?? null,
+                    (bool) ($photo['is_ai_generated'] ?? false),
+                );
+            }
+
             return new Document(implode('/', [$directory, $photo]), $disk);
         }, $items ?? []);
 

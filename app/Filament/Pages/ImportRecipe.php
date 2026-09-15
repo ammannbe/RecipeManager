@@ -3,6 +3,7 @@
 namespace App\Filament\Pages;
 
 use App\Filament\Resources\Recipes\RecipeResource;
+use App\Models\Cookbook;
 use App\Services\RecipeImport\ImportPromptBuilder;
 use App\Services\RecipeImport\LookupType;
 use App\Services\RecipeImport\ParsedRecipe;
@@ -23,6 +24,7 @@ use Filament\Schemas\Components\EmbeddedSchema;
 use Filament\Schemas\Components\Form;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Text;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Components\Wizard;
 use Filament\Schemas\Components\Wizard\Step;
 use Filament\Schemas\Schema;
@@ -117,12 +119,29 @@ class ImportRecipe extends Page
             ->icon(Heroicon::OutlinedSparkles)
             ->schema([
                 Text::make(__('Paste the prompt below into an AI chat and attach the recipe photo, PDF or text. The AI answers with JSON that you paste into the next step.')),
+                Text::make(__('You can also paste a public recipe URL instead. If your AI tool can browse the web, it may fetch and read the page directly.')),
                 Textarea::make('prompt')
                     ->hiddenLabel()
                     ->readOnly()
                     ->rows(16)
                     ->default(fn (ImportPromptBuilder $builder): string => $builder->build(user()))
                     ->belowContent($this->copyPromptAction()),
+                Select::make('cookbook_id')
+                    ->label(__('Cookbook'))
+                    ->nullable()
+                    ->searchable()
+                    ->preload()
+                    ->live()
+                    ->options(fn (): array => Cookbook::query()->administeredBy(user())->orderBy('name')->pluck('name', 'id')->all())
+                    ->afterStateUpdated(function (Set $set, ?string $state): void {
+                        $cookbook = $state ? Cookbook::query()->find($state) : null;
+                        $set('is_public', $cookbook === null || $cookbook->is_public);
+                    }),
+                Toggle::make('is_public')
+                    ->label(__('Public'))
+                    ->helperText(__('Public recipes and their images are visible to everyone, including visitors who are not logged in.'))
+                    ->live()
+                    ->default(true),
             ]);
     }
 
@@ -397,8 +416,16 @@ class ImportRecipe extends Page
             $decisions[$item['key']] = (int) $id;
         }
 
+        $cookbookId = $this->data['cookbook_id'] ?? null;
+
         try {
-            $recipe = app(RecipeImporter::class)->import($parsed, user(), $decisions);
+            $recipe = app(RecipeImporter::class)->import(
+                $parsed,
+                user(),
+                $decisions,
+                cookbookId: $cookbookId !== null ? (int) $cookbookId : null,
+                isPublic: (bool) ($this->data['is_public'] ?? true),
+            );
         } catch (ValidationException $exception) {
             $messages = $exception->validator->errors()->all();
 

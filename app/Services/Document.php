@@ -11,7 +11,19 @@ class Document implements \JsonSerializable
     public function __construct(
         protected string $path,
         protected string $disk = 'local',
+        protected ?string $source = null,
+        protected bool $isAiGenerated = false,
     ) {}
+
+    public function source(): ?string
+    {
+        return $this->source;
+    }
+
+    public function isAiGenerated(): bool
+    {
+        return $this->isAiGenerated;
+    }
 
     protected function disk(): Filesystem
     {
@@ -129,8 +141,15 @@ class Document implements \JsonSerializable
         return response()->download($this->path(), $this->name(urlencode: true));
     }
 
-    public function jsonSerialize(): string
+    /**
+     * @return array{path: string, source: ?string, is_ai_generated: bool}
+     */
+    public function jsonSerialize(): array
     {
-        return $this->name();
+        return [
+            'path' => $this->name(),
+            'source' => $this->source,
+            'is_ai_generated' => $this->isAiGenerated,
+        ];
     }
 }

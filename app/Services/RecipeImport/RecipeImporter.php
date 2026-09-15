@@ -2,6 +2,7 @@
 
 namespace App\Services\RecipeImport;
 
+use App\Models\Cookbook;
 use App\Models\Ingredient;
 use App\Models\IngredientGroup;
 use App\Models\Recipe;
@@ -16,15 +17,25 @@ class RecipeImporter
     /** @var array<string, int|null> */
     private array $lookup = [];
 
-    public function __construct(private readonly RelationResolver $resolver) {}
+    public function __construct(
+        private readonly RelationResolver $resolver,
+        private readonly ImageDownloader $downloader,
+    ) {}
 
     /**
      * @param  array<string, int|null>  $decisions  lookup key => chosen model id, or null to omit
+     * @param  int|null  $cookbookId  explicit cookbook chosen in the import wizard, overrides the JSON "cookbook" field
+     * @param  bool|null  $isPublic  explicit visibility chosen in the import wizard, defaults to public unless the cookbook is private
      *
      * @throws ValidationException
      */
-    public function import(ParsedRecipe $parsed, ?User $user, array $decisions = []): Recipe
-    {
+    public function import(
+        ParsedRecipe $parsed,
+        ?User $user,
+        array $decisions = [],
+        ?int $cookbookId = null,
+        ?bool $isPublic = null,
+    ): Recipe {
         $report = $this->resolver->resolve($parsed, $user);
 
         $this->lookup = $report->resolved;
@@ -52,14 +63,20 @@ class RecipeImporter
 
         $this->guardDuplicate($parsed, $user);
 
-        return DB::transaction(function () use ($parsed, $user): Recipe {
+        return DB::transaction(function () use ($parsed, $user, $cookbookId, $isPublic): Recipe {
+            $resolvedCookbookId = $cookbookId ?? ($parsed->cookbook !== null
+                ? $this->requiredId(LookupType::Cookbook, $parsed->cookbook)
+                : null);
+
+            /** @var Cookbook|null $resolvedCookbook */
+            $resolvedCookbook = Cookbook::query()->find($resolvedCookbookId);
+
             $recipe = new Recipe;
             $recipe->fill([
                 'name' => $parsed->name,
                 'category_id' => $this->requiredId(LookupType::Category, $parsed->category),
-                'cookbook_id' => $parsed->cookbook !== null
-                    ? $this->requiredId(LookupType::Cookbook, $parsed->cookbook)
-                    : null,
+                'cookbook_id' => $resolvedCookbookId,
+                'is_public' => $isPublic ?? ($resolvedCookbook === null || $resolvedCookbook->is_public),
                 'servings' => $parsed->servings,
                 'serving_type' => $parsed->servingType,
                 'complexity' => $parsed->complexity,
@@ -205,7 +222,9 @@ class RecipeImporter
         $stored = [];
 
         foreach ($parsed->photos as $index => $photo) {
-            $decoded = $this->decodePhoto($photo['data']);
+            $decoded = $photo['data'] !== null
+                ? $this->decodePhoto($photo['data'])
+                : $this->downloader->download((string) $photo['url']);
 
             if ($decoded === null) {
                 continue;
@@ -219,7 +238,11 @@ class RecipeImporter
 
             Storage::disk('recipes')->put($recipe->getKey().'/'.$filename, $binary);
 
-            $stored[] = $filename;
+            $stored[] = [
+                'path' => $filename,
+                'source' => $photo['source'],
+                'is_ai_generated' => $photo['is_ai_generated'],
+            ];
         }
 
         if ($stored !== []) {
