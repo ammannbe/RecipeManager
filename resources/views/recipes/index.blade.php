@@ -106,7 +106,7 @@
                     </div>
                 </div>
 
-                <div class="col-span-12 grid gap-1 md:col-span-6">
+                <div class="col-span-12 grid gap-1">
                     <label for="search" class="text-[0.6rem] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">{{ __('Search') }}</label>
                     <input
                         id="search"
@@ -124,6 +124,16 @@
                         <option value="">{{ __('All categories') }}</option>
                         @foreach ($categories as $category)
                             <option value="{{ $category->id }}" @selected($selectedCategory === $category->id)>{{ $category->name }}</option>
+                        @endforeach
+                    </select>
+                </div>
+
+                <div class="col-span-12 grid gap-1 md:col-span-3">
+                    <label for="cookbook" class="text-[0.6rem] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">{{ __('Cookbook') }}</label>
+                    <select id="cookbook" name="cookbook" class="h-9 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm text-zinc-800 shadow-sm outline-none transition focus:border-cyan-600 focus:ring-2 focus:ring-cyan-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100">
+                        <option value="">{{ __('All cookbooks') }}</option>
+                        @foreach ($cookbooks as $cookbook)
+                            <option value="{{ $cookbook->id }}" @selected($selectedCookbook === $cookbook->id)>{{ $cookbook->name }}</option>
                         @endforeach
                     </select>
                 </div>
@@ -288,7 +298,7 @@
             if (searchInput) {
                 searchInput.addEventListener('input', () => {
                     clearTimeout(searchTimer);
-                    searchTimer = window.setTimeout(submitForm, 350);
+                    searchTimer = window.setTimeout(submitForm, 800);
                 });
             }
         }());

@@ -105,6 +105,46 @@ class RecipeVisibilityTest extends TestCase
         $this->get(route('recipes.show', $recipe))->assertNotFound();
     }
 
+    public function test_the_index_can_be_filtered_by_cookbook(): void
+    {
+        $cookbook = Cookbook::factory()->create(['is_public' => true]);
+        $other = Cookbook::factory()->create(['is_public' => true]);
+
+        Recipe::factory()->create(['is_public' => true, 'cookbook_id' => $cookbook->id, 'name' => 'In cookbook']);
+        Recipe::factory()->create(['is_public' => true, 'cookbook_id' => $other->id, 'name' => 'In other cookbook']);
+
+        $this->get(route('recipes.index', ['cookbook' => $cookbook->id]))
+            ->assertOk()
+            ->assertSee('In cookbook')
+            ->assertDontSee('In other cookbook');
+    }
+
+    public function test_the_cookbook_filter_lists_owned_and_public_cookbooks_for_a_user(): void
+    {
+        $user = User::factory()->create(['admin' => false]);
+        Cookbook::factory()->create(['author_id' => $user->author_id, 'is_public' => false, 'name' => 'Owned cookbook']);
+        Cookbook::factory()->create(['is_public' => true, 'name' => 'Public cookbook']);
+        Cookbook::factory()->create(['is_public' => false, 'name' => 'Private cookbook']);
+
+        $this->actingAs($user)
+            ->get(route('recipes.index'))
+            ->assertOk()
+            ->assertSee('Owned cookbook')
+            ->assertSee('Public cookbook')
+            ->assertDontSee('Private cookbook');
+    }
+
+    public function test_the_cookbook_filter_only_lists_public_cookbooks_for_a_guest(): void
+    {
+        Cookbook::factory()->create(['is_public' => true, 'name' => 'Public cookbook']);
+        Cookbook::factory()->create(['is_public' => false, 'name' => 'Private cookbook']);
+
+        $this->get(route('recipes.index'))
+            ->assertOk()
+            ->assertSee('Public cookbook')
+            ->assertDontSee('Private cookbook');
+    }
+
     public function test_a_guest_cannot_load_a_private_recipe_photo(): void
     {
         Storage::fake('recipes');

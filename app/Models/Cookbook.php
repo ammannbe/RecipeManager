@@ -119,6 +119,35 @@ class Cookbook extends Model
     }
 
     /**
+     * Public cookbooks, plus the user's own and any they have a can_read/can_admin
+     * membership on. Global admins see every cookbook. Mirrors grants() as a query scope.
+     *
+     * @param  Builder<$this>  $query
+     */
+    public function scopeVisibleTo(Builder $query, ?User $user): void
+    {
+        if ($user?->admin) {
+            return;
+        }
+
+        $query->where(function (Builder $query) use ($user): void {
+            $query->where('is_public', true);
+
+            if ($user?->author_id) {
+                $query->orWhere('author_id', $user->author_id);
+            }
+
+            if ($user !== null) {
+                $query->orWhereHas(
+                    'members',
+                    fn (Builder $member) => $member->whereKey($user->getKey())
+                        ->where(fn (Builder $grant) => $grant->where('can_read', true)->orWhere('can_admin', true)),
+                );
+            }
+        });
+    }
+
+    /**
      * Cookbooks the user owns or has a can_admin membership on. Global admins see every
      * cookbook. Mirrors the record-level grants() check but as a query scope.
      *

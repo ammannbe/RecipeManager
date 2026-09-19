@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\Complexity;
 use App\Models\Category;
+use App\Models\Cookbook;
 use App\Models\Recipe;
 use App\Models\Tag;
 use App\Services\Document;
@@ -20,6 +21,7 @@ class RecipeController extends Controller
         $quick = $request->boolean('quick');
         $complexity = (string) $request->string('complexity');
         $category = $request->integer('category');
+        $cookbook = $request->integer('cookbook');
         $selectedSort = (string) $request->string('sort', 'created_at_desc');
 
         $selectedTags = Tag::query()
@@ -57,6 +59,7 @@ class RecipeController extends Controller
                 fn (Builder $query): Builder => $query->where('complexity', $complexity),
             )
             ->when($category > 0, fn (Builder $query): Builder => $query->where('category_id', $category))
+            ->when($cookbook > 0, fn (Builder $query): Builder => $query->where('cookbook_id', $cookbook))
             ->when(
                 $selectedTags !== [],
                 fn (Builder $query): Builder => $query->whereHas(
@@ -93,10 +96,12 @@ class RecipeController extends Controller
             'recipes' => $recipes,
             'categories' => Category::query()->orderBy('name')->get(),
             'tags' => Tag::query()->orderBy('name')->get(),
+            'cookbooks' => Cookbook::query()->visibleTo(user())->orderBy('name')->get(),
             'search' => $search,
             'quick' => $quick,
             'complexity' => $complexity,
             'selectedCategory' => $category > 0 ? $category : null,
+            'selectedCookbook' => $cookbook > 0 ? $cookbook : null,
             'selectedTags' => $selectedTags,
             'selectedSort' => $selectedSort,
             'paginationPages' => $paginationPages,
