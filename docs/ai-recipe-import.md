@@ -14,7 +14,9 @@ einem Foto, PDF, Screenshot oder Text erzeugen.
 3. Die Anweisung in einen KI-Chat einfügen und das Rezept als Foto, PDF oder Text anhängen.
    Alternativ kann auch eine öffentliche Rezept-URL eingefügt werden, sofern die KI diese
    selbst abrufen kann.
-4. Die JSON-Antwort der KI in den zweiten Schritt einfügen.
+4. Die JSON-Antwort der KI in den zweiten Schritt einfügen. Die Anweisung verlangt die
+   Ausgabe als Code-Block, damit Sonderzeichen beim Kopieren nicht doppelt kodiert werden;
+   die Code-Fences entfernt der Import automatisch.
 5. Im dritten Schritt werden alle Werte aufgelistet, die keiner bestehenden Zeile zugeordnet
    werden konnten. Pro Wert lässt sich ein bestehender Eintrag auswählen; Administratoren
    können den Wert stattdessen neu anlegen. Kochbücher und Kategorien darf jede Person neu

@@ -50,8 +50,10 @@ class ImportPromptBuilder
         return <<<'TXT'
         ## Regeln
 
-        1. Gib ausschliesslich das rohe JSON-Objekt aus. Keine Code-Fences, keine
-           Erklärungen, kein einleitender Text.
+        1. Gib ausschliesslich das JSON-Objekt aus, keine Erklärungen und keinen
+           einleitenden Text. Formatiere es als Code-Block (```json), damit beim
+           Kopieren keine Sonderzeichen doppelt kodiert werden. Die Code-Fences werden
+           beim Import automatisch entfernt.
         2. Gib genau ein Rezept aus. Enthält die Quelle mehrere Rezepte, konvertiere nur
            das erste und weise am Ende nicht darauf hin.
         3. Erfinde nichts. Fehlt eine Angabe in der Quelle, setze null bzw. ein leeres

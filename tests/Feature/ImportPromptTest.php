@@ -99,4 +99,11 @@ class ImportPromptTest extends TestCase
         $this->assertStringContainsString('"ingredient_groups"', $prompt);
         $this->assertStringContainsString('difficult', $prompt);
     }
+
+    public function test_it_asks_for_a_code_block_to_avoid_double_encoding(): void
+    {
+        $prompt = app(ImportPromptBuilder::class)->build(User::factory()->admin()->create());
+
+        $this->assertStringContainsString('Code-Block', $prompt);
+    }
 }
