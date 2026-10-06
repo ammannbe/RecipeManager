@@ -1,4 +1,9 @@
-# SSH_USER, SSH_HOST, PROJECT_PATH are provided via .ddev/config.local.yaml (git-ignored)
+# Provided via .ddev/config.local.yaml (git-ignored):
+# web_environment:
+#   - SSH_USER=
+#   - SSH_HOST=
+#   - PROJECT_PATH=
+
 auth_command:
   command: |
     set -eu -o pipefail
