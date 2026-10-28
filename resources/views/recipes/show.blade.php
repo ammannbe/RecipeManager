@@ -27,7 +27,7 @@
     </div>
 
     <nav class="sticky top-0 z-20 border-b border-zinc-200/80 bg-white/90 backdrop-blur dark:border-zinc-800/80 dark:bg-zinc-950/90">
-        <div class="mx-auto flex w-full max-w-5xl items-center justify-between gap-4 px-6 py-4">
+        <div class="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-6 py-4">
             <a href="{{ route('recipes.index') }}" class="inline-flex items-center gap-3 font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
                 <img src="{{ asset('favicon.ico') }}" alt="{{ config('app.name') }}" class="h-8 w-8 rounded-lg">
                 <span>{{ config('app.name') }}</span>
@@ -62,7 +62,7 @@
         </div>
     </nav>
 
-    <main class="mx-auto grid w-full max-w-5xl gap-6 px-6 py-8 pb-32 lg:gap-8 lg:py-10">
+    <main class="mx-auto grid w-full max-w-7xl gap-6 px-6 py-8 pb-32 lg:gap-8 lg:py-10">
         <div class="flex items-center justify-between gap-3">
             <a href="{{ route('recipes.index') }}" class="inline-flex items-center gap-1.5 text-sm font-bold text-zinc-600 transition hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100">
                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" class="h-4 w-4">
@@ -311,8 +311,12 @@
                 </div>
             @endif
 
-            <div class="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)] md:gap-5">
-                <section class="rounded-xl border border-zinc-200 bg-white p-5 md:p-6 dark:border-zinc-800 dark:bg-zinc-950">
+            <div class="grid gap-4 md:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)] md:items-start md:gap-5">
+                <section
+                    class="rounded-xl border border-zinc-200 bg-white p-5 md:top-24 md:p-6 dark:border-zinc-800 dark:bg-zinc-950"
+                    x-data="stickyWhenFits"
+                    :class="{ 'md:sticky': fits }"
+                >
                     <h2 class="mb-3 text-[1.1rem] font-semibold leading-tight text-zinc-900 dark:text-zinc-100">{{ __('Ingredients') }}</h2>
 
                     <p
@@ -353,7 +357,11 @@
                     </div>
                 </section>
 
-                <section class="rounded-xl border border-zinc-200 bg-white p-5 md:p-6 dark:border-zinc-800 dark:bg-zinc-950">
+                <section
+                    class="rounded-xl border border-zinc-200 bg-white p-5 md:top-24 md:p-6 dark:border-zinc-800 dark:bg-zinc-950"
+                    x-data="stickyWhenFits"
+                    :class="{ 'md:sticky': fits }"
+                >
                     <h2 class="mb-3 text-[1.1rem] font-semibold leading-tight text-zinc-900 dark:text-zinc-100">{{ __('Preparation') }}</h2>
                     <div class="text-sm leading-7 text-zinc-700 dark:text-zinc-300 [&_blockquote]:mb-3 [&_blockquote]:text-zinc-700 [&_h1]:mb-3 [&_h1]:mt-4 [&_h1]:font-bold [&_h1]:text-zinc-900 [&_h2]:mb-3 [&_h2]:mt-4 [&_h2]:font-bold [&_h2]:text-zinc-900 [&_h3]:mb-3 [&_h3]:mt-4 [&_h3]:font-bold [&_h3]:text-zinc-900 [&_ol]:mb-3 [&_ol]:ml-4 [&_ol]:list-decimal [&_ol]:space-y-2 [&_p]:my-3 [&_ul]:my-3 [&_p:has(+_ul)]:mb-0 [&_p+ul]:mt-0 [&_ul]:ml-4 [&_ul]:list-disc [&_li>p]:my-0 *:first:mt-0 *:last:mb-0 dark:[&_blockquote]:text-zinc-300 dark:[&_h1]:text-zinc-100 dark:[&_h2]:text-zinc-100 dark:[&_h3]:text-zinc-100">
                         {!! $recipe->instructions !!}

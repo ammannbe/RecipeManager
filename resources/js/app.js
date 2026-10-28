@@ -81,4 +81,22 @@ Alpine.data('recipeServings', ({ initial }) => ({
     },
 }));
 
+// Only stick when the element fits into the viewport below its sticky top offset,
+// otherwise its lower part could never be scrolled into view.
+Alpine.data('stickyWhenFits', () => ({
+    fits: false,
+
+    init() {
+        const update = () => {
+            const top = parseFloat(getComputedStyle(this.$el).top) || 0;
+
+            this.fits = this.$el.offsetHeight + top <= window.innerHeight;
+        };
+
+        new ResizeObserver(update).observe(this.$el);
+        window.addEventListener('resize', update);
+        update();
+    },
+}));
+
 Alpine.start();

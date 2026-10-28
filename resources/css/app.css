@@ -43,6 +43,11 @@
     }
 }
 
+/* Alpine: hide elements until Alpine is initialized */
+[x-cloak] {
+    display: none !important;
+}
+
 /* Filament: reduce spacing in table column toggle items */
 @layer components {
     .fi-ta-col-manager-item {

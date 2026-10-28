@@ -42,6 +42,32 @@ class PublicRecipesViewTest extends TestCase
         $view->assertDontSee(__('Apply'));
     }
 
+    public function test_recipes_index_filters_are_collapsed_unless_a_filter_is_active(): void
+    {
+        $data = [
+            'recipes' => new LengthAwarePaginator(items: [], total: 0, perPage: 15, currentPage: 1, options: ['path' => '/']),
+            'categories' => new Collection,
+            'tags' => new Collection,
+            'cookbooks' => new Collection,
+            'search' => '',
+            'quick' => false,
+            'complexity' => '',
+            'selectedCategory' => null,
+            'selectedCookbook' => null,
+            'selectedTags' => [],
+            'selectedSort' => 'created_at_desc',
+            'paginationPages' => [],
+            'currentPage' => 1,
+        ];
+
+        $collapsed = $this->view('recipes.index', $data);
+        $collapsed->assertSee('x-data="{ open: false }"', false);
+        $collapsed->assertSee(__('Filters'));
+
+        $expanded = $this->view('recipes.index', [...$data, 'search' => 'pasta']);
+        $expanded->assertSee('x-data="{ open: true }"', false);
+    }
+
     public function test_recipe_show_displays_slideshow_controls_when_recipe_has_multiple_photos(): void
     {
         $recipe = new Recipe([

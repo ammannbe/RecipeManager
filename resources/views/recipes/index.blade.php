@@ -27,7 +27,7 @@
     </div>
 
     <nav class="sticky top-0 z-20 border-b border-zinc-200/80 bg-white/90 backdrop-blur dark:border-zinc-800/80 dark:bg-zinc-950/90">
-        <div class="mx-auto flex w-full max-w-6xl items-center justify-between gap-4 px-6 py-4">
+        <div class="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-6 py-4">
             <a href="{{ route('recipes.index') }}" class="inline-flex items-center gap-3 font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
                 <img src="{{ asset('favicon.ico') }}" alt="{{ config('app.name') }}" class="h-8 w-8 rounded-lg">
                 <span>{{ config('app.name') }}</span>
@@ -63,12 +63,36 @@
     </nav>
 
     <main class="mx-auto grid w-full max-w-7xl gap-6 px-6 py-8 pb-20 lg:gap-8 lg:py-10">
-        <header class="grid gap-2">
-            <h1 class="text-3xl font-black leading-tight tracking-[-0.04em] text-zinc-900 md:text-5xl dark:text-zinc-100">{{ __('Recipes') }}</h1>
-        </header>
+        @php($activeFilterCount = ($search !== '' ? 1 : 0) + ($quick ? 1 : 0) + ($complexity !== '' ? 1 : 0) + ($selectedCategory ? 1 : 0) + ($selectedCookbook ? 1 : 0) + count($selectedTags) + ($selectedSort !== 'created_at_desc' ? 1 : 0))
 
-        <section class="grid gap-3 rounded-2xl border border-zinc-200 bg-white p-3 shadow-[0_12px_32px_-24px_rgba(15,23,42,0.6)] md:p-4 dark:border-zinc-800 dark:bg-zinc-900">
-            <form method="GET" action="{{ route('recipes.index') }}" class="grid grid-cols-12 gap-3" data-auto-submit-filters>
+        <section
+            class="grid gap-3 rounded-2xl border border-zinc-200 bg-white p-3 shadow-[0_12px_32px_-24px_rgba(15,23,42,0.6)] md:p-4 dark:border-zinc-800 dark:bg-zinc-900"
+            x-data="{ open: {{ $activeFilterCount > 0 ? 'true' : 'false' }} }"
+        >
+            <button
+                type="button"
+                class="flex w-full items-center justify-between gap-2 text-left"
+                @click="open = ! open"
+                :aria-expanded="open.toString()"
+                aria-controls="recipe-filters"
+            >
+                <span class="inline-flex items-center gap-2 text-[0.7rem] font-bold uppercase tracking-widest text-zinc-600 dark:text-zinc-300">
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" class="h-4 w-4">
+                        <path d="M3 5h18M6 12h12M10 19h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                    </svg>
+                    {{ __('Filters') }}
+
+                    @if ($activeFilterCount > 0)
+                        <span class="inline-flex min-w-5 items-center justify-center rounded-full bg-cyan-50 px-1.5 py-0.5 text-[0.65rem] leading-none text-cyan-700 dark:bg-cyan-500/10 dark:text-cyan-400">{{ $activeFilterCount }}</span>
+                    @endif
+                </span>
+
+                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" class="h-4 w-4 text-zinc-500 transition dark:text-zinc-400" :class="{ 'rotate-180': open }">
+                    <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                </svg>
+            </button>
+
+            <form id="recipe-filters" method="GET" action="{{ route('recipes.index') }}" class="grid grid-cols-12 gap-3" data-auto-submit-filters x-show="open" @if ($activeFilterCount === 0) x-cloak @endif>
                 <div class="col-span-12 flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
                     <div class="flex flex-wrap items-center gap-2">
                         <p class="text-[0.6rem] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">{{ __('Quick') }}</p>
@@ -176,6 +200,10 @@
                 </div>
             </form>
         </section>
+
+        <header class="grid gap-2">
+            <h1 class="text-3xl font-black leading-tight tracking-[-0.04em] text-zinc-900 md:text-5xl dark:text-zinc-100">{{ __('Recipes') }}</h1>
+        </header>
 
         <section class="grid gap-4 sm:grid-cols-2 cards:grid-cols-3 md:gap-5">
             @forelse ($recipes as $recipe)
