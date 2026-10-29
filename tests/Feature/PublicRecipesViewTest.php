@@ -93,4 +93,28 @@ class PublicRecipesViewTest extends TestCase
         $view->assertSee(__('Next image'));
         $view->assertSee(__('Recipe images'));
     }
+
+    public function test_recipe_show_sanitizes_the_instructions(): void
+    {
+        $recipe = new Recipe([
+            'name' => 'Test recipe',
+            'instructions' => '<p><strong>Kochen</strong> <a href="javascript:alert(1)">Link</a></p><script>alert(2)</script><img src="x" onerror="alert(3)">',
+            'cookbook_id' => null,
+            'photos' => [],
+        ]);
+
+        $recipe->updated_at = now();
+        $recipe->setRelation('author', new Author(['name' => 'Author name']));
+        $recipe->setRelation('category', new Category(['name' => 'Category name']));
+        $recipe->setRelation('cookbook', null);
+        $recipe->setRelation('ingredients', new Collection);
+        $recipe->setRelation('ingredientGroups', new Collection);
+
+        $view = $this->view('recipes.show', ['recipe' => $recipe]);
+
+        $view->assertSee('<strong>Kochen</strong>', false);
+        $view->assertDontSee('alert(1)', false);
+        $view->assertDontSee('alert(2)', false);
+        $view->assertDontSee('onerror', false);
+    }
 }
