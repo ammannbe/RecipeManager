@@ -149,5 +149,11 @@
     "View": "View",
     "View all recipes in this category": "View all recipes in this category",
     "Where the recipe originally comes from, e.g. a website name or URL.": "Where the recipe originally comes from, e.g. a website name or URL.",
-    "You have been invited to the cookbook \":name\"": "You have been invited to the cookbook \":name\""
+    "You have been invited to the cookbook \":name\"": "You have been invited to the cookbook \":name\"",
+    "Authorize :client": "Authorize :client",
+    ":client wants to access your :app account (:email). It will be able to read the recipes you can see and save new private recipes for you.": ":client wants to access your :app account (:email). It will be able to read the recipes you can see and save new private recipes for you.",
+    "Read the recipes you can see and save new private recipes": "Read the recipes you can see and save new private recipes",
+    "Authorize": "Authorize",
+    "Deny": "Deny",
+    "You already have a recipe named \":name\".": "You already have a recipe named \":name\"."
 }

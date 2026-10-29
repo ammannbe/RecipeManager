@@ -149,5 +149,11 @@
     "View": "Ansehen",
     "View all recipes in this category": "Alle Rezepte dieser Kategorie ansehen",
     "Where the recipe originally comes from, e.g. a website name or URL.": "Woher das Rezept ursprünglich stammt, z. B. ein Webseitenname oder eine URL.",
-    "You have been invited to the cookbook \":name\"": "Du wurdest zum Kochbuch \":name\" eingeladen"
+    "You have been invited to the cookbook \":name\"": "Du wurdest zum Kochbuch \":name\" eingeladen",
+    "Authorize :client": ":client autorisieren",
+    ":client wants to access your :app account (:email). It will be able to read the recipes you can see and save new private recipes for you.": ":client möchte auf dein :app-Konto (:email) zugreifen. Die App kann die Rezepte lesen, die du sehen kannst, und neue private Rezepte für dich speichern.",
+    "Read the recipes you can see and save new private recipes": "Die Rezepte lesen, die du sehen kannst, und neue private Rezepte speichern",
+    "Authorize": "Autorisieren",
+    "Deny": "Ablehnen",
+    "You already have a recipe named \":name\".": "Du hast bereits ein Rezept mit dem Namen \":name\"."
 }
