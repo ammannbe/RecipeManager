@@ -94,15 +94,19 @@ class RecipeIdeaCreator
     }
 
     /**
-     * Units match on any of their spellings, so "g" finds "Gramm" with the shortcut "g".
+     * Units match on any of their spellings, with or without a trailing dot,
+     * so "g" finds "Gramm" with the shortcut "g" and "Stk." finds the shortcut "Stk".
      */
     private function unitId(string $name): int
     {
-        return $this->units[mb_strtolower($name)] ??= $this->firstOrRestore(
+        $bare = rtrim($name, '.');
+
+        return $this->units[mb_strtolower($bare)] ??= $this->firstOrRestore(
             Unit::withTrashed(),
             ['name', 'name_shortcut', 'name_plural', 'name_plural_shortcut'],
             $name,
             fn (string $name): Unit => Unit::query()->create(['name' => $name]),
+            array_values(array_unique([$name, $bare, $bare.'.'])),
         );
     }
 
@@ -112,14 +116,17 @@ class RecipeIdeaCreator
      * @param  Builder<TModel>  $query  including trashed rows, which still occupy the unique index
      * @param  array<int, string>  $columns
      * @param  callable(string): TModel  $create
+     * @param  array<int, string>|null  $spellings  names to look for, defaults to $name
      */
-    private function firstOrRestore(Builder $query, array $columns, string $name, callable $create): int
+    private function firstOrRestore(Builder $query, array $columns, string $name, callable $create, ?array $spellings = null): int
     {
+        $spellings ??= [$name];
+
         /** @var TModel|null $model */
         $model = $query
-            ->where(function (Builder $query) use ($columns, $name): void {
+            ->where(function (Builder $query) use ($columns, $spellings): void {
                 foreach ($columns as $column) {
-                    $query->orWhere($column, $name);
+                    $query->orWhereIn($column, $spellings);
                 }
             })
             // Prefer an exact match on the main name, then live rows over trashed ones.
