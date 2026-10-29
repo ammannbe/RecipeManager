@@ -35,4 +35,9 @@ return [
         ],
     ],
 
+    // Companion app saving recipe ideas through the API (POST /api/recipes).
+    'shoppinglist' => [
+        'default_category' => env('SHOPPINGLIST_DEFAULT_CATEGORY', 'Rezeptideen'),
+    ],
+
 ];
