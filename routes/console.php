@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\CookbookInvitation;
+use App\Models\RecipeDraft;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
@@ -18,3 +19,11 @@ Artisan::command('cookbook-invitations:prune', function () {
 })->purpose('Delete expired and accepted cookbook invitations');
 
 Schedule::command('cookbook-invitations:prune')->daily();
+
+Artisan::command('recipe-drafts:prune', function () {
+    $pruned = RecipeDraft::query()->where('expires_at', '<=', now())->delete();
+
+    $this->info("Pruned {$pruned} recipe draft(s).");
+})->purpose('Delete expired recipe drafts of companion apps');
+
+Schedule::command('recipe-drafts:prune')->daily();

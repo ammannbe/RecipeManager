@@ -4,9 +4,11 @@ namespace Tests\Feature;
 
 use App\Filament\Pages\ImportRecipe;
 use App\Models\Category;
+use App\Models\Cookbook;
 use App\Models\Food;
 use App\Models\IngredientAttribute;
 use App\Models\Recipe;
+use App\Models\RecipeDraft;
 use App\Models\Tag;
 use App\Models\Unit;
 use App\Models\User;
@@ -512,5 +514,74 @@ class ImportRecipePageTest extends TestCase
 
         $this->assertDatabaseMissing('foods', ['name' => 'Mehl']);
         $this->assertDatabaseCount('recipes', 0);
+    }
+
+    /**
+     * @param  array<string, mixed>  $overrides
+     */
+    private function draft(User $user, array $overrides = []): RecipeDraft
+    {
+        return RecipeDraft::query()->create([
+            'user_id' => $user->id,
+            'data' => array_merge(RecipeJsonSchema::example(), ['cookbook' => null], $overrides),
+            'expires_at' => now()->addHour(),
+        ]);
+    }
+
+    public function test_a_draft_starts_at_the_resolve_step_without_creating_anything(): void
+    {
+        $this->seedLookups();
+        $user = User::factory()->create(['admin' => false]);
+        $this->actingAs($user);
+        $draft = $this->draft($user, ['category' => 'Rezeptideen']);
+        $categories = Category::query()->count();
+
+        /** @var Testable<ImportRecipe> $component */
+        $component = Livewire::withQueryParams(['draft' => $draft->id])
+            ->test(ImportRecipe::class)
+            ->assertSet('draftId', $draft->id)
+            ->assertWizardCurrentStep(3)
+            ->assertFormFieldExists('cookbook_id')
+            ->assertFormFieldExists('is_public');
+
+        $this->assertSame('Rezeptideen', $this->unresolvedValue($component, 'Rezeptideen')['value']);
+        $this->assertSame($categories, Category::query()->count());
+        $this->assertModelExists($draft);
+    }
+
+    public function test_importing_a_draft_uses_cookbook_and_visibility_and_removes_the_draft(): void
+    {
+        $this->seedLookups();
+        $user = User::factory()->admin()->create();
+        $this->actingAs($user);
+        $cookbook = Cookbook::factory()->create(['author_id' => $user->author_id, 'is_public' => false]);
+        $draft = $this->draft($user);
+
+        Livewire::withQueryParams(['draft' => $draft->id])
+            ->test(ImportRecipe::class)
+            ->fillForm(['cookbook_id' => $cookbook->id, 'is_public' => false])
+            ->call('import')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas(Recipe::class, ['name' => 'Apfelkuchen', 'cookbook_id' => $cookbook->id, 'is_public' => false]);
+        $this->assertModelMissing($draft);
+    }
+
+    public function test_foreign_or_expired_drafts_are_not_loaded(): void
+    {
+        $user = User::factory()->create(['admin' => false]);
+        $this->actingAs($user);
+        $foreign = $this->draft(User::factory()->create());
+        $expired = $this->draft($user);
+        $expired->update(['expires_at' => now()->subMinute()]);
+
+        foreach ([$foreign, $expired] as $draft) {
+            Livewire::withQueryParams(['draft' => $draft->id])
+                ->test(ImportRecipe::class)
+                ->assertSet('draftId', null)
+                ->assertSet('data.json', null)
+                ->assertWizardCurrentStep(1)
+                ->assertNotified(__('The recipe draft was not found or has expired.'));
+        }
     }
 }

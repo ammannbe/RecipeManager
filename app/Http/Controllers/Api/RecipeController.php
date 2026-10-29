@@ -5,11 +5,9 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\SearchRecipesRequest;
 use App\Http\Requests\Api\ShowRecipeRequest;
-use App\Http\Requests\Api\StoreRecipeRequest;
 use App\Models\Ingredient;
 use App\Models\Recipe;
 use App\Models\User;
-use App\Services\Api\RecipeIdeaCreator;
 use App\Services\Api\RecipePresenter;
 use Illuminate\Http\JsonResponse;
 
@@ -75,23 +73,5 @@ class RecipeController extends Controller
                 $user->locale ?? app()->getLocale(),
             ),
         ]);
-    }
-
-    public function store(StoreRecipeRequest $request, RecipeIdeaCreator $creator): JsonResponse
-    {
-        /** @var User $user */
-        $user = $request->user();
-
-        /** @var array{name: string, servings?: int|null, instructions: string, ingredients: array<int, array{amount?: float|int|string|null, amount_max?: float|int|string|null, unit?: string|null, food: string}>} $data */
-        $data = $request->validated();
-
-        $recipe = $creator->create($user, $data);
-
-        return response()->json([
-            'data' => [
-                'id' => $recipe->id,
-                'url' => route('recipes.show', $recipe),
-            ],
-        ], 201);
     }
 }
