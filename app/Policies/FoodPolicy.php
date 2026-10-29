@@ -42,7 +42,7 @@ class FoodPolicy
 
     public function delete(User $user, Food $food): bool
     {
-        return $user->admin && $food->ingredients->isEmpty();
+        return $user->admin && ! $food->ingredients()->exists();
     }
 
     public function restore(User $user, Food $food): bool
@@ -52,6 +52,6 @@ class FoodPolicy
 
     public function forceDelete(User $user, Food $food): bool
     {
-        return $user->admin && $food->ingredients->isEmpty();
+        return $user->admin && ! $food->ingredients()->exists();
     }
 }

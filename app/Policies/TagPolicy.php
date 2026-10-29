@@ -42,7 +42,7 @@ class TagPolicy
 
     public function delete(User $user, Tag $tag): bool
     {
-        return $user->admin && $tag->recipes->isEmpty();
+        return $user->admin && ! $tag->recipes()->exists();
     }
 
     public function restore(User $user, Tag $tag): bool
@@ -52,6 +52,6 @@ class TagPolicy
 
     public function forceDelete(User $user, Tag $tag): bool
     {
-        return $user->admin && $tag->recipes->isEmpty();
+        return $user->admin && ! $tag->recipes()->exists();
     }
 }

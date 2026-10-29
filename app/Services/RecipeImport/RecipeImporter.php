@@ -81,7 +81,11 @@ class RecipeImporter
                 'serving_type' => $parsed->servingType,
                 'complexity' => $parsed->complexity,
                 'preparation_time' => $parsed->preparationTime,
-                'instructions' => Str::markdown($parsed->instructions),
+                // The recipe page renders instructions as HTML, so never let raw HTML through.
+                'instructions' => Str::markdown($parsed->instructions, [
+                    'html_input' => 'escape',
+                    'allow_unsafe_links' => false,
+                ]),
             ]);
 
             $recipe->setAttribute('author_id', $this->authorId($parsed, $user));

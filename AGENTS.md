@@ -71,15 +71,19 @@ JSON API for the companion app "Shoppinglist", secured with Laravel Passport
 
 * Routes: `routes/api.php`, guard `auth:api`, `throttle:120,1`. Code in
   `app/Http/Controllers/Api`, `app/Http/Requests/Api`, `app/Services/Api`.
-* `GET /api/user`, `GET /api/foods`, `POST /api/recipes/search`,
-  `GET /api/recipes/{id}?servings=`, `POST /api/recipes`.
+* `GET /api/user`, `GET /api/foods`, `GET /api/vocabulary` (category and unit names,
+  complexities), `POST /api/recipes/search`, `GET /api/recipes/{id}?servings=`,
+  `POST /api/recipe-drafts`.
 * Visibility always goes through `Recipe::visibleTo()` / `RecipePolicy` (invisible → 404).
   Photos are never exposed.
 * Ingredient text and scaling mirror the recipe page (`recipes/show.blade.php`, `recipeServings`
   in `app.js`); alternatives (`ingredient_id`) are returned as `alternatives` of their parent.
-* `POST /api/recipes` creates a private recipe without cookbook for the user's author, in the
-  category `SHOPPINGLIST_DEFAULT_CATEGORY` (default "Rezeptideen"). Unlike Filament, missing
-  foods and units are created (matched by name, case-insensitive; trashed rows are restored).
+* The API never creates recipes, foods, units etc. directly. `POST /api/recipe-drafts` takes a
+  recipe in the import JSON format (`RecipeJsonValidator`, no photos), stores it as `RecipeDraft`
+  (own user, expires after 24 h, pruned daily by `recipe-drafts:prune`) and returns the URL
+  `/admin/import-recipe?draft=<uuid>`. The import wizard loads the draft and starts at "Resolve",
+  where the user picks cookbook and visibility and matches unknown values (only admins may create
+  them); the draft is deleted after the import.
 * OAuth: `GET /oauth/authorize` (guests log in via Filament first, unverified users are sent to
   e-mail verification), `POST /oauth/token` (`authorization_code`, `refresh_token`).
   Scope `recipes` is optional. Access tokens live 1 hour, refresh tokens 90 days. The approval

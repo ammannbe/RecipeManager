@@ -155,5 +155,7 @@
     "Read the recipes you can see and save new private recipes": "Die Rezepte lesen, die du sehen kannst, und neue private Rezepte speichern",
     "Authorize": "Autorisieren",
     "Deny": "Ablehnen",
-    "You already have a recipe named \":name\".": "Du hast bereits ein Rezept mit dem Namen \":name\"."
+    "You already have a recipe named \":name\".": "Du hast bereits ein Rezept mit dem Namen \":name\".",
+    "Publication": "Veröffentlichung",
+    "The recipe draft was not found or has expired.": "Der Rezeptentwurf wurde nicht gefunden oder ist abgelaufen."
 }

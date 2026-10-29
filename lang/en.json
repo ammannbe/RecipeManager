@@ -155,5 +155,7 @@
     "Read the recipes you can see and save new private recipes": "Read the recipes you can see and save new private recipes",
     "Authorize": "Authorize",
     "Deny": "Deny",
-    "You already have a recipe named \":name\".": "You already have a recipe named \":name\"."
+    "You already have a recipe named \":name\".": "You already have a recipe named \":name\".",
+    "Publication": "Publication",
+    "The recipe draft was not found or has expired.": "The recipe draft was not found or has expired."
 }

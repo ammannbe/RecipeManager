@@ -60,7 +60,8 @@ class ApiOAuthTest extends TestCase
         $this->getJson('/api/foods')->assertUnauthorized();
         $this->postJson('/api/recipes/search', ['food_ids' => [1]])->assertUnauthorized();
         $this->getJson('/api/recipes/'.$recipeId)->assertUnauthorized();
-        $this->postJson('/api/recipes', [])->assertUnauthorized();
+        $this->postJson('/api/recipe-drafts', [])->assertUnauthorized();
+        $this->getJson('/api/vocabulary')->assertUnauthorized();
     }
 
     public function test_api_errors_are_json_even_without_an_accept_header(): void
