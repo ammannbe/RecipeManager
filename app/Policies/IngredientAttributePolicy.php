@@ -42,7 +42,7 @@ class IngredientAttributePolicy
 
     public function delete(User $user, IngredientAttribute $attribute): bool
     {
-        return $user->admin && $attribute->ingredients->isEmpty();
+        return $user->admin && ! $attribute->ingredients()->exists();
     }
 
     public function restore(User $user, IngredientAttribute $attribute): bool
@@ -52,6 +52,6 @@ class IngredientAttributePolicy
 
     public function forceDelete(User $user, IngredientAttribute $attribute): bool
     {
-        return $user->admin && $attribute->ingredients->isEmpty();
+        return $user->admin && ! $attribute->ingredients()->exists();
     }
 }

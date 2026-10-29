@@ -42,7 +42,7 @@ class UnitPolicy
 
     public function delete(User $user, Unit $unit): bool
     {
-        return $user->admin && $unit->ingredients->isEmpty();
+        return $user->admin && ! $unit->ingredients()->exists();
     }
 
     public function restore(User $user, Unit $unit): bool
@@ -52,6 +52,6 @@ class UnitPolicy
 
     public function forceDelete(User $user, Unit $unit): bool
     {
-        return $user->admin && $unit->ingredients->isEmpty();
+        return $user->admin && ! $unit->ingredients()->exists();
     }
 }
