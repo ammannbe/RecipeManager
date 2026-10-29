@@ -109,6 +109,24 @@ class ApiRecipeStoreTest extends TestCase
         $this->assertSame($ingredients[2]->unit_id, $ingredients[3]->unit_id);
     }
 
+    public function test_units_match_with_or_without_a_trailing_dot(): void
+    {
+        $piece = Unit::factory()->create(['name' => 'Stück', 'name_shortcut' => 'Stk', 'name_plural' => null, 'name_plural_shortcut' => null]);
+        $spoon = Unit::factory()->create(['name' => 'Esslöffel', 'name_shortcut' => 'EL.', 'name_plural' => null, 'name_plural_shortcut' => null]);
+        Passport::actingAs(User::factory()->create());
+
+        $recipe = $this->created($this->postJson('/api/recipes', $this->payload([
+            'ingredients' => [
+                ['amount' => 2, 'unit' => 'Stk.', 'food' => 'Zwiebel'],
+                ['amount' => 1, 'unit' => 'stk', 'food' => 'Knoblauch'],
+                ['amount' => 1, 'unit' => 'EL', 'food' => 'Öl'],
+            ],
+        ])));
+
+        $this->assertSame([$piece->id, $piece->id, $spoon->id], $recipe->ingredients->pluck('unit_id')->all());
+        $this->assertSame(2, Unit::query()->count());
+    }
+
     public function test_the_default_category_is_reused(): void
     {
         $category = Category::factory()->create(['name' => config('services.shoppinglist.default_category')]);
