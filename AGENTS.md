@@ -18,6 +18,7 @@ The app manages:
 - MariaDB
 - Filament v5
 - Laravel Livewire v4
+- Laravel Passport v13 (OAuth for the companion app API)
 - PHPUnit
 - Laravel Pint
 - Larastan
@@ -63,6 +64,40 @@ If any command fails, repeat the process from the beginning.
 * Use Filament authentication.
 * Users should be able to sign-up themselves.
 
+## Companion App API (Shoppinglist)
+
+JSON API for the companion app "Shoppinglist", secured with Laravel Passport
+(OAuth 2 authorization code grant, confidential client).
+
+* Routes: `routes/api.php`, guard `auth:api`, `throttle:120,1`. Code in
+  `app/Http/Controllers/Api`, `app/Http/Requests/Api`, `app/Services/Api`.
+* `GET /api/user`, `GET /api/foods`, `POST /api/recipes/search`,
+  `GET /api/recipes/{id}?servings=`, `POST /api/recipes`.
+* Visibility always goes through `Recipe::visibleTo()` / `RecipePolicy` (invisible → 404).
+  Photos are never exposed.
+* Ingredient text and scaling mirror the recipe page (`recipes/show.blade.php`, `recipeServings`
+  in `app.js`); alternatives (`ingredient_id`) are returned as `alternatives` of their parent.
+* `POST /api/recipes` creates a private recipe without cookbook for the user's author, in the
+  category `SHOPPINGLIST_DEFAULT_CATEGORY` (default "Rezeptideen"). Unlike Filament, missing
+  foods and units are created (matched by name, case-insensitive; trashed rows are restored).
+* OAuth: `GET /oauth/authorize` (guests log in via Filament first, unverified users are sent to
+  e-mail verification), `POST /oauth/token` (`authorization_code`, `refresh_token`).
+  Scope `recipes` is optional. Access tokens live 1 hour, refresh tokens 90 days. The approval
+  screen (`resources/views/passport/authorize.blade.php`) is skipped while the user still has a
+  valid access token for the client.
+* Create the client once per Shoppinglist installation and give its ID and secret to Shoppinglist
+  (the secret is shown only once):
+
+```bash
+ddev artisan passport:client --name=Shoppinglist --redirect_uri=https://<shoppinglist-host>/recipes/callback -n
+# production: php artisan passport:client --name=Shoppinglist --redirect_uri=https://<shoppinglist-host>/recipes/callback -n
+```
+
+* Deployment: run `php artisan migrate --force` (oauth_* tables), then create the keys once with
+  `php artisan passport:keys` (stored in `storage/oauth-*.key`, git-ignored, must persist across
+  deployments) or set `PASSPORT_PRIVATE_KEY` / `PASSPORT_PUBLIC_KEY` in the environment.
+  Never commit the keys. Rotating the keys invalidates all issued tokens.
+
 ## Testing Rules
 
 Add or update tests for every functional change.
@@ -73,6 +108,7 @@ Important test areas:
 * policies
 * cookbook sharing and invitations
 * recipe visibility, including photo access
+* API (OAuth, visibility, search ranking, scaling, recipe creation)
 * filament pages
 * filament resources
 * profile update
