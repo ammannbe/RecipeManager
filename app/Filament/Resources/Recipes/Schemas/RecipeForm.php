@@ -34,6 +34,7 @@ use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Support\Enums\Width;
 use Filament\Support\Icons\Heroicon;
+use Illuminate\Database\Eloquent\Builder;
 
 class RecipeForm
 {
@@ -62,13 +63,13 @@ class RecipeForm
                 ->searchable()
                 ->preload()
                 ->nullable()
-                ->options(fn (): array => Unit::query()->orderBy('name')->pluck('name', 'id')->all()),
+                ->options(fn (mixed $state): array => self::lookupOptions(Unit::class, $state)),
             Select::make('food_id')
                 ->label(__('Food'))
                 ->required()
                 ->searchable()
                 ->preload()
-                ->options(fn (): array => Food::query()->orderBy('name')->pluck('name', 'id')->all()),
+                ->options(fn (mixed $state): array => self::lookupOptions(Food::class, $state)),
             Select::make('ingredientAttributes')
                 ->label(__('Attributes'))
                 ->when(
@@ -78,7 +79,7 @@ class RecipeForm
                 ->multiple()
                 ->searchable()
                 ->preload()
-                ->options(fn (): array => IngredientAttribute::query()->orderBy('name')->pluck('name', 'id')->all()),
+                ->options(fn (mixed $state): array => self::lookupOptions(IngredientAttribute::class, $state)),
         ];
     }
 
@@ -457,7 +458,7 @@ class RecipeForm
                     ->multiple()
                     ->searchable()
                     ->preload()
-                    ->options(fn (): array => Tag::query()->orderBy('name')->pluck('name', 'id')->all())
+                    ->options(fn (mixed $state): array => self::lookupOptions(Tag::class, $state))
                     // Mirrors LookupType::canBeCreatedBy(): only admins add new tags.
                     ->createOptionForm(fn (): ?array => user()?->admin ? [
                         TextInput::make('name')
@@ -542,5 +543,24 @@ class RecipeForm
                     ])
                     ->columnSpanFull(),
             ]);
+    }
+
+    /**
+     * Options of a lookup select: approved entries and the user's own requests, plus the
+     * selected ones (a recipe may use someone else's pending request).
+     *
+     * @param  class-string<Food|Unit|IngredientAttribute|Tag>  $model
+     * @return array<int, string>
+     */
+    private static function lookupOptions(string $model, mixed $selected): array
+    {
+        $selected = array_values(array_filter(array_map('intval', (array) $selected)));
+
+        return $model::query()
+            ->where(fn (Builder $query) => $query->whereIn('id', $selected)
+                ->orWhere(fn (Builder $query) => $query->visibleTo(user())))
+            ->orderBy('name')
+            ->pluck('name', 'id')
+            ->all();
     }
 }

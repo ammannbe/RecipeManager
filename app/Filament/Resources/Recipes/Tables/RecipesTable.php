@@ -87,7 +87,7 @@ class RecipesTable
                     ->options(fn (): array => Category::query()->orderBy('name')->pluck('name', 'id')->all()),
                 SelectFilter::make('tags')
                     ->label(__('Tags'))
-                    ->relationship('tags', 'name')
+                    ->relationship('tags', 'name', fn (Builder $query) => $query->scopes(['visibleTo' => [user()]]))
                     ->multiple()
                     ->preload(),
                 TernaryFilter::make('is_public')

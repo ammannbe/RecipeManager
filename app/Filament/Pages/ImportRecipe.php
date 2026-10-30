@@ -3,8 +3,10 @@
 namespace App\Filament\Pages;
 
 use App\Filament\Resources\Recipes\RecipeResource;
+use App\Mail\LookupRequestedMail;
 use App\Models\Cookbook;
 use App\Models\RecipeDraft;
+use App\Models\User;
 use App\Services\RecipeImport\ImportPromptBuilder;
 use App\Services\RecipeImport\LookupType;
 use App\Services\RecipeImport\ParsedRecipe;
@@ -31,8 +33,10 @@ use Filament\Schemas\Components\Wizard\Step;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Contracts\Support\Htmlable;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\HtmlString;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 /**
  * @property-read Schema $form
@@ -53,7 +57,7 @@ class ImportRecipe extends Page
     /**
      * Unresolved lookup values of the currently pasted JSON, serialised for Livewire.
      *
-     * @var array<int, array{key: string, type: string, value: string, canCreate: bool, suggestions: array<int, array{id: int, name: string, score: int}>, context: array<int, string>, preselectedId: int|null}>
+     * @var array<int, array{key: string, type: string, value: string, canCreate: bool, createsRequest: bool, canOmit: bool, suggestions: array<int, array{id: int, name: string, score: int}>, context: array<int, string>, preselectedId: int|null}>
      */
     public array $unresolved = [];
 
@@ -275,47 +279,102 @@ class ImportRecipe extends Page
             }
 
             $statePath = 'decisions.'.$this->stateKey($item['key']);
+            $decided = fn (callable $get): bool => $get($statePath.'.create') === true || $get($statePath.'.omit') === true;
 
             $select = Select::make($statePath.'.id')
                 ->label($type->label())
                 ->options($options)
                 ->searchable()
                 ->native(false)
-                ->required(fn (callable $get): bool => ! $type->isOptional() && $get($statePath.'.create') !== true)
-                ->disabled(fn (callable $get): bool => $get($statePath.'.create') === true);
+                ->required(fn (callable $get): bool => ! $type->isOptional() && ! $decided($get))
+                ->disabled($decided);
 
             if ($type->isOptional()) {
-                $select->placeholder(__('Omit'));
+                $select->placeholder(__('Empty = omit'));
             }
 
             $components = [$select];
 
             if ($item['canCreate']) {
                 $components[] = Toggle::make($statePath.'.create')
-                    ->label(__('Create ":value" instead', ['value' => $item['value']]))
+                    ->label($item['createsRequest']
+                        ? __('Request ":value"', ['value' => $item['value']])
+                        : __('Create ":value" instead', ['value' => $item['value']]))
+                    ->helperText($item['createsRequest'] ? (string) __('Usable in your recipe right away; an administrator checks it before others see it.') : null)
                     ->live()
+                    ->disabled(fn (callable $get): bool => $get($statePath.'.omit') === true)
+                    ->default(false);
+            }
+
+            if ($item['canOmit']) {
+                $components[] = Toggle::make($statePath.'.omit')
+                    ->label(__('Omit'))
+                    ->helperText($this->omitHint($type, $item))
+                    ->live()
+                    ->disabled(fn (callable $get): bool => $get($statePath.'.create') === true)
                     ->default(false);
             }
 
             $fields[] = Section::make($type->label().': '.$item['value'])
                 ->description($this->resolutionDescription($item))
                 ->schema($components)
-                ->columns(2);
+                ->columns(2)
+                // A unit or attribute only used on omitted ingredients needs no decision.
+                ->hidden(fn (callable $get): bool => $this->isObsolete($item, fn (string $path): mixed => $get($path)));
         }
 
         return $fields;
     }
 
     /**
-     * @param  array{value: string, canCreate: bool, context: array<int, string>, preselectedId: int|null}  $item
+     * What omitting a value does to the recipe.
+     *
+     * @param  array{context: array<int, string>}  $item
+     */
+    private function omitHint(LookupType $type, array $item): string
+    {
+        return match ($type) {
+            LookupType::Food => __('The ingredient is left out (with its alternatives). Check whether the instructions still mention it.'),
+            LookupType::Unit => __('The amount stays, without a unit (e.g. "2 Salz" instead of "2 EL Salz").'),
+            default => __('Only this entry is left out.'),
+        };
+    }
+
+    /**
+     * Whether a unit or attribute is only used on ingredients whose food is omitted.
+     *
+     * @param  array{type: string, context: array<int, string>}  $item
+     * @param  callable(string): mixed  $get  form state by path (relative to "data")
+     */
+    private function isObsolete(array $item, callable $get): bool
+    {
+        if (! in_array($item['type'], [LookupType::Unit->value, LookupType::Attribute->value], true) || $item['context'] === []) {
+            return false;
+        }
+
+        foreach ($item['context'] as $food) {
+            $key = $this->stateKey(LookupType::Food->value.':'.mb_strtolower($food));
+
+            if ($get('decisions.'.$key.'.omit') !== true) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * @param  array{value: string, canCreate: bool, createsRequest: bool, context: array<int, string>, preselectedId: int|null}  $item
      */
     private function resolutionDescription(array $item): string
     {
         $description = $item['preselectedId'] !== null
             ? __('A likely match is preselected. Please verify it.')
-            : ($item['canCreate']
-                ? __('Choose an existing entry or create this one.')
-                : __('Choose an existing entry. Only administrators may create new ones.'));
+            : ($item['createsRequest']
+                ? __('Choose an existing entry or request this one.')
+                : ($item['canCreate']
+                    ? __('Choose an existing entry or create this one.')
+                    : __('Choose an existing entry. Only administrators may create new ones.')));
 
         if ($item['context'] !== []) {
             $description = __('Used on: :ingredients', [
@@ -334,11 +393,46 @@ class ImportRecipe extends Page
 
         $lines = [];
 
-        foreach ($this->summary as $label => $value) {
+        foreach ([...$this->summary, ...$this->decisionSummary()] as $label => $value) {
             $lines[] = e($label).': '.e($value);
         }
 
         return new HtmlString('<ul class="list-disc ps-4"><li>'.implode('</li><li>', $lines).'</li></ul>');
+    }
+
+    /**
+     * Omitted and requested values, so the user sees what the import will leave out.
+     *
+     * @return array<string, string>
+     */
+    private function decisionSummary(): array
+    {
+        $omitted = [];
+        $requested = [];
+
+        foreach ($this->unresolved as $item) {
+            $type = LookupType::from($item['type']);
+            $state = $this->data['decisions'][$this->stateKey($item['key'])] ?? [];
+            $label = $type->label().' "'.$item['value'].'"';
+
+            if ($this->isObsolete($item, fn (string $path): mixed => data_get($this->data, $path))) {
+                continue;
+            }
+
+            if ((($state['omit'] ?? false) === true && $type->isOmittable())
+                || ($type->isOptional() && ! is_numeric($state['id'] ?? null) && ($state['create'] ?? false) !== true)) {
+                $omitted[] = $label.($item['context'] !== [] && $type !== LookupType::Food
+                    ? ' ('.__('on: :ingredients', ['ingredients' => implode(', ', $item['context'])]).')'
+                    : '');
+            } elseif (($state['create'] ?? false) === true && $item['createsRequest']) {
+                $requested[] = $label;
+            }
+        }
+
+        return array_filter([
+            __('Omitted') => implode('; ', $omitted),
+            __('Requested') => implode('; ', $requested),
+        ]);
     }
 
     /**
@@ -404,6 +498,8 @@ class ImportRecipe extends Page
                 'type' => $value->type->value,
                 'value' => $value->value,
                 'canCreate' => $value->canCreate,
+                'createsRequest' => $value->canCreate && $value->type->createsRequest(user()),
+                'canOmit' => $value->type->isOmittable(),
                 'suggestions' => $value->suggestions,
                 'context' => $value->context,
                 'preselectedId' => $value->preselectedId(),
@@ -431,6 +527,7 @@ class ImportRecipe extends Page
 
             $decision['id'] ??= $item['preselectedId'];
             $decision['create'] ??= false;
+            $decision['omit'] ??= false;
 
             $this->data['decisions'][$key] = $decision;
         }
@@ -444,10 +541,20 @@ class ImportRecipe extends Page
 
         $resolver = app(RelationResolver::class);
         $decisions = [];
+        $requested = [];
 
         foreach ($this->unresolved as $item) {
             $type = LookupType::from($item['type']);
             $state = $this->data['decisions'][$this->stateKey($item['key'])] ?? [];
+
+            $omitted = (($state['omit'] ?? false) === true && $type->isOmittable())
+                || $this->isObsolete($item, fn (string $path): mixed => data_get($this->data, $path));
+
+            if ($omitted) {
+                $decisions[$item['key']] = null;
+
+                continue;
+            }
 
             if (($state['create'] ?? false) === true) {
                 if (! $type->canBeCreatedBy(user())) {
@@ -455,6 +562,10 @@ class ImportRecipe extends Page
                 }
 
                 $decisions[$item['key']] = $resolver->create($type, $item['value'], user());
+
+                if ($type->createsRequest(user())) {
+                    $requested[] = ['type' => $type->value, 'value' => $item['value']];
+                }
 
                 continue;
             }
@@ -508,6 +619,8 @@ class ImportRecipe extends Page
             RecipeDraft::query()->whereKey($this->draftId)->delete();
         }
 
+        $this->notifyAdmins($requested, $recipe->name);
+
         Notification::make()
             ->success()
             ->title(__('Recipe imported'))
@@ -515,6 +628,29 @@ class ImportRecipe extends Page
             ->send();
 
         $this->redirect(RecipeResource::getUrl('edit', ['record' => $recipe]));
+    }
+
+    /**
+     * Mails the admins about new requests; a mail problem must not fail the import.
+     *
+     * @param  array<int, array{type: string, value: string}>  $requested
+     */
+    private function notifyAdmins(array $requested, string $recipe): void
+    {
+        if ($requested === []) {
+            return;
+        }
+
+        $user = user();
+        $name = $user?->author->name ?? (string) $user?->email;
+
+        foreach (User::query()->where('admin', true)->whereKeyNot($user?->getKey())->get() as $admin) {
+            try {
+                Mail::to($admin)->locale($admin->locale ?? config('app.locale'))->send(new LookupRequestedMail($name, $recipe, $requested));
+            } catch (Throwable $exception) {
+                report($exception);
+            }
+        }
     }
 
     /**

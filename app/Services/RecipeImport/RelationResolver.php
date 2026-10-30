@@ -255,6 +255,11 @@ class RelationResolver
             }
         }
 
+        // Pending requests of other users are not offered (see Requestable).
+        if ($type->isRequestable()) {
+            $query->scopes(['visibleTo' => [$user]]);
+        }
+
         /** @var Collection<int, Model> */
         return $query->get();
     }
@@ -294,6 +299,8 @@ class RelationResolver
 
     /**
      * Creates a missing lookup row, guarding against a concurrent or trashed duplicate.
+     * Non-admins create foods, units, attributes and tags as requests; the same name
+     * requested by someone else is reused (the unique name index allows only one).
      */
     public function create(LookupType $type, string $value, ?User $user): int
     {
@@ -307,14 +314,35 @@ class RelationResolver
 
         $model = $type->model();
 
+        if ($type->isRequestable()) {
+            /** @var Model|null $taken */
+            $taken = $type->query()->whereRaw('lower(name) = ?', [mb_strtolower(trim($value))])->first();
+
+            if ($taken !== null) {
+                $this->restore($taken);
+
+                if (isset($this->cache[$type->value])) {
+                    $this->cache[$type->value]->push($taken);
+                }
+
+                return (int) $taken->getKey();
+            }
+        }
+
         $attributes = ['name' => $value];
 
         if ($type === LookupType::Cookbook) {
             $attributes['author_id'] = $user?->author_id;
         }
 
+        if ($type->createsRequest($user)) {
+            $attributes['requested_by'] = $user?->getKey();
+            $attributes['requested_at'] = now();
+        }
+
         /** @var Model $row */
-        $row = $model::query()->create($attributes);
+        $row = (new $model)->forceFill($attributes);
+        $row->save();
 
         if (isset($this->cache[$type->value])) {
             $this->cache[$type->value]->push($row);

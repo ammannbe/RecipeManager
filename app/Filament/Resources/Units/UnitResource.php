@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Units;
 
+use App\Filament\Resources\Concerns\LookupRequests;
 use App\Filament\Resources\Units\Pages\CreateUnit;
 use App\Filament\Resources\Units\Pages\EditUnit;
 use App\Filament\Resources\Units\Pages\ListUnits;
@@ -64,6 +65,24 @@ class UnitResource extends Resource
             'create' => CreateUnit::route('/create'),
             'edit' => EditUnit::route('/{record}/edit'),
         ];
+    }
+
+    /**
+     * Pending requests of other users stay hidden from non-admins (see Requestable).
+     */
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->scopes(['visibleTo' => [user()]]);
+    }
+
+    public static function getNavigationBadge(): ?string
+    {
+        return LookupRequests::badge(Unit::class);
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'warning';
     }
 
     public static function getRecordRouteBindingEloquentQuery(): Builder

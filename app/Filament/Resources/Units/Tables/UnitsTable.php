@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Units\Tables;
 
+use App\Filament\Resources\Concerns\LookupRequests;
 use App\Filament\Resources\Units\UnitResource;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
@@ -33,6 +34,7 @@ class UnitsTable
                 TextColumn::make('name_plural_shortcut')
                     ->placeholder('-')
                     ->searchable(),
+                LookupRequests::column(),
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
@@ -48,10 +50,13 @@ class UnitsTable
             ])
             ->defaultSort('name')
             ->filters([
+                LookupRequests::filter(),
                 TrashedFilter::make(),
             ])
             ->recordUrl(fn ($record): string => UnitResource::getUrl('edit', ['record' => $record]))
             ->recordActions([
+                LookupRequests::approveAction(),
+                LookupRequests::mergeAction(),
                 EditAction::make(),
                 // Same rules as on the edit page: the policy only allows deleting unused entries.
                 DeleteAction::make(),

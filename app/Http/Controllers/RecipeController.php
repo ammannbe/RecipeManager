@@ -95,7 +95,7 @@ class RecipeController extends Controller
         return view('recipes.index', [
             'recipes' => $recipes,
             'categories' => Category::query()->orderBy('name')->get(),
-            'tags' => Tag::query()->orderBy('name')->get(),
+            'tags' => Tag::query()->visibleTo($request->user())->orderBy('name')->get(),
             'cookbooks' => Cookbook::query()->visibleTo(user())->orderBy('name')->get(),
             'search' => $search,
             'quick' => $quick,

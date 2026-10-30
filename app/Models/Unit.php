@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Requestable;
 use Database\Factories\UnitFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -13,6 +14,7 @@ class Unit extends Model
     /** @use HasFactory<UnitFactory> */
     use HasFactory;
 
+    use Requestable;
     use SoftDeletes;
 
     protected $fillable = [
