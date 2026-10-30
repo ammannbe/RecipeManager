@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Foods;
 
+use App\Filament\Resources\Concerns\LookupRequests;
 use App\Filament\Resources\Foods\Pages\CreateFood;
 use App\Filament\Resources\Foods\Pages\EditFood;
 use App\Filament\Resources\Foods\Pages\ListFoods;
@@ -66,6 +67,24 @@ class FoodResource extends Resource
             'create' => CreateFood::route('/create'),
             'edit' => EditFood::route('/{record}/edit'),
         ];
+    }
+
+    /**
+     * Pending requests of other users stay hidden from non-admins (see Requestable).
+     */
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->scopes(['visibleTo' => [user()]]);
+    }
+
+    public static function getNavigationBadge(): ?string
+    {
+        return LookupRequests::badge(Food::class);
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'warning';
     }
 
     public static function getRecordRouteBindingEloquentQuery(): Builder

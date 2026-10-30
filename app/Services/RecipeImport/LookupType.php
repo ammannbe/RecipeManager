@@ -96,8 +96,34 @@ enum LookupType: string
     }
 
     /**
+     * Whether the user may leave the value out of the import. A food takes its ingredient
+     * (and the alternatives) with it; a category, cookbook or author is required.
+     */
+    public function isOmittable(): bool
+    {
+        return $this->isOptional() || $this === self::Food;
+    }
+
+    /**
+     * Foods, units, attributes and tags: non-admins request them (see Requestable).
+     */
+    public function isRequestable(): bool
+    {
+        return in_array($this, [self::Food, self::Unit, self::Attribute, self::Tag], true);
+    }
+
+    /**
+     * Whether a new value created by this user is a request waiting for an admin.
+     */
+    public function createsRequest(?User $user): bool
+    {
+        return $this->isRequestable() && ! $user?->admin;
+    }
+
+    /**
      * Mirrors the create permissions of RecipeForm: everyone may add cookbooks and
-     * categories on the fly, the remaining lookup tables are admin only.
+     * categories on the fly, and request foods, units, attributes and tags while
+     * importing (admins create them directly). Authors are never created here.
      */
     public function canBeCreatedBy(?User $user): bool
     {
@@ -108,7 +134,7 @@ enum LookupType: string
         return match ($this) {
             self::Cookbook, self::Category => true,
             self::Author => false,
-            default => (bool) $user->admin,
+            default => true,
         };
     }
 }

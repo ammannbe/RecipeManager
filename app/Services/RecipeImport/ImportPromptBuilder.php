@@ -77,9 +77,9 @@ class ImportPromptBuilder
         $blocks = [
             $this->list(__('Complexity'), RecipeJsonSchema::complexities()),
             $this->list(__('Categories'), $this->names(Category::query())),
-            $this->list(__('Units'), $this->unitNames()),
-            $this->list(__('Ingredient attributes'), $this->names(IngredientAttribute::query())),
-            $this->list(__('Tags'), $this->names(Tag::query())),
+            $this->list(__('Units'), $this->unitNames($user)),
+            $this->list(__('Ingredient attributes'), $this->names(IngredientAttribute::query()->visibleTo($user))),
+            $this->list(__('Tags'), $this->names(Tag::query()->visibleTo($user))),
             $this->list(__('Cookbooks'), $this->cookbookNames($user)),
         ];
 
@@ -105,9 +105,9 @@ class ImportPromptBuilder
      *
      * @return array<int, string>
      */
-    private function unitNames(): array
+    private function unitNames(?User $user): array
     {
-        return $this->names(Unit::query());
+        return $this->names(Unit::query()->visibleTo($user));
     }
 
     /**

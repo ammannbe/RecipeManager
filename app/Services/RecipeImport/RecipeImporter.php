@@ -44,7 +44,7 @@ class RecipeImporter
             $key = $unresolved->key();
 
             if (! array_key_exists($key, $decisions)) {
-                if ($unresolved->type->isOptional()) {
+                if ($unresolved->type->isOptional() || ! $this->isUsed($parsed, $unresolved, $decisions)) {
                     $this->lookup[$key] = null;
 
                     continue;
@@ -58,7 +58,22 @@ class RecipeImporter
                 ]);
             }
 
+            if ($decisions[$key] === null && ! $unresolved->type->isOmittable()) {
+                throw ValidationException::withMessages([
+                    'json' => __('Unresolved :type ":value".', [
+                        'type' => $unresolved->type->label(),
+                        'value' => $unresolved->value,
+                    ]),
+                ]);
+            }
+
             $this->lookup[$key] = $decisions[$key];
+        }
+
+        if (! $this->hasIngredients($parsed)) {
+            throw ValidationException::withMessages([
+                'json' => __('The recipe needs at least one ingredient that is not omitted.'),
+            ]);
         }
 
         $this->guardDuplicate($parsed, $user);
@@ -142,17 +157,27 @@ class RecipeImporter
         $recipe->tags()->sync(array_unique($ids));
     }
 
+    /**
+     * Ingredients whose food was omitted are left out (with their alternatives), and so is
+     * a group left without ingredients.
+     */
     private function createIngredients(Recipe $recipe, ParsedRecipe $parsed): void
     {
         $position = 1;
 
-        foreach ($parsed->ingredients as $ingredient) {
+        foreach ($this->kept($parsed->ingredients) as $ingredient) {
             $this->createIngredient($recipe, $ingredient, null, $position++);
         }
 
         $groupPosition = 1;
 
         foreach ($parsed->groups as $group) {
+            $ingredients = $this->kept($group->ingredients);
+
+            if ($ingredients === []) {
+                continue;
+            }
+
             /** @var IngredientGroup $model */
             $model = $recipe->ingredientGroups()->create([
                 'name' => $group->name,
@@ -161,10 +186,64 @@ class RecipeImporter
 
             $position = 1;
 
-            foreach ($group->ingredients as $ingredient) {
+            foreach ($ingredients as $ingredient) {
                 $this->createIngredient($recipe, $ingredient, $model, $position++);
             }
         }
+    }
+
+    /**
+     * @param  array<int, ParsedIngredient>  $ingredients
+     * @return array<int, ParsedIngredient>
+     */
+    private function kept(array $ingredients): array
+    {
+        return array_values(array_filter(
+            $ingredients,
+            fn (ParsedIngredient $ingredient): bool => $this->id(LookupType::Food, $ingredient->food) !== null,
+        ));
+    }
+
+    private function hasIngredients(ParsedRecipe $parsed): bool
+    {
+        if ($this->kept($parsed->ingredients) !== []) {
+            return true;
+        }
+
+        foreach ($parsed->groups as $group) {
+            if ($this->kept($group->ingredients) !== []) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
+     * Whether a unit or attribute is still needed: false when it only appears on ingredients
+     * (or alternatives) whose food is omitted.
+     *
+     * @param  array<string, int|null>  $decisions
+     */
+    private function isUsed(ParsedRecipe $parsed, UnresolvedValue $value, array $decisions): bool
+    {
+        if (! in_array($value->type, [LookupType::Unit, LookupType::Attribute], true)) {
+            return true;
+        }
+
+        $omitted = fn (string $food): bool => array_key_exists($key = ResolutionReport::key(LookupType::Food, $food), $decisions) && $decisions[$key] === null;
+
+        foreach ($parsed->allIngredients() as $ingredient) {
+            $uses = $value->type === LookupType::Unit
+                ? $ingredient->unit !== null && mb_strtolower($ingredient->unit) === mb_strtolower($value->value)
+                : in_array(mb_strtolower($value->value), array_map('mb_strtolower', $ingredient->attributes), true);
+
+            if ($uses && ! $omitted($ingredient->food)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private function createIngredient(
@@ -189,7 +268,7 @@ class RecipeImporter
         // by ingredient_id and IngredientObserver copies over recipe and group.
         $alternativePosition = 1;
 
-        foreach ($parsed->alternatives as $alternative) {
+        foreach ($this->kept($parsed->alternatives) as $alternative) {
             /** @var Ingredient $child */
             $child = $ingredient->ingredients()->create([
                 'amount' => $alternative->amount,

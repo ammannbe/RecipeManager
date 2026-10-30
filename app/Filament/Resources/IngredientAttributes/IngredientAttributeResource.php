@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\IngredientAttributes;
 
+use App\Filament\Resources\Concerns\LookupRequests;
 use App\Filament\Resources\IngredientAttributes\Pages\CreateIngredientAttribute;
 use App\Filament\Resources\IngredientAttributes\Pages\EditIngredientAttribute;
 use App\Filament\Resources\IngredientAttributes\Pages\ListIngredientAttributes;
@@ -64,6 +65,24 @@ class IngredientAttributeResource extends Resource
             'create' => CreateIngredientAttribute::route('/create'),
             'edit' => EditIngredientAttribute::route('/{record}/edit'),
         ];
+    }
+
+    /**
+     * Pending requests of other users stay hidden from non-admins (see Requestable).
+     */
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->scopes(['visibleTo' => [user()]]);
+    }
+
+    public static function getNavigationBadge(): ?string
+    {
+        return LookupRequests::badge(IngredientAttribute::class);
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'warning';
     }
 
     public static function getRecordRouteBindingEloquentQuery(): Builder

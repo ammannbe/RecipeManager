@@ -217,7 +217,7 @@ class RecipeJsonImportTest extends TestCase
         $this->assertSame(1, $recipe->ingredients()->where('food_id', $id)->count());
     }
 
-    public function test_non_admins_may_not_create_foods(): void
+    public function test_non_admins_request_foods_instead_of_creating_them(): void
     {
         $this->seedLookups();
         Food::query()->where('name', 'Mehl')->forceDelete();
@@ -230,7 +230,10 @@ class RecipeJsonImportTest extends TestCase
         $unresolved = collect($report->unresolved)->firstWhere('value', 'Mehl');
 
         $this->assertNotNull($unresolved);
-        $this->assertFalse($unresolved->canCreate);
+        $this->assertTrue($unresolved->canCreate);
+        $this->assertTrue(LookupType::Food->createsRequest($user));
+        $this->assertFalse(LookupType::Food->createsRequest(User::factory()->admin()->create()));
+        $this->assertFalse(LookupType::Author->canBeCreatedBy(User::factory()->admin()->create()));
     }
 
     public function test_non_admins_may_create_a_cookbook(): void

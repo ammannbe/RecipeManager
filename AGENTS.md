@@ -82,8 +82,8 @@ JSON API for the companion app "Shoppinglist", secured with Laravel Passport
   recipe in the import JSON format (`RecipeJsonValidator`, no photos), stores it as `RecipeDraft`
   (own user, expires after 24 h, pruned daily by `recipe-drafts:prune`) and returns the URL
   `/admin/import-recipe?draft=<uuid>`. The import wizard loads the draft and starts at "Resolve",
-  where the user picks cookbook and visibility and matches unknown values (only admins may create
-  them); the draft is deleted after the import.
+  where the user picks cookbook and visibility and matches unknown values; the draft is deleted
+  after the import.
 * OAuth: `GET /oauth/authorize` (guests log in via Filament first, unverified users are sent to
   e-mail verification), `POST /oauth/token` (`authorization_code`, `refresh_token`).
   Scope `recipes` is optional. Access tokens live 1 hour, refresh tokens 90 days. The approval
@@ -101,6 +101,21 @@ ddev artisan passport:client --name=Shoppinglist --redirect_uri=https://<shoppin
   `php artisan passport:keys` (stored in `storage/oauth-*.key`, git-ignored, must persist across
   deployments) or set `PASSPORT_PRIVATE_KEY` / `PASSPORT_PUBLIC_KEY` in the environment.
   Never commit the keys. Rotating the keys invalidates all issued tokens.
+
+## Lookup Requests and Import Decisions
+
+* Foods, units, ingredient attributes and tags use `Requestable` (`requested_by`, `requested_at`):
+  non-admins create them in the import wizard as requests (`LookupType::createsRequest()`), usable
+  in their recipe right away. Option lists, the import prompt, the API and the admin resources use
+  `visibleTo($user)` (approved + own requests, admins all); recipes using a request show it to
+  everyone. Requesting a name someone else requested reuses that entry (unique name index).
+* Admins approve requests or merge them into an existing entry (`LookupRequests` table actions,
+  `LookupMerger`: repoints ingredients and pivot rows, then deletes the source). The resources show
+  the number of open requests as navigation badge.
+* "Omit" in the resolve step: units, attributes and tags are dropped; an omitted food drops its
+  ingredient (with alternatives) and a group left empty. Units and attributes only used on omitted
+  ingredients need no decision (`isObsolete()` in the wizard, `isUsed()` in `RecipeImporter`).
+  Categories, cookbooks and authors cannot be omitted; at least one ingredient must remain.
 
 ## Testing Rules
 

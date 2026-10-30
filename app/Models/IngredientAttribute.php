@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\Requestable;
 use Database\Factories\IngredientAttributeFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -13,6 +14,7 @@ class IngredientAttribute extends Model
     /** @use HasFactory<IngredientAttributeFactory> */
     use HasFactory;
 
+    use Requestable;
     use SoftDeletes;
 
     protected $fillable = [

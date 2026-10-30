@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Tags;
 
+use App\Filament\Resources\Concerns\LookupRequests;
 use App\Filament\Resources\Tags\Pages\CreateTag;
 use App\Filament\Resources\Tags\Pages\EditTag;
 use App\Filament\Resources\Tags\Pages\ListTags;
@@ -64,6 +65,24 @@ class TagResource extends Resource
             'create' => CreateTag::route('/create'),
             'edit' => EditTag::route('/{record}/edit'),
         ];
+    }
+
+    /**
+     * Pending requests of other users stay hidden from non-admins (see Requestable).
+     */
+    public static function getEloquentQuery(): Builder
+    {
+        return parent::getEloquentQuery()->scopes(['visibleTo' => [user()]]);
+    }
+
+    public static function getNavigationBadge(): ?string
+    {
+        return LookupRequests::badge(Tag::class);
+    }
+
+    public static function getNavigationBadgeColor(): ?string
+    {
+        return 'warning';
     }
 
     public static function getRecordRouteBindingEloquentQuery(): Builder

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Foods\Tables;
 
+use App\Filament\Resources\Concerns\LookupRequests;
 use App\Filament\Resources\Foods\FoodResource;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
@@ -24,6 +25,7 @@ class FoodsTable
                 TextColumn::make('name')
                     ->searchable()
                     ->sortable(),
+                LookupRequests::column(),
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
@@ -39,10 +41,13 @@ class FoodsTable
             ])
             ->defaultSort('name')
             ->filters([
+                LookupRequests::filter(),
                 TrashedFilter::make(),
             ])
             ->recordUrl(fn ($record): string => FoodResource::getUrl('edit', ['record' => $record]))
             ->recordActions([
+                LookupRequests::approveAction(),
+                LookupRequests::mergeAction(),
                 EditAction::make(),
                 // Same rules as on the edit page: the policy only allows deleting unused entries.
                 DeleteAction::make(),

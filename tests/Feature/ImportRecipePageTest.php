@@ -15,7 +15,6 @@ use App\Models\User;
 use App\Services\RecipeImport\LookupType;
 use App\Services\RecipeImport\RecipeJsonSchema;
 use App\Services\RecipeImport\ResolutionReport;
-use App\Services\RecipeImport\UnresolvedValue;
 use Filament\Notifications\Notification;
 use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
@@ -56,11 +55,11 @@ class ImportRecipePageTest extends TestCase
 
     /**
      * @param  Testable<ImportRecipe>  $component
-     * @return array{key: string, type: string, value: string, canCreate: bool, suggestions: array<int, array{id: int, name: string, score: int}>, context: array<int, string>, preselectedId: int|null}
+     * @return array{key: string, type: string, value: string, canCreate: bool, createsRequest: bool, canOmit: bool, suggestions: array<int, array{id: int, name: string, score: int}>, context: array<int, string>, preselectedId: int|null}
      */
     private function unresolvedValue(Testable $component, string $value): array
     {
-        /** @var array<int, array{key: string, type: string, value: string, canCreate: bool, suggestions: array<int, array{id: int, name: string, score: int}>, context: array<int, string>, preselectedId: int|null}> $unresolved */
+        /** @var array<int, array{key: string, type: string, value: string, canCreate: bool, createsRequest: bool, canOmit: bool, suggestions: array<int, array{id: int, name: string, score: int}>, context: array<int, string>, preselectedId: int|null}> $unresolved */
         $unresolved = $component->get('unresolved');
 
         foreach ($unresolved as $item) {
@@ -485,17 +484,12 @@ class ImportRecipePageTest extends TestCase
         $this->assertDatabaseMissing('foods', ['name' => 'Mehl']);
     }
 
-    public function test_a_non_admin_cannot_create_a_food_through_the_page(): void
+    public function test_a_non_admin_requests_a_missing_food_and_can_use_it_right_away(): void
     {
         $this->seedLookups();
         Food::query()->where('name', 'Mehl')->forceDelete();
 
         $user = User::factory()->create(['admin' => false]);
-
-        $this->assertFalse(
-            (new UnresolvedValue(LookupType::Food, 'Mehl', [], LookupType::Food->canBeCreatedBy($user)))->canCreate
-        );
-
         $this->actingAs($user);
 
         $component = Livewire::test(ImportRecipe::class)
@@ -504,15 +498,114 @@ class ImportRecipePageTest extends TestCase
             ->assertHasErrors();
 
         $item = $this->unresolvedValue($component, 'Mehl');
+        $this->assertTrue($item['canCreate']);
+        $this->assertTrue($item['createsRequest']);
 
-        $this->assertFalse($item['canCreate']);
-
-        // Forging the toggle must not bypass the policy.
         $component
             ->set('data.decisions.'.md5($item['key']).'.create', true)
+            ->call('import')
+            ->assertHasNoErrors();
+
+        $mehl = Food::query()->where('name', 'Mehl')->firstOrFail();
+        $this->assertSame($user->id, $mehl->requested_by);
+        $this->assertNotNull($mehl->requested_at);
+        $this->assertSame(1, Recipe::query()->firstOrFail()->ingredients()->where('food_id', $mehl->id)->count());
+
+        // Hidden from others until approved, offered to the requester.
+        $other = User::factory()->create(['admin' => false]);
+        $this->assertFalse(Food::query()->visibleTo($other)->whereKey($mehl->id)->exists());
+        $this->assertTrue(Food::query()->visibleTo($user)->whereKey($mehl->id)->exists());
+        $this->assertTrue(Food::query()->visibleTo(User::factory()->admin()->create())->whereKey($mehl->id)->exists());
+    }
+
+    public function test_a_food_requested_by_someone_else_is_reused(): void
+    {
+        $this->seedLookups();
+        Food::query()->where('name', 'Mehl')->forceDelete();
+        $first = User::factory()->create(['admin' => false]);
+        $pending = Food::query()->forceCreate(['name' => 'Mehl', 'requested_by' => $first->id, 'requested_at' => now()]);
+
+        $this->actingAs(User::factory()->create(['admin' => false]));
+
+        $component = Livewire::test(ImportRecipe::class)
+            ->fillForm(['json' => $this->payload()])
             ->call('import');
 
-        $this->assertDatabaseMissing('foods', ['name' => 'Mehl']);
+        // Not offered, but requesting the same name takes the pending entry.
+        $item = $this->unresolvedValue($component, 'Mehl');
+        $this->assertSame([], $item['suggestions']);
+        $component->set('data.decisions.'.md5($item['key']).'.create', true)->call('import')->assertHasNoErrors();
+
+        $this->assertSame(1, Food::query()->where('name', 'Mehl')->count());
+        $this->assertSame(1, Recipe::query()->firstOrFail()->ingredients()->where('food_id', $pending->id)->count());
+    }
+
+    public function test_an_omitted_food_drops_its_ingredient_and_the_units_only_it_used(): void
+    {
+        $this->seedLookups();
+        $this->actingAs(User::factory()->create(['admin' => false]));
+
+        $component = Livewire::test(ImportRecipe::class)
+            ->fillForm(['json' => $this->payload([
+                'ingredients' => [
+                    ['amount' => 1, 'unit' => 'Handvoll', 'food' => 'Zitronenmelisse', 'attributes' => ['frisch gezupft']],
+                    ['amount' => 200, 'unit' => 'g', 'food' => 'Mehl', 'attributes' => []],
+                ],
+                'ingredient_groups' => [[
+                    'name' => 'Deko',
+                    'ingredients' => [['amount' => 1, 'unit' => null, 'food' => 'Zitronenmelisse', 'attributes' => []]],
+                ]],
+            ])])
+            ->call('import')
+            ->assertHasErrors();
+
+        $food = $this->unresolvedValue($component, 'Zitronenmelisse');
+        $this->assertTrue($food['canOmit']);
+
+        $component
+            ->set('data.decisions.'.md5($food['key']).'.omit', true)
+            ->call('import')
+            ->assertHasNoErrors();
+
+        $recipe = Recipe::query()->firstOrFail();
+        $this->assertSame(['Mehl'], $recipe->ingredients()->with('food')->get()->pluck('food.name')->all());
+        // The group would be empty and is left out; unit and attribute were only used there.
+        $this->assertSame(0, $recipe->ingredientGroups()->count());
+        $this->assertDatabaseMissing('foods', ['name' => 'Zitronenmelisse']);
+        $this->assertDatabaseMissing('units', ['name' => 'Handvoll']);
+    }
+
+    public function test_omitting_every_ingredient_is_refused(): void
+    {
+        $this->seedLookups();
+        $this->actingAs(User::factory()->admin()->create());
+
+        $component = Livewire::test(ImportRecipe::class)
+            ->fillForm(['json' => $this->payload([
+                'ingredients' => [['amount' => 1, 'unit' => null, 'food' => 'Zitronenmelisse', 'attributes' => []]],
+                'ingredient_groups' => [],
+            ])])
+            ->call('import');
+
+        $item = $this->unresolvedValue($component, 'Zitronenmelisse');
+        $component->set('data.decisions.'.md5($item['key']).'.omit', true)->call('import')->assertHasErrors();
+
+        $this->assertDatabaseCount('recipes', 0);
+    }
+
+    public function test_a_category_cannot_be_omitted(): void
+    {
+        $this->seedLookups();
+        $this->actingAs(User::factory()->admin()->create());
+
+        $component = Livewire::test(ImportRecipe::class)
+            ->fillForm(['json' => $this->payload(['category' => 'Unbekannt'])])
+            ->call('import');
+
+        $item = $this->unresolvedValue($component, 'Unbekannt');
+        $this->assertFalse($item['canOmit']);
+        $component->set('data.decisions.'.md5($item['key']).'.omit', true)->call('import')->assertHasErrors();
+
         $this->assertDatabaseCount('recipes', 0);
     }
 
