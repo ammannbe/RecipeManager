@@ -111,7 +111,8 @@ ddev artisan passport:client --name=Shoppinglist --redirect_uri=https://<shoppin
   everyone. Requesting a name someone else requested reuses that entry (unique name index).
 * Admins approve requests or merge them into an existing entry (`LookupRequests` table actions,
   `LookupMerger`: repoints ingredients and pivot rows, then deletes the source). The resources show
-  the number of open requests as navigation badge.
+  the number of open requests as navigation badge. Every admin gets a mail (`LookupRequestedMail`,
+  in their locale) when an import created requests.
 * "Omit" in the resolve step: units, attributes and tags are dropped; an omitted food drops its
   ingredient (with alternatives) and a group left empty. Units and attributes only used on omitted
   ingredients need no decision (`isObsolete()` in the wizard, `isUsed()` in `RecipeImporter`).

@@ -175,5 +175,8 @@
     "Merge into …": "Zusammenführen in …",
     "Merge into": "Zusammenführen in",
     "All recipes using this entry will use the chosen one instead. This entry is then deleted.": "Alle Rezepte mit diesem Eintrag verwenden danach den gewählten. Dieser Eintrag wird anschliessend gelöscht.",
-    "Merged into \":name\"": "In «:name» zusammengeführt"
+    "Merged into \":name\"": "In «:name» zusammengeführt",
+    ":name requested new entries": ":name hat neue Einträge beantragt",
+    "They were requested while importing the recipe \":recipe\" and can already be used there. Other users only see them once you approve them.": "Sie wurden beim Import des Rezepts «:recipe» beantragt und sind dort schon in Gebrauch. Andere Benutzer sehen sie erst, wenn du sie freigibst.",
+    "Approve each entry or merge it into an existing one (\"Requested\" filter in the list).": "Gib jeden Eintrag frei oder führe ihn mit einem bestehenden zusammen (Filter «Beantragt» in der Liste)."
 }

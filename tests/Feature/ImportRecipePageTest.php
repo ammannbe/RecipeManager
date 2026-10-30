@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Filament\Pages\ImportRecipe;
+use App\Mail\LookupRequestedMail;
 use App\Models\Category;
 use App\Models\Cookbook;
 use App\Models\Food;
@@ -16,6 +17,7 @@ use App\Services\RecipeImport\LookupType;
 use App\Services\RecipeImport\RecipeJsonSchema;
 use App\Services\RecipeImport\ResolutionReport;
 use Filament\Notifications\Notification;
+use Illuminate\Support\Facades\Mail;
 use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -489,6 +491,9 @@ class ImportRecipePageTest extends TestCase
         $this->seedLookups();
         Food::query()->where('name', 'Mehl')->forceDelete();
 
+        Mail::fake();
+        $admin = User::factory()->admin()->create(['locale' => 'en']);
+        User::factory()->admin()->create();
         $user = User::factory()->create(['admin' => false]);
         $this->actingAs($user);
 
@@ -508,6 +513,12 @@ class ImportRecipePageTest extends TestCase
 
         $mehl = Food::query()->where('name', 'Mehl')->firstOrFail();
         $this->assertSame($user->id, $mehl->requested_by);
+
+        // Every admin gets a mail, in their language.
+        Mail::assertSent(LookupRequestedMail::class, 2);
+        Mail::assertSent(LookupRequestedMail::class, fn (LookupRequestedMail $mail): bool => $mail->hasTo($admin->email)
+            && $mail->locale === 'en' && $mail->requests === [['type' => 'food', 'value' => 'Mehl']]
+            && str_contains($mail->render(), '/admin/foods'));
         $this->assertNotNull($mehl->requested_at);
         $this->assertSame(1, Recipe::query()->firstOrFail()->ingredients()->where('food_id', $mehl->id)->count());
 

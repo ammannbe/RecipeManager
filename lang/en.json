@@ -175,5 +175,8 @@
     "Merge into …": "Merge into …",
     "Merge into": "Merge into",
     "All recipes using this entry will use the chosen one instead. This entry is then deleted.": "All recipes using this entry will use the chosen one instead. This entry is then deleted.",
-    "Merged into \":name\"": "Merged into \":name\""
+    "Merged into \":name\"": "Merged into \":name\"",
+    ":name requested new entries": ":name requested new entries",
+    "They were requested while importing the recipe \":recipe\" and can already be used there. Other users only see them once you approve them.": "They were requested while importing the recipe \":recipe\" and can already be used there. Other users only see them once you approve them.",
+    "Approve each entry or merge it into an existing one (\"Requested\" filter in the list).": "Approve each entry or merge it into an existing one (\"Requested\" filter in the list)."
 }

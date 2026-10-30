@@ -3,8 +3,10 @@
 namespace App\Filament\Pages;
 
 use App\Filament\Resources\Recipes\RecipeResource;
+use App\Mail\LookupRequestedMail;
 use App\Models\Cookbook;
 use App\Models\RecipeDraft;
+use App\Models\User;
 use App\Services\RecipeImport\ImportPromptBuilder;
 use App\Services\RecipeImport\LookupType;
 use App\Services\RecipeImport\ParsedRecipe;
@@ -31,8 +33,10 @@ use Filament\Schemas\Components\Wizard\Step;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Contracts\Support\Htmlable;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\HtmlString;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 /**
  * @property-read Schema $form
@@ -537,6 +541,7 @@ class ImportRecipe extends Page
 
         $resolver = app(RelationResolver::class);
         $decisions = [];
+        $requested = [];
 
         foreach ($this->unresolved as $item) {
             $type = LookupType::from($item['type']);
@@ -557,6 +562,10 @@ class ImportRecipe extends Page
                 }
 
                 $decisions[$item['key']] = $resolver->create($type, $item['value'], user());
+
+                if ($type->createsRequest(user())) {
+                    $requested[] = ['type' => $type->value, 'value' => $item['value']];
+                }
 
                 continue;
             }
@@ -610,6 +619,8 @@ class ImportRecipe extends Page
             RecipeDraft::query()->whereKey($this->draftId)->delete();
         }
 
+        $this->notifyAdmins($requested, $recipe->name);
+
         Notification::make()
             ->success()
             ->title(__('Recipe imported'))
@@ -617,6 +628,29 @@ class ImportRecipe extends Page
             ->send();
 
         $this->redirect(RecipeResource::getUrl('edit', ['record' => $recipe]));
+    }
+
+    /**
+     * Mails the admins about new requests; a mail problem must not fail the import.
+     *
+     * @param  array<int, array{type: string, value: string}>  $requested
+     */
+    private function notifyAdmins(array $requested, string $recipe): void
+    {
+        if ($requested === []) {
+            return;
+        }
+
+        $user = user();
+        $name = $user?->author->name ?? (string) $user?->email;
+
+        foreach (User::query()->where('admin', true)->whereKeyNot($user?->getKey())->get() as $admin) {
+            try {
+                Mail::to($admin)->locale($admin->locale ?? config('app.locale'))->send(new LookupRequestedMail($name, $recipe, $requested));
+            } catch (Throwable $exception) {
+                report($exception);
+            }
+        }
     }
 
     /**
