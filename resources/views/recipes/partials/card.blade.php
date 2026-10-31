@@ -28,6 +28,16 @@
             <p class="min-h-[5.2rem] overflow-hidden text-sm leading-6 text-zinc-600 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:4] dark:text-zinc-400">{{ \Illuminate\Support\Str::limit(strip_tags((string) $recipe->instructions), 170) }}</p>
 
             <div class="flex flex-wrap items-center gap-1.5">
+                @if ($recipe->isSeasonal())
+                    <span class="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold leading-none text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-400" data-seasonal-badge>
+                        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" class="h-3.5 w-3.5">
+                            <path d="M11 20A7 7 0 0 1 4 13c0-5 4-9 16-9 0 12-4 16-9 16Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            <path d="M4 20c4-4 7-7 11-10" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                        </svg>
+                        {{ __('Seasonal') }}
+                    </span>
+                @endif
+
                 <span class="inline-flex items-center rounded-full bg-sky-100 px-2.5 py-1 text-xs font-semibold leading-none text-sky-800 dark:bg-sky-500/15 dark:text-sky-400">{{ $recipe->complexity?->label() }}</span>
 
                 @if ($recipe->preparation_time)

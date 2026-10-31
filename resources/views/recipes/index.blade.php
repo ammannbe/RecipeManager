@@ -2,7 +2,7 @@
 <html lang="{{ str_replace('_', '-', app()->getLocale()) }}">
 <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>{{ config('app.name') }}</title>
     <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="any">
     <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon-32x32.png') }}">
@@ -28,152 +28,228 @@
 
     @include('partials.nav')
 
-    <main class="mx-auto grid w-full max-w-7xl gap-6 px-4 sm:px-6 [&>*]:min-w-0 py-8 pb-20 lg:gap-8 lg:py-10">
-        @php($activeFilterCount = ($search !== '' ? 1 : 0) + ($quick ? 1 : 0) + ($seasonal ? 1 : 0) + ($complexity !== '' ? 1 : 0) + ($selectedCategory ? 1 : 0) + ($selectedCookbook ? 1 : 0) + count($selectedTags) + ($selectedSort !== 'created_at_desc' ? 1 : 0))
+    <main class="mx-auto grid w-full max-w-7xl gap-6 px-4 sm:px-6 [&>*]:min-w-0 py-8 pb-32 md:pb-20 lg:gap-8 lg:py-10">
+        @php($panelFilterCount = collect($activeFilters)->where('key', '!=', 'search')->count())
+        @php($labelClass = 'text-[0.6rem] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400')
+        @php($fieldClass = 'h-11 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm text-zinc-800 shadow-sm outline-none transition focus:border-cyan-600 focus:ring-2 focus:ring-cyan-500/20 md:h-9 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100')
+        {{-- Checked state via CSS: in the mobile sheet changes are only applied on submit --}}
+        @php($optionClass = 'inline-flex min-h-9 cursor-pointer select-none items-center rounded-full border border-zinc-300 bg-white px-3 py-1 text-[0.65rem] font-bold uppercase tracking-[0.08em] leading-none text-zinc-700 transition hover:border-zinc-400 hover:text-zinc-900 has-checked:border-cyan-600 has-checked:bg-cyan-50 has-checked:text-cyan-700 has-checked:shadow-sm has-focus-visible:ring-2 has-focus-visible:ring-cyan-500/40 md:min-h-7 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:text-zinc-100 dark:has-checked:border-cyan-500 dark:has-checked:bg-cyan-500/10 dark:has-checked:text-cyan-400')
 
+        {{-- Filters: inline with instant submit on desktop, a bottom sheet applied with "Show recipes" on phones --}}
         <section
             class="grid gap-3 rounded-2xl border border-zinc-200 bg-white p-3 shadow-[0_12px_32px_-24px_rgba(15,23,42,0.6)] md:p-4 dark:border-zinc-800 dark:bg-zinc-900"
-            x-data="{ open: {{ $activeFilterCount > 0 ? 'true' : 'false' }} }"
+            x-data="recipeFilters({ expanded: {{ $panelFilterCount > 0 ? 'true' : 'false' }} })"
+            @keydown.escape.window="closeSheet()"
+            @keydown="trap($event)"
         >
-            <button
-                type="button"
-                class="flex w-full items-center justify-between gap-2 text-left"
-                @click="open = ! open"
-                :aria-expanded="open.toString()"
-                aria-controls="recipe-filters"
-            >
-                <span class="inline-flex items-center gap-2 text-[0.7rem] font-bold uppercase tracking-widest text-zinc-600 dark:text-zinc-300">
+            <form id="recipe-filters" x-ref="form" method="GET" action="{{ route('recipes.index') }}" class="grid gap-3" role="search" data-auto-submit-filters>
+                <div class="flex items-center gap-2">
+                    <div class="relative min-w-0 flex-1">
+                        <label for="search" class="sr-only">{{ __('Search') }}</label>
+                        <input
+                            id="search"
+                            x-ref="search"
+                            type="search"
+                            name="search"
+                            value="{{ $search }}"
+                            enterkeyhint="search"
+                            placeholder="{{ __('Search for recipes...') }}"
+                            class="{{ $fieldClass }} pr-11 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 [&::-webkit-search-cancel-button]:hidden"
+                        >
+                        <button type="submit" class="absolute inset-y-0 right-0 inline-flex w-11 items-center justify-center rounded-r-xl text-zinc-500 transition hover:text-cyan-700 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-cyan-600 dark:text-zinc-400 dark:hover:text-cyan-400" aria-label="{{ __('Search') }}">
+                            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" class="h-4.5 w-4.5">
+                                <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2" />
+                                <path d="m20 20-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <button
+                        type="button"
+                        class="hidden h-9 shrink-0 items-center gap-2 rounded-xl border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-700 shadow-sm transition hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-600 md:inline-flex dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                        @click="expanded = ! expanded"
+                        aria-expanded="{{ $panelFilterCount > 0 ? 'true' : 'false' }}"
+                        :aria-expanded="expanded.toString()"
+                        aria-controls="recipe-filter-panel"
+                    >
+                        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" class="h-4 w-4">
+                            <path d="M3 5h18M6 12h12M10 19h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                        </svg>
+                        {{ __('Filters') }}
+
+                        @if ($panelFilterCount > 0)
+                            <span class="inline-flex min-w-5 items-center justify-center rounded-full bg-cyan-50 px-1.5 py-0.5 text-[0.65rem] leading-none font-bold text-cyan-700 dark:bg-cyan-500/10 dark:text-cyan-400">{{ $panelFilterCount }}</span>
+                        @endif
+
+                        <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" class="h-4 w-4 text-zinc-500 transition dark:text-zinc-400" :class="{ 'rotate-180': expanded }">
+                            <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        </svg>
+                    </button>
+                </div>
+
+                @if ($activeFilters !== [])
+                    <div class="flex flex-wrap items-center gap-2" data-active-filters>
+                        @foreach ($activeFilters as $filter)
+                            <a
+                                href="{{ $filter['url'] }}"
+                                class="inline-flex h-8 max-w-full items-center gap-1 rounded-full border border-cyan-600/30 bg-cyan-50 pr-1.5 pl-3 text-xs font-semibold text-cyan-800 transition hover:border-cyan-600 hover:bg-cyan-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-600 dark:border-cyan-500/30 dark:bg-cyan-500/10 dark:text-cyan-300 dark:hover:border-cyan-500 dark:hover:bg-cyan-500/20"
+                                aria-label="{{ __('Remove filter :name', ['name' => $filter['label']]) }}"
+                                data-filter-chip="{{ $filter['key'] }}"
+                            >
+                                <span class="truncate">{{ $filter['label'] }}</span>
+                                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" class="h-4 w-4 shrink-0 opacity-70">
+                                    <path d="M7 7l10 10M17 7 7 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                                </svg>
+                            </a>
+                        @endforeach
+
+                        <a href="{{ route('recipes.index') }}" class="inline-flex h-8 items-center rounded-full px-2 text-xs font-semibold text-zinc-600 underline decoration-zinc-300 underline-offset-4 transition hover:text-zinc-900 hover:decoration-zinc-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-600 dark:text-zinc-400 dark:decoration-zinc-600 dark:hover:text-zinc-100">{{ __('Reset all') }}</a>
+                    </div>
+                @endif
+
+                <div
+                    class="fixed inset-0 z-40 bg-zinc-950/50 backdrop-blur-[2px] md:hidden"
+                    x-show="sheetOpen"
+                    x-transition.opacity
+                    x-cloak
+                    @click="closeSheet()"
+                    aria-hidden="true"
+                ></div>
+
+                <div
+                    id="recipe-filter-panel"
+                    x-ref="panel"
+                    @class([
+                        'max-md:hidden max-md:fixed max-md:inset-x-0 max-md:bottom-0 max-md:z-50 max-md:flex max-md:max-h-[90dvh] max-md:flex-col max-md:rounded-t-2xl max-md:bg-white max-md:shadow-2xl max-md:dark:bg-zinc-900',
+                        'md:border-t md:border-zinc-200 md:pt-4 md:dark:border-zinc-800',
+                        'md:hidden' => $panelFilterCount === 0,
+                    ])
+                    :class="{ 'max-md:hidden': ! sheetOpen, 'md:hidden': ! expanded }"
+                    :role="sheetOpen ? 'dialog' : null"
+                    :aria-modal="sheetOpen ? 'true' : null"
+                    :aria-labelledby="sheetOpen ? 'recipe-filter-title' : null"
+                    data-filter-panel
+                >
+                    <div class="flex items-center justify-between gap-3 border-b border-zinc-200 py-2 pr-2 pl-4 md:hidden dark:border-zinc-800">
+                        <h2 id="recipe-filter-title" class="text-base font-bold text-zinc-900 dark:text-zinc-100">{{ __('Filters') }}</h2>
+                        <button
+                            type="button"
+                            x-ref="close"
+                            class="inline-flex h-11 w-11 items-center justify-center rounded-xl text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-600 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                            @click="closeSheet()"
+                            aria-label="{{ __('Close') }}"
+                        >
+                            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" class="h-5 w-5">
+                                <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
+                            </svg>
+                        </button>
+                    </div>
+
+                    <div class="grid grid-cols-12 gap-5 max-md:min-h-0 max-md:flex-1 max-md:overflow-y-auto max-md:overscroll-contain max-md:p-4 md:gap-3">
+                        <div class="col-span-12 grid gap-5 md:flex md:items-center md:gap-3">
+                            <div class="grid gap-2 md:flex md:flex-wrap md:items-center" role="group" aria-labelledby="filter-quick-label">
+                                <p id="filter-quick-label" class="{{ $labelClass }}">{{ __('Quick') }}</p>
+                                <div class="flex flex-wrap items-center gap-2">
+                                    <label class="{{ $optionClass }}">
+                                        <input type="checkbox" name="quick" value="1" class="sr-only" @checked($quick)>
+                                        {{ __('Max. 30 min') }}
+                                    </label>
+
+                                    <label class="{{ $optionClass }}">
+                                        <input type="checkbox" name="seasonal" value="1" class="sr-only" @checked($seasonal)>
+                                        {{ __('Seasonal') }}
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="grid gap-2 md:flex md:flex-wrap md:items-center md:border-l md:border-dashed md:border-zinc-300 md:pl-3 dark:md:border-zinc-700" role="radiogroup" aria-labelledby="filter-difficulty-label">
+                                <p id="filter-difficulty-label" class="{{ $labelClass }}">{{ __('Difficulty') }}</p>
+                                <div class="flex flex-wrap items-center gap-2">
+                                    @php($complexityOptions = ['' => __('All'), 'simple' => __('Simple'), 'normal' => __('Normal'), 'difficult' => __('Difficult')])
+                                    @foreach ($complexityOptions as $value => $label)
+                                        <label class="{{ $optionClass }}">
+                                            <input type="radio" name="complexity" value="{{ $value }}" class="sr-only" @checked($complexity === $value)>
+                                            {{ $label }}
+                                        </label>
+                                    @endforeach
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="col-span-12 grid gap-1 md:col-span-4">
+                            <label for="category" class="{{ $labelClass }}">{{ __('Category') }}</label>
+                            <select id="category" name="category" class="{{ $fieldClass }}">
+                                <option value="">{{ __('All categories') }}</option>
+                                @foreach ($categories as $category)
+                                    <option value="{{ $category->id }}" @selected($selectedCategory === $category->id)>{{ $category->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="col-span-12 grid gap-1 md:col-span-4">
+                            <label for="cookbook" class="{{ $labelClass }}">{{ __('Cookbook') }}</label>
+                            <select id="cookbook" name="cookbook" class="{{ $fieldClass }}">
+                                <option value="">{{ __('All cookbooks') }}</option>
+                                @foreach ($cookbooks as $cookbook)
+                                    <option value="{{ $cookbook->id }}" @selected($selectedCookbook === $cookbook->id)>{{ $cookbook->name }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        <div class="col-span-12 grid gap-1 md:col-span-4">
+                            <label for="sort" class="{{ $labelClass }}">{{ __('Sort') }}</label>
+                            <select id="sort" name="sort" class="{{ $fieldClass }}">
+                                @foreach ($sortLabels as $value => $label)
+                                    <option value="{{ $value }}" @selected($selectedSort === $value)>{{ $label }}</option>
+                                @endforeach
+                            </select>
+                        </div>
+
+                        @if ($tags->isNotEmpty())
+                            <div class="col-span-12 grid gap-2" role="group" aria-labelledby="filter-tags-label">
+                                <p id="filter-tags-label" class="{{ $labelClass }}">{{ __('Tags') }}</p>
+
+                                <div class="flex flex-wrap items-center gap-2">
+                                    @foreach ($tags as $tag)
+                                        <label class="{{ $optionClass }}">
+                                            <input type="checkbox" name="tags[]" value="{{ $tag->id }}" class="sr-only" @checked(in_array($tag->id, $selectedTags, true))>
+                                            {{ $tag->name }}
+                                        </label>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endif
+                    </div>
+
+                    <div class="grid grid-cols-[auto_1fr] gap-3 border-t border-zinc-200 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:hidden dark:border-zinc-800">
+                        <button type="button" class="inline-flex h-11 items-center justify-center rounded-xl border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 shadow-sm transition hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100" @click="clearFields()">{{ __('Reset') }}</button>
+                        <button type="submit" class="inline-flex h-11 items-center justify-center rounded-xl bg-cyan-700 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-cyan-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-600 dark:bg-cyan-500 dark:text-zinc-950 dark:hover:bg-cyan-400">{{ __('Show recipes') }}</button>
+                    </div>
+                </div>
+            </form>
+
+            <div class="pointer-events-none fixed inset-x-0 bottom-0 z-20 flex justify-center px-4 pb-[calc(1rem+env(safe-area-inset-bottom))] md:hidden" x-show="! sheetOpen">
+                <button
+                    type="button"
+                    x-ref="opener"
+                    class="pointer-events-auto inline-flex h-12 items-center gap-2 rounded-full bg-zinc-900 px-5 text-sm font-semibold text-white shadow-[0_10px_30px_-8px_rgba(15,23,42,0.6)] ring-1 ring-white/10 transition hover:bg-zinc-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-600 dark:bg-zinc-100 dark:text-zinc-900 dark:ring-zinc-950/10 dark:hover:bg-white"
+                    @click="openSheet()"
+                    aria-haspopup="dialog"
+                    aria-controls="recipe-filter-panel"
+                    aria-expanded="false"
+                    :aria-expanded="sheetOpen.toString()"
+                    data-filter-opener
+                >
                     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" class="h-4 w-4">
                         <path d="M3 5h18M6 12h12M10 19h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
                     </svg>
                     {{ __('Filters') }}
 
-                    @if ($activeFilterCount > 0)
-                        <span class="inline-flex min-w-5 items-center justify-center rounded-full bg-cyan-50 px-1.5 py-0.5 text-[0.65rem] leading-none text-cyan-700 dark:bg-cyan-500/10 dark:text-cyan-400">{{ $activeFilterCount }}</span>
+                    @if ($panelFilterCount > 0)
+                        <span class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-cyan-500 px-1.5 text-[0.7rem] leading-none font-bold text-zinc-950">{{ $panelFilterCount }}</span>
                     @endif
-                </span>
-
-                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" class="h-4 w-4 text-zinc-500 transition dark:text-zinc-400" :class="{ 'rotate-180': open }">
-                    <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                </svg>
-            </button>
-
-            <form id="recipe-filters" method="GET" action="{{ route('recipes.index') }}" class="grid grid-cols-12 gap-3" data-auto-submit-filters x-show="open" @if ($activeFilterCount === 0) x-cloak @endif>
-                <div class="col-span-12 flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
-                    <div class="flex flex-wrap items-center gap-2">
-                        <p class="text-[0.6rem] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">{{ __('Quick') }}</p>
-
-                        <label @class([
-                            'inline-flex min-h-7 cursor-pointer select-none items-center rounded-full border px-3 py-1 text-[0.65rem] font-bold uppercase tracking-[0.08em] leading-none transition',
-                            'border-cyan-600 bg-cyan-50 text-cyan-700 shadow-sm dark:border-cyan-500 dark:bg-cyan-500/10 dark:text-cyan-400' => $quick,
-                            'border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:text-zinc-100' => ! $quick,
-                        ])>
-                            <input type="checkbox" name="quick" value="1" class="sr-only" @checked($quick)>
-                            {{ __('Max. 30 min') }}
-                        </label>
-
-                        <label @class([
-                            'inline-flex min-h-7 cursor-pointer select-none items-center rounded-full border px-3 py-1 text-[0.65rem] font-bold uppercase tracking-[0.08em] leading-none transition',
-                            'border-cyan-600 bg-cyan-50 text-cyan-700 shadow-sm dark:border-cyan-500 dark:bg-cyan-500/10 dark:text-cyan-400' => $seasonal,
-                            'border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:text-zinc-100' => ! $seasonal,
-                        ])>
-                            <input type="checkbox" name="seasonal" value="1" class="sr-only" @checked($seasonal)>
-                            {{ __('Seasonal') }}
-                        </label>
-                    </div>
-
-                    <div class="flex flex-wrap items-center gap-2 border-t border-dashed border-zinc-300 pt-2 md:border-l md:border-t-0 md:pt-0 md:pl-3 dark:border-zinc-700">
-                        <p class="text-[0.6rem] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">{{ __('Difficulty') }}</p>
-
-                        @php($complexityOptions = ['' => __('All'), 'simple' => __('Simple'), 'normal' => __('Normal'), 'difficult' => __('Difficult')])
-                        @foreach ($complexityOptions as $value => $label)
-                            <label @class([
-                                'inline-flex min-h-7 cursor-pointer select-none items-center rounded-full border px-3 py-1 text-[0.65rem] font-bold uppercase tracking-[0.08em] leading-none transition',
-                                'border-cyan-600 bg-cyan-50 text-cyan-700 shadow-sm dark:border-cyan-500 dark:bg-cyan-500/10 dark:text-cyan-400' => $complexity === $value,
-                                'border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:text-zinc-100' => $complexity !== $value,
-                            ])>
-                                <input
-                                    type="radio"
-                                    name="complexity"
-                                    value="{{ $value }}"
-                                    class="sr-only"
-                                    @checked($complexity === $value)
-                                >
-                                {{ $label }}
-                            </label>
-                        @endforeach
-                    </div>
-                </div>
-
-                <div class="col-span-12 grid gap-1">
-                    <label for="search" class="text-[0.6rem] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">{{ __('Search') }}</label>
-                    <input
-                        id="search"
-                        type="text"
-                        name="search"
-                        value="{{ $search }}"
-                        placeholder="{{ __('Search for recipes...') }}"
-                        class="h-9 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm text-zinc-800 shadow-sm outline-none transition placeholder:text-zinc-400 focus:border-cyan-600 focus:ring-2 focus:ring-cyan-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100 dark:placeholder:text-zinc-500"
-                    >
-                </div>
-
-                <div class="col-span-12 grid gap-1 md:col-span-3">
-                    <label for="category" class="text-[0.6rem] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">{{ __('Category') }}</label>
-                    <select id="category" name="category" class="h-9 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm text-zinc-800 shadow-sm outline-none transition focus:border-cyan-600 focus:ring-2 focus:ring-cyan-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100">
-                        <option value="">{{ __('All categories') }}</option>
-                        @foreach ($categories as $category)
-                            <option value="{{ $category->id }}" @selected($selectedCategory === $category->id)>{{ $category->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-
-                <div class="col-span-12 grid gap-1 md:col-span-3">
-                    <label for="cookbook" class="text-[0.6rem] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">{{ __('Cookbook') }}</label>
-                    <select id="cookbook" name="cookbook" class="h-9 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm text-zinc-800 shadow-sm outline-none transition focus:border-cyan-600 focus:ring-2 focus:ring-cyan-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100">
-                        <option value="">{{ __('All cookbooks') }}</option>
-                        @foreach ($cookbooks as $cookbook)
-                            <option value="{{ $cookbook->id }}" @selected($selectedCookbook === $cookbook->id)>{{ $cookbook->name }}</option>
-                        @endforeach
-                    </select>
-                </div>
-
-                <div class="col-span-12 grid gap-1 md:col-span-3">
-                    <label for="sort" class="text-[0.6rem] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">{{ __('Sort') }}</label>
-                    <select id="sort" name="sort" class="h-9 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm text-zinc-800 shadow-sm outline-none transition focus:border-cyan-600 focus:ring-2 focus:ring-cyan-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100">
-                        <option value="created_at_desc" @selected($selectedSort === 'created_at_desc')>{{ __('Newest first') }}</option>
-                        <option value="created_at_asc" @selected($selectedSort === 'created_at_asc')>{{ __('Oldest first') }}</option>
-                        <option value="name_asc" @selected($selectedSort === 'name_asc')>{{ __('Name A-Z') }}</option>
-                        <option value="name_desc" @selected($selectedSort === 'name_desc')>{{ __('Name Z-A') }}</option>
-                        <option value="complexity_asc" @selected($selectedSort === 'complexity_asc')>{{ __('Difficulty low-high') }}</option>
-                        <option value="complexity_desc" @selected($selectedSort === 'complexity_desc')>{{ __('Difficulty high-low') }}</option>
-                    </select>
-                </div>
-
-                @if ($tags->isNotEmpty())
-                    <div class="col-span-12 grid gap-1">
-                        <p class="text-[0.6rem] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400">{{ __('Tags') }}</p>
-
-                        <div class="flex flex-wrap items-center gap-2">
-                            @foreach ($tags as $tag)
-                                @php($isSelected = in_array($tag->id, $selectedTags, true))
-
-                                <label @class([
-                                    'inline-flex min-h-7 cursor-pointer select-none items-center rounded-full border px-3 py-1 text-[0.65rem] font-bold uppercase tracking-[0.08em] leading-none transition',
-                                    'border-cyan-600 bg-cyan-50 text-cyan-700 shadow-sm dark:border-cyan-500 dark:bg-cyan-500/10 dark:text-cyan-400' => $isSelected,
-                                    'border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:text-zinc-100' => ! $isSelected,
-                                ])>
-                                    <input type="checkbox" name="tags[]" value="{{ $tag->id }}" class="sr-only" @checked($isSelected)>
-                                    {{ $tag->name }}
-                                </label>
-                            @endforeach
-                        </div>
-                    </div>
-                @endif
-
-                <div class="col-span-12 flex items-center gap-2 pt-1">
-                    <a href="{{ route('recipes.index') }}" class="inline-flex h-8 items-center rounded-xl border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-700 shadow-sm transition hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-100">{{ __('Reset') }}</a>
-                </div>
-            </form>
+                </button>
+            </div>
         </section>
 
         <header class="grid gap-2">
@@ -236,32 +312,5 @@
             </nav>
         @endif
     </main>
-
-    <script>
-        (function () {
-            const form = document.querySelector('[data-auto-submit-filters]');
-
-            if (! form) {
-                return;
-            }
-
-            let searchTimer;
-
-            const submitForm = () => form.requestSubmit();
-
-            form.querySelectorAll('select, input[type="checkbox"], input[type="radio"]').forEach((field) => {
-                field.addEventListener('change', submitForm);
-            });
-
-            const searchInput = form.querySelector('input[name="search"]');
-
-            if (searchInput) {
-                searchInput.addEventListener('input', () => {
-                    clearTimeout(searchTimer);
-                    searchTimer = window.setTimeout(submitForm, 800);
-                });
-            }
-        }());
-    </script>
 </body>
 </html>

@@ -83,6 +83,19 @@ class SeasonalRecipesTest extends TestCase
         $this->get('/')->assertSee('Tomatensalat');
     }
 
+    public function test_the_index_marks_seasonal_recipes(): void
+    {
+        $this->recipeWith(['name' => 'Spargel mit Salz'], [$this->asparagus, $this->salt]);
+        $this->recipeWith(['name' => 'Tomatensalat'], [$this->tomatoes]);
+
+        $html = (string) $this->get('/')->assertOk()->getContent();
+
+        // May: asparagus is in season, tomatoes are not.
+        $this->assertSame(1, substr_count($html, 'data-seasonal-badge'));
+        // The badge belongs to the asparagus card (the tomato salad is newer and listed first).
+        $this->assertGreaterThan((int) strpos($html, 'Spargel mit Salz'), (int) strpos($html, 'data-seasonal-badge'));
+    }
+
     public function test_the_season_calendar_lists_the_foods_of_the_month_first(): void
     {
         Food::factory()->create(['name' => 'Aprikosen', 'season_months' => [7, 8]]);

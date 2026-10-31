@@ -200,5 +200,12 @@
     ":count food is in season in :month.|:count foods are in season in :month.": ":count Lebensmittel ist im :month in Saison.|:count Lebensmittel sind im :month in Saison.",
     "Show seasonal recipes": "Saisonale Rezepte anzeigen",
     "No foods with season data yet.": "Noch keine Lebensmittel mit Saisondaten.",
-    "Fresh in :month": "Frisch im :month"
+    "Fresh in :month": "Frisch im :month",
+    "Main navigation": "Hauptnavigation",
+    "Menu": "Menü",
+    "Dark mode": "Dunkler Modus",
+    "Show recipes": "Rezepte anzeigen",
+    "Reset all": "Alle zurücksetzen",
+    "Remove filter :name": "Filter :name entfernen",
+    "Close": "Schliessen"
 }

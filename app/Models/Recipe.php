@@ -111,6 +111,18 @@ class Recipe extends Model
     }
 
     /**
+     * Same rule as scopeInSeason(), from the counts selected with seasonFoodsCount()
+     * (`season_foods_count` for the month, `season_data_foods_count`); false if not selected.
+     */
+    public function isSeasonal(): bool
+    {
+        $inSeason = (int) ($this->getAttribute('season_foods_count') ?? 0);
+        $withData = (int) ($this->getAttribute('season_data_foods_count') ?? 0);
+
+        return $inSeason >= 1 && 2 * $inSeason >= $withData;
+    }
+
+    /**
      * Correlated subquery (outer table recipes): distinct foods of the recipe with season data,
      * or only those in season in the given month. Alternatives count like their parents.
      *

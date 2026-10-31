@@ -2,13 +2,180 @@ import Alpine from 'alpinejs';
 
 window.Alpine = Alpine;
 
-Alpine.data('themeToggle', () => ({
+const desktopQuery = window.matchMedia('(min-width: 48rem)');
+
+// Page scroll lock for overlays; counted so nested overlays do not unlock too early.
+let scrollLocks = 0;
+
+const lockScroll = (locked) => {
+    scrollLocks = Math.max(0, scrollLocks + (locked ? 1 : -1));
+    document.documentElement.classList.toggle('overflow-hidden', scrollLocks > 0);
+};
+
+const focusableSelector = 'a[href], button:not([disabled]), input:not([disabled]):not([type="hidden"]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+// Keeps Tab / Shift+Tab inside the container (no Alpine focus plugin installed).
+const trapFocus = (event, container) => {
+    if (event.key !== 'Tab') {
+        return;
+    }
+
+    const focusable = [...container.querySelectorAll(focusableSelector)].filter((element) => element.offsetParent !== null);
+
+    if (focusable.length === 0) {
+        return;
+    }
+
+    const first = focusable[0];
+    const last = focusable[focusable.length - 1];
+
+    if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+    } else if (! event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+    }
+};
+
+const themeToggle = () => ({
     dark: document.documentElement.classList.contains('dark'),
 
     toggle() {
         this.dark = ! this.dark;
         document.documentElement.classList.toggle('dark', this.dark);
         localStorage.setItem('theme', this.dark ? 'dark' : 'light');
+    },
+});
+
+Alpine.data('themeToggle', themeToggle);
+
+// Public navigation: theme toggle plus the mobile menu panel.
+Alpine.data('siteNav', () => ({
+    ...themeToggle(),
+    open: false,
+
+    init() {
+        desktopQuery.addEventListener('change', () => this.close(false));
+    },
+
+    show() {
+        if (this.open) {
+            return;
+        }
+
+        this.open = true;
+        lockScroll(true);
+        this.$nextTick(() => this.$refs.panel.querySelector(focusableSelector)?.focus());
+    },
+
+    close(restoreFocus = true) {
+        if (! this.open) {
+            return;
+        }
+
+        this.open = false;
+        lockScroll(false);
+
+        if (restoreFocus) {
+            this.$refs.toggle.focus();
+        }
+    },
+
+    trap(event) {
+        if (this.open) {
+            trapFocus(event, this.$root);
+        }
+    },
+}));
+
+// Recipe index filters: inline and instant on desktop, a bottom sheet applied on demand on phones.
+Alpine.data('recipeFilters', ({ expanded }) => ({
+    expanded,
+    sheetOpen: false,
+
+    init() {
+        desktopQuery.addEventListener('change', () => this.closeSheet(false));
+
+        const form = this.$refs.form;
+        let searchTimer;
+
+        // Clean URLs: leave out empty fields and the default sort, like the chip links.
+        form.addEventListener('formdata', (event) => {
+            for (const [name, value] of [...event.formData.entries()]) {
+                if (value === '' || (name === 'sort' && value === 'created_at_desc')) {
+                    event.formData.delete(name);
+                }
+            }
+        });
+
+        this.$refs.panel.querySelectorAll('select, input').forEach((field) => {
+            field.addEventListener('change', () => {
+                if (desktopQuery.matches) {
+                    form.requestSubmit();
+                }
+            });
+        });
+
+        this.$refs.search.addEventListener('input', () => {
+            clearTimeout(searchTimer);
+
+            if (desktopQuery.matches) {
+                searchTimer = window.setTimeout(() => form.requestSubmit(), 800);
+            }
+        });
+    },
+
+    openSheet() {
+        this.sheetOpen = true;
+        lockScroll(true);
+        this.$nextTick(() => this.$refs.close.focus());
+    },
+
+    // Without applying, the fields go back to the values of the current URL.
+    closeSheet(restoreFocus = true) {
+        if (! this.sheetOpen) {
+            return;
+        }
+
+        this.sheetOpen = false;
+        lockScroll(false);
+        this.restoreFields();
+
+        if (restoreFocus) {
+            this.$refs.opener.focus();
+        }
+    },
+
+    restoreFields() {
+        this.$refs.panel.querySelectorAll('input').forEach((input) => {
+            input.checked = input.defaultChecked;
+        });
+
+        this.$refs.panel.querySelectorAll('option').forEach((option) => {
+            option.selected = option.defaultSelected;
+        });
+    },
+
+    // Clears the selection in the sheet; applied with "Show recipes".
+    clearFields() {
+        this.$refs.panel.querySelectorAll('input[type="checkbox"]').forEach((input) => {
+            input.checked = false;
+        });
+
+        this.$refs.panel.querySelectorAll('input[type="radio"]').forEach((input) => {
+            input.checked = input.value === '';
+        });
+
+        this.$refs.panel.querySelectorAll('select').forEach((select) => {
+            select.selectedIndex = 0;
+        });
+    },
+
+    trap(event) {
+        if (this.sheetOpen) {
+            trapFocus(event, this.$refs.panel);
+        }
     },
 }));
 

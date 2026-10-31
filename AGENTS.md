@@ -137,6 +137,23 @@ ddev artisan passport:client --name=Shoppinglist --redirect_uri=https://<shoppin
   foods of the chosen month first, its fresh cells dark green; linked from Shoppinglist's week
   planner); the recipe page names the foods in season ("In season: …").
 
+## Public Frontend
+
+* Blade + Tailwind v4 + Alpine.js (no Alpine plugins), dark mode via `dark:`, zinc/cyan palette.
+  Alpine components live in `resources/js/app.js`; run `ddev npm run build` after changes.
+* Navigation `partials/nav.blade.php` (`siteNav`): desktop (≥ md) text links Recipes / Season
+  calendar (active pill, `aria-current`), then language, theme and Login/Backend (the only button).
+  Phones: hamburger opening a slide-down panel (backdrop, Escape/link closes, focus moved in and
+  trapped, page scroll locked) with the links, language, dark mode switch and Login/Backend.
+* Recipe filters (`recipes/index.blade.php`, `recipeFilters`): one form `#recipe-filters`, the search
+  field always visible. Desktop: inline panel (collapsed unless a non-search filter is active),
+  changes submit instantly. Phones: the same panel becomes a bottom sheet opened by the floating
+  "Filters" button, applied only with "Show recipes"; closing restores the fields of the current URL.
+  Option pills show their state with `has-checked:`. Empty fields and the default sort are dropped
+  from the submitted URL. Active filters are chips built in `RecipeController::index()`
+  (`activeFilters`: key, label, URL without that filter). Query names: `search`, `quick`,
+  `seasonal`, `complexity`, `category`, `cookbook`, `sort`, `tags[]`.
+
 ## Testing Rules
 
 Add or update tests for every functional change.
