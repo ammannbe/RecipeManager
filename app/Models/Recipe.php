@@ -88,6 +88,61 @@ class Recipe extends Model
     }
 
     /**
+     * Seasonal: at least one food is in season (fresh) and at least half of the foods with
+     * season data are. Foods without season data (salt, flour …) are ignored.
+     *
+     * @param  Builder<$this>  $query
+     */
+    public function scopeInSeason(Builder $query, int $month): void
+    {
+        $inSeason = 'count(distinct case when json_contains(foods.season_months, ?) then foods.id end)';
+
+        $query->whereIn(
+            'recipes.id',
+            Ingredient::query()
+                ->select('ingredients.recipe_id')
+                ->join('foods', 'foods.id', '=', 'ingredients.food_id')
+                ->whereNull('foods.deleted_at')
+                ->whereNotNull('foods.season_months')
+                ->groupBy('ingredients.recipe_id')
+                ->havingRaw($inSeason.' >= 1', [(string) $month])
+                ->havingRaw('2 * '.$inSeason.' >= count(distinct foods.id)', [(string) $month]),
+        );
+    }
+
+    /**
+     * Same rule as scopeInSeason(), from the counts selected with seasonFoodsCount()
+     * (`season_foods_count` for the month, `season_data_foods_count`); false if not selected.
+     */
+    public function isSeasonal(): bool
+    {
+        $inSeason = (int) ($this->getAttribute('season_foods_count') ?? 0);
+        $withData = (int) ($this->getAttribute('season_data_foods_count') ?? 0);
+
+        return $inSeason >= 1 && 2 * $inSeason >= $withData;
+    }
+
+    /**
+     * Correlated subquery (outer table recipes): distinct foods of the recipe with season data,
+     * or only those in season in the given month. Alternatives count like their parents.
+     *
+     * @return Builder<Ingredient>
+     */
+    public static function seasonFoodsCount(?int $month = null): Builder
+    {
+        return Ingredient::query()
+            ->selectRaw('count(distinct foods.id)')
+            ->join('foods', 'foods.id', '=', 'ingredients.food_id')
+            ->whereColumn('ingredients.recipe_id', 'recipes.id')
+            ->whereNull('foods.deleted_at')
+            ->whereNotNull('foods.season_months')
+            ->when(
+                $month !== null,
+                fn (Builder $query): Builder => $query->whereRaw('json_contains(foods.season_months, ?)', [(string) $month]),
+            );
+    }
+
+    /**
      * @return BelongsTo<Author, $this>
      */
     public function author(): BelongsTo

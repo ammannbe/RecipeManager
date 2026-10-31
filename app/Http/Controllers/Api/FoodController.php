@@ -18,8 +18,13 @@ class FoodController extends Controller
             'data' => Food::query()
                 ->visibleTo($request->user())
                 ->orderBy('name')
-                ->get(['id', 'name'])
-                ->map(fn (Food $food): array => ['id' => $food->id, 'name' => $food->name])
+                ->get(['id', 'name', 'season_months', 'storage_months'])
+                ->map(fn (Food $food): array => [
+                    'id' => $food->id,
+                    'name' => $food->name,
+                    'season_months' => $food->season_months ?? [],
+                    'storage_months' => $food->storage_months ?? [],
+                ])
                 ->all(),
         ]);
     }

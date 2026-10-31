@@ -28,11 +28,14 @@ class PublicRecipesViewTest extends TestCase
             'cookbooks' => new Collection,
             'search' => '',
             'quick' => false,
+            'seasonal' => false,
             'complexity' => '',
             'selectedCategory' => null,
             'selectedCookbook' => null,
             'selectedTags' => [],
             'selectedSort' => 'created_at_desc',
+            'sortLabels' => ['created_at_desc' => __('Newest first')],
+            'activeFilters' => [],
             'paginationPages' => [],
             'currentPage' => 1,
         ]);
@@ -51,21 +54,28 @@ class PublicRecipesViewTest extends TestCase
             'cookbooks' => new Collection,
             'search' => '',
             'quick' => false,
+            'seasonal' => false,
             'complexity' => '',
             'selectedCategory' => null,
             'selectedCookbook' => null,
             'selectedTags' => [],
             'selectedSort' => 'created_at_desc',
+            'sortLabels' => ['created_at_desc' => __('Newest first')],
+            'activeFilters' => [],
             'paginationPages' => [],
             'currentPage' => 1,
         ];
 
         $collapsed = $this->view('recipes.index', $data);
-        $collapsed->assertSee('x-data="{ open: false }"', false);
+        $collapsed->assertSee('recipeFilters({ expanded: false })', false);
         $collapsed->assertSee(__('Filters'));
 
-        $expanded = $this->view('recipes.index', [...$data, 'search' => 'pasta']);
-        $expanded->assertSee('x-data="{ open: true }"', false);
+        // The search field stays outside the panel, so only the other filters expand it.
+        $searching = $this->view('recipes.index', [...$data, 'search' => 'pasta', 'activeFilters' => [['key' => 'search', 'label' => '«pasta»', 'url' => '/']]]);
+        $searching->assertSee('recipeFilters({ expanded: false })', false);
+
+        $expanded = $this->view('recipes.index', [...$data, 'quick' => true, 'activeFilters' => [['key' => 'quick', 'label' => __('Max. 30 min'), 'url' => '/']]]);
+        $expanded->assertSee('recipeFilters({ expanded: true })', false);
     }
 
     public function test_recipe_show_displays_slideshow_controls_when_recipe_has_multiple_photos(): void
@@ -86,6 +96,8 @@ class PublicRecipesViewTest extends TestCase
 
         $view = $this->view('recipes.show', [
             'recipe' => $recipe,
+            'seasonFoods' => new Collection,
+            'inSeasonFoods' => new Collection,
         ]);
 
         $view->assertSee('aspect-16/10', false);
@@ -110,7 +122,7 @@ class PublicRecipesViewTest extends TestCase
         $recipe->setRelation('ingredients', new Collection);
         $recipe->setRelation('ingredientGroups', new Collection);
 
-        $view = $this->view('recipes.show', ['recipe' => $recipe]);
+        $view = $this->view('recipes.show', ['recipe' => $recipe, 'seasonFoods' => new Collection, 'inSeasonFoods' => new Collection]);
 
         $view->assertSee('<strong>Kochen</strong>', false);
         $view->assertDontSee('alert(1)', false);

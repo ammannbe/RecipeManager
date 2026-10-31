@@ -71,8 +71,10 @@ JSON API for the companion app "Shoppinglist", secured with Laravel Passport
 
 * Routes: `routes/api.php`, guard `auth:api`, `throttle:120,1`. Code in
   `app/Http/Controllers/Api`, `app/Http/Requests/Api`, `app/Services/Api`.
-* `GET /api/user`, `GET /api/foods`, `GET /api/vocabulary` (category and unit names,
-  complexities), `POST /api/recipes/search`, `GET /api/recipes/{id}?servings=`,
+* `GET /api/user`, `GET /api/foods` (with `season_months` / `storage_months`, empty arrays
+  without data), `GET /api/vocabulary` (category and unit names, complexities),
+  `POST /api/recipes/search` (optional `season_month` 1–12: after `matched_foods_count`,
+  recipes with more in-season foods rank first), `GET /api/recipes/{id}?servings=`,
   `POST /api/recipe-drafts`.
 * Visibility always goes through `Recipe::visibleTo()` / `RecipePolicy` (invisible → 404).
   Photos are never exposed.
@@ -117,6 +119,40 @@ ddev artisan passport:client --name=Shoppinglist --redirect_uri=https://<shoppin
   ingredient (with alternatives) and a group left empty. Units and attributes only used on omitted
   ingredients need no decision (`isObsolete()` in the wizard, `isUsed()` in `RecipeImporter`).
   Categories, cookbooks and authors cannot be omitted; at least one ingredient must remain.
+
+## Seasons
+
+* `foods.season_months` (fresh Swiss harvest, open field or unheated greenhouse) and
+  `foods.storage_months` (Swiss storage only, not "in season"): JSON lists of months 1–12, null
+  without data. `Food` normalizes them to sorted integers (needed for `JSON_CONTAINS`).
+* Data: `database/data/food-seasons.php` (name => [fresh, storage]). `ddev artisan foods:seasons
+  {--dry-run} {--force}` assigns it to foods with exactly matching names (case-insensitive,
+  whitespace-normalized); months already set are kept without `--force`. It lists data names
+  without a food and foods that only contain a data name ("Rüebli, gerieben") for manual
+  assignment in the Food resource. A data migration ran it once.
+* "In season" means fresh months only, current month in `Europe/Zurich` (`App\Services\Season`).
+  `Recipe::scopeInSeason()`: at least one food in season and at least half of the foods with
+  season data. Used by the index chip "Seasonal" (`seasonal=1`, combined with the other
+  filters). `/season?month=` is the season calendar (year table of all foods with season data,
+  foods of the chosen month first, its fresh cells dark green; linked from Shoppinglist's week
+  planner); the recipe page names the foods in season ("In season: …").
+
+## Public Frontend
+
+* Blade + Tailwind v4 + Alpine.js (no Alpine plugins), dark mode via `dark:`, zinc/cyan palette.
+  Alpine components live in `resources/js/app.js`; run `ddev npm run build` after changes.
+* Navigation `partials/nav.blade.php` (`siteNav`): desktop (≥ md) text links Recipes / Season
+  calendar (active pill, `aria-current`), then language, theme and Login/Backend (the only button).
+  Phones: hamburger opening a slide-down panel (backdrop, Escape/link closes, focus moved in and
+  trapped, page scroll locked) with the links, language, dark mode switch and Login/Backend.
+* Recipe filters (`recipes/index.blade.php`, `recipeFilters`): one form `#recipe-filters`, the search
+  field always visible. Desktop: inline panel (collapsed unless a non-search filter is active),
+  changes submit instantly. Phones: the same panel becomes a bottom sheet opened by the floating
+  "Filters" button, applied only with "Show recipes"; closing restores the fields of the current URL.
+  Option pills show their state with `has-checked:`. Empty fields and the default sort are dropped
+  from the submitted URL. Active filters are chips built in `RecipeController::index()`
+  (`activeFilters`: key, label, URL without that filter). Query names: `search`, `quick`,
+  `seasonal`, `complexity`, `category`, `cookbook`, `sort`, `tags[]`.
 
 ## Testing Rules
 

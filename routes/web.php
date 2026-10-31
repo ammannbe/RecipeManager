@@ -6,6 +6,7 @@ use App\Http\Controllers\RecipeController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [RecipeController::class, 'index'])->name('recipes.index');
+Route::get('/season', [RecipeController::class, 'season'])->name('recipes.season');
 Route::get('/recipes/{recipe}', [RecipeController::class, 'show'])->name('recipes.show');
 Route::get('/recipes/{recipe}/photos/{filename}', [RecipeController::class, 'photo'])
     ->name('recipes.photo');
