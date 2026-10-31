@@ -5,7 +5,6 @@ namespace Tests\Feature;
 use App\Models\Food;
 use App\Models\Ingredient;
 use App\Models\Recipe;
-use App\Models\User;
 use Illuminate\Support\Carbon;
 use Tests\TestCase;
 
@@ -84,41 +83,20 @@ class SeasonalRecipesTest extends TestCase
         $this->get('/')->assertSee('Tomatensalat');
     }
 
-    public function test_the_season_page_ranks_visible_recipes_by_in_season_foods(): void
+    public function test_the_season_calendar_lists_the_foods_of_the_month_first(): void
     {
-        $spring = Food::factory()->create(['name' => 'Rhabarber', 'season_months' => [4, 5, 6]]);
-        $this->recipeWith(['name' => 'Spargel mit Salz'], [$this->asparagus, $this->salt]);
-        $this->recipeWith(['name' => 'Frühlingsteller'], [$this->asparagus, $spring, $this->tomatoes]);
-        $this->recipeWith(['name' => 'Geheimer Spargel', 'is_public' => false], [$this->asparagus]);
-        $this->recipeWith(['name' => 'Tomatensalat'], [$this->tomatoes]);
+        Food::factory()->create(['name' => 'Aprikosen', 'season_months' => [7, 8]]);
 
-        $this->get(route('recipes.season'))
-            ->assertOk()
-            ->assertSeeInOrder(['Frühlingsteller', '2 ingredients in season', 'Spargel mit Salz', '1 ingredient in season'])
-            ->assertDontSee('Geheimer Spargel')
-            ->assertDontSee('Tomatensalat');
-    }
+        $html = (string) $this->get(route('recipes.season', ['month' => 5]))->assertOk()->assertSee('data-season-calendar', false)->getContent();
+        preg_match_all('/data-food="([^"]+)"/', $html, $rows);
 
-    public function test_the_season_page_lists_fresh_and_storage_foods_of_the_month(): void
-    {
-        $response = $this->get(route('recipes.season', ['month' => 5]))->assertOk();
+        // May: in season (Spargel), then from storage (Kartoffeln), then the rest by name.
+        $this->assertSame(['Spargel', 'Kartoffeln', 'Aprikosen', 'Tomaten'], $rows[1]);
+        $this->assertStringContainsString('seasonal=1', $html);
+        $this->assertStringNotContainsString('Salz', $html);
 
-        $html = (string) $response->getContent();
-        $fresh = (string) strstr((string) strstr($html, 'data-fresh-foods'), 'data-storage-foods', true);
-        $this->assertStringContainsString('Spargel', $fresh);
-        $this->assertStringNotContainsString('Kartoffeln', $fresh);
-        $this->assertStringContainsString('Kartoffeln', (string) strstr($html, 'data-storage-foods'));
-
-        $this->get(route('recipes.season', ['month' => 99]))->assertOk()->assertSee('In season in May');
-        $this->get(route('recipes.season', ['month' => 8]))->assertOk()->assertSee('In season in August');
-    }
-
-    public function test_the_season_page_shows_private_recipes_to_their_author(): void
-    {
-        $recipe = $this->recipeWith(['name' => 'Geheimer Spargel', 'is_public' => false], [$this->asparagus]);
-        $user = User::factory()->create(['admin' => false, 'author_id' => $recipe->author_id]);
-
-        $this->actingAs($user)->get(route('recipes.season'))->assertOk()->assertSee('Geheimer Spargel');
+        // Invalid months fall back to the current one.
+        $this->get(route('recipes.season', ['month' => 99]))->assertOk()->assertSee('in May.');
     }
 
     public function test_the_recipe_page_shows_the_season_badge(): void

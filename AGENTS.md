@@ -132,8 +132,10 @@ ddev artisan passport:client --name=Shoppinglist --redirect_uri=https://<shoppin
   assignment in the Food resource. A data migration ran it once.
 * "In season" means fresh months only, current month in `Europe/Zurich` (`App\Services\Season`).
   `Recipe::scopeInSeason()`: at least one food in season and at least half of the foods with
-  season data. Used by the index chip "Seasonal" (`seasonal=1`); `/season?month=` lists foods
-  and ranks visible recipes by in-season foods; the recipe page shows "In season: x of y".
+  season data. Used by the index chip "Seasonal" (`seasonal=1`, combined with the other
+  filters). `/season?month=` is the season calendar (year table of all foods with season data,
+  foods of the chosen month first, its fresh cells dark green; linked from Shoppinglist's week
+  planner); the recipe page names the foods in season ("In season: …").
 
 ## Testing Rules
 

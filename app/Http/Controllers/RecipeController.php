@@ -163,30 +163,14 @@ class RecipeController extends Controller
             ->orderBy('name')
             ->get();
 
-        $recipes = Recipe::query()
-            ->with(['author', 'category', 'cookbook', 'tags'])
-            ->visibleTo(user())
-            ->addSelect([
-                'season_foods_count' => Recipe::seasonFoodsCount($month),
-                'season_data_foods_count' => Recipe::seasonFoodsCount(),
-            ])
-            ->having('season_foods_count', '>=', 1)
-            ->orderByDesc('season_foods_count')
-            ->orderBy('season_data_foods_count')
-            ->orderBy('name')
-            ->orderBy('id')
-            ->limit(24)
-            ->get();
+        // Fresh in the month first, then from storage, then the rest; by name within (stable sort).
+        $rank = fn (Food $food): int => $food->inSeason($month) ? 0 : (in_array($month, $food->storage_months ?? [], true) ? 1 : 2);
 
         return view('recipes.season', [
             'month' => $month,
             'months' => Season::monthNames(),
-            'freshFoods' => $foods->filter(fn (Food $food): bool => $food->inSeason($month))->values(),
-            'storageFoods' => $foods
-                ->filter(fn (Food $food): bool => ! $food->inSeason($month) && in_array($month, $food->storage_months ?? [], true))
-                ->values(),
-            'yearFoods' => $foods,
-            'recipes' => $recipes,
+            'foods' => $foods->sortBy($rank)->values(),
+            'freshCount' => $foods->filter(fn (Food $food): bool => $food->inSeason($month))->count(),
         ]);
     }
 

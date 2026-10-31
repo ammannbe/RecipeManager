@@ -7,7 +7,7 @@
         </a>
 
         <div class="flex shrink-0 items-center gap-1.5 sm:gap-2" x-data="themeToggle">
-            <a href="{{ route('recipes.season') }}" aria-label="{{ __('Season') }}" @class([
+            <a href="{{ route('recipes.season') }}" aria-label="{{ __('Season calendar') }}" @class([
                 'inline-flex h-9 items-center gap-1.5 rounded-xl border px-2.5 text-sm font-semibold shadow-sm transition sm:px-4',
                 'border-cyan-600 bg-cyan-50 text-cyan-700 dark:border-cyan-500 dark:bg-cyan-500/10 dark:text-cyan-400' => request()->routeIs('recipes.season'),
                 'border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-100' => ! request()->routeIs('recipes.season'),
@@ -16,7 +16,7 @@
                     <path d="M11 20A7 7 0 0 1 4 13c0-5 4-9 16-9 0 12-4 16-9 16Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                     <path d="M4 20c4-4 7-7 11-10" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
                 </svg>
-                <span class="hidden sm:inline">{{ __('Season') }}</span>
+                <span class="hidden sm:inline">{{ __('Season calendar') }}</span>
             </a>
 
             @include('partials.locale-switcher')

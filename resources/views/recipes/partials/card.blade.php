@@ -28,10 +28,6 @@
             <p class="min-h-[5.2rem] overflow-hidden text-sm leading-6 text-zinc-600 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:4] dark:text-zinc-400">{{ \Illuminate\Support\Str::limit(strip_tags((string) $recipe->instructions), 170) }}</p>
 
             <div class="flex flex-wrap items-center gap-1.5">
-                @isset($seasonLabel)
-                    <span class="inline-flex items-center rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold leading-none text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-400">{{ $seasonLabel }}</span>
-                @endisset
-
                 <span class="inline-flex items-center rounded-full bg-sky-100 px-2.5 py-1 text-xs font-semibold leading-none text-sky-800 dark:bg-sky-500/15 dark:text-sky-400">{{ $recipe->complexity?->label() }}</span>
 
                 @if ($recipe->preparation_time)
