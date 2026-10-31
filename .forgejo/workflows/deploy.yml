@@ -59,6 +59,8 @@ jobs:
           set -Eeuo pipefail
 
           PHP=php85
+          # A failed step must not leave the site in maintenance mode.
+          trap '$PHP artisan up || true' ERR
 
           $PHP artisan down
 
@@ -71,6 +73,12 @@ jobs:
           $PHP artisan view:clear
           $PHP artisan optimize
           $PHP artisan up
+
+          # Every migration ran.
+          if $PHP artisan migrate:status --pending --no-ansi | grep -q 'Pending'; then
+            echo "Pending migrations after the deploy" >&2
+            exit 1
+          fi
           REMOTE
 
       - name: Verify website availability
@@ -78,6 +86,11 @@ jobs:
           PRIMARY_SITE_URL: ${{ vars.PRIMARY_SITE_URL }}
         run: |
           set -Eeuo pipefail
-          if [ -n "${PRIMARY_SITE_URL}" ]; then
-            curl --fail --silent --show-error --retry 3 "${PRIMARY_SITE_URL}" >/dev/null
+          if [ -z "${PRIMARY_SITE_URL}" ]; then
+            echo "::warning::PRIMARY_SITE_URL is not set, the website was not checked"
+            exit 0
           fi
+          URL="${PRIMARY_SITE_URL%/}"
+          curl --fail --silent --show-error --retry 3 "${URL}" >/dev/null
+          # Laravel health route: the app boots.
+          curl --fail --silent --show-error --retry 3 "${URL}/up" >/dev/null
