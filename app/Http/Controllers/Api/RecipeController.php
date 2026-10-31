@@ -18,14 +18,16 @@ class RecipeController extends Controller
     ) {}
 
     /**
-     * Visible recipes using any of the given foods, best matches first. Grouped
-     * ingredients and alternatives count too: every ingredient row carries recipe_id.
+     * Visible recipes using any of the given foods, best matches first, then (with
+     * season_month) more in-season foods. Grouped ingredients and alternatives count
+     * too: every ingredient row carries recipe_id.
      */
     public function search(SearchRecipesRequest $request): JsonResponse
     {
         /** @var User $user */
         $user = $request->user();
         $foodIds = $request->foodIds();
+        $seasonMonth = $request->seasonMonth();
 
         $recipes = Recipe::query()
             ->visibleTo($user)
@@ -37,6 +39,9 @@ class RecipeController extends Controller
                     ->whereIn('food_id', $foodIds),
             ])
             ->orderByDesc('matched_foods_count')
+            ->when($seasonMonth !== null, fn ($query) => $query
+                ->addSelect(['season_foods_count' => Recipe::seasonFoodsCount($seasonMonth)])
+                ->orderByDesc('season_foods_count'))
             ->orderBy('name')
             ->orderBy('id')
             ->limit($request->limit())

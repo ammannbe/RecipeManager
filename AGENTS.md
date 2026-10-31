@@ -71,8 +71,10 @@ JSON API for the companion app "Shoppinglist", secured with Laravel Passport
 
 * Routes: `routes/api.php`, guard `auth:api`, `throttle:120,1`. Code in
   `app/Http/Controllers/Api`, `app/Http/Requests/Api`, `app/Services/Api`.
-* `GET /api/user`, `GET /api/foods`, `GET /api/vocabulary` (category and unit names,
-  complexities), `POST /api/recipes/search`, `GET /api/recipes/{id}?servings=`,
+* `GET /api/user`, `GET /api/foods` (with `season_months` / `storage_months`, empty arrays
+  without data), `GET /api/vocabulary` (category and unit names, complexities),
+  `POST /api/recipes/search` (optional `season_month` 1–12: after `matched_foods_count`,
+  recipes with more in-season foods rank first), `GET /api/recipes/{id}?servings=`,
   `POST /api/recipe-drafts`.
 * Visibility always goes through `Recipe::visibleTo()` / `RecipePolicy` (invisible → 404).
   Photos are never exposed.
@@ -117,6 +119,21 @@ ddev artisan passport:client --name=Shoppinglist --redirect_uri=https://<shoppin
   ingredient (with alternatives) and a group left empty. Units and attributes only used on omitted
   ingredients need no decision (`isObsolete()` in the wizard, `isUsed()` in `RecipeImporter`).
   Categories, cookbooks and authors cannot be omitted; at least one ingredient must remain.
+
+## Seasons
+
+* `foods.season_months` (fresh Swiss harvest, open field or unheated greenhouse) and
+  `foods.storage_months` (Swiss storage only, not "in season"): JSON lists of months 1–12, null
+  without data. `Food` normalizes them to sorted integers (needed for `JSON_CONTAINS`).
+* Data: `database/data/food-seasons.php` (name => [fresh, storage]). `ddev artisan foods:seasons
+  {--dry-run} {--force}` assigns it to foods with exactly matching names (case-insensitive,
+  whitespace-normalized); months already set are kept without `--force`. It lists data names
+  without a food and foods that only contain a data name ("Rüebli, gerieben") for manual
+  assignment in the Food resource. A data migration ran it once.
+* "In season" means fresh months only, current month in `Europe/Zurich` (`App\Services\Season`).
+  `Recipe::scopeInSeason()`: at least one food in season and at least half of the foods with
+  season data. Used by the index chip "Seasonal" (`seasonal=1`); `/season?month=` lists foods
+  and ranks visible recipes by in-season foods; the recipe page shows "In season: x of y".
 
 ## Testing Rules
 

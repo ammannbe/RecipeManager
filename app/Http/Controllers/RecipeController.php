@@ -5,9 +5,11 @@ namespace App\Http\Controllers;
 use App\Enums\Complexity;
 use App\Models\Category;
 use App\Models\Cookbook;
+use App\Models\Food;
 use App\Models\Recipe;
 use App\Models\Tag;
 use App\Services\Document;
+use App\Services\Season;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -19,6 +21,7 @@ class RecipeController extends Controller
     {
         $search = trim((string) $request->string('search'));
         $quick = $request->boolean('quick');
+        $seasonal = $request->boolean('seasonal');
         $complexity = (string) $request->string('complexity');
         $category = $request->integer('category');
         $cookbook = $request->integer('cookbook');
@@ -54,6 +57,7 @@ class RecipeController extends Controller
             ->visibleTo(user())
             ->search(['name', 'instructions'], $search)
             ->when($quick, fn (Builder $query): Builder => $query->where('preparation_time', '<=', '00:30:00'))
+            ->when($seasonal, fn (Builder $query): Builder => $query->inSeason(Season::currentMonth()))
             ->when(
                 in_array($complexity, $complexityValues, true),
                 fn (Builder $query): Builder => $query->where('complexity', $complexity),
@@ -99,6 +103,7 @@ class RecipeController extends Controller
             'cookbooks' => Cookbook::query()->visibleTo(user())->orderBy('name')->get(),
             'search' => $search,
             'quick' => $quick,
+            'seasonal' => $seasonal,
             'complexity' => $complexity,
             'selectedCategory' => $category > 0 ? $category : null,
             'selectedCookbook' => $cookbook > 0 ? $cookbook : null,
@@ -130,8 +135,58 @@ class RecipeController extends Controller
             'ingredientGroups',
         ]);
 
+        $month = Season::currentMonth();
+        $seasonFoods = $recipe->ingredients
+            ->pluck('food')
+            ->filter(fn (?Food $food): bool => $food?->hasSeasonData() ?? false)
+            ->unique('id')
+            ->sortBy('name')
+            ->values();
+
         return view('recipes.show', [
             'recipe' => $recipe,
+            'seasonFoods' => $seasonFoods,
+            'inSeasonFoods' => $seasonFoods->filter(fn (Food $food): bool => $food->inSeason($month))->values(),
+        ]);
+    }
+
+    /**
+     * Seasonal calendar: foods in season in a month and visible recipes using most of them.
+     */
+    public function season(Request $request): View
+    {
+        $month = Season::month($request->query('month'));
+
+        $foods = Food::query()
+            ->visibleTo(user())
+            ->where(fn (Builder $query): Builder => $query->whereNotNull('season_months')->orWhereNotNull('storage_months'))
+            ->orderBy('name')
+            ->get();
+
+        $recipes = Recipe::query()
+            ->with(['author', 'category', 'cookbook', 'tags'])
+            ->visibleTo(user())
+            ->addSelect([
+                'season_foods_count' => Recipe::seasonFoodsCount($month),
+                'season_data_foods_count' => Recipe::seasonFoodsCount(),
+            ])
+            ->having('season_foods_count', '>=', 1)
+            ->orderByDesc('season_foods_count')
+            ->orderBy('season_data_foods_count')
+            ->orderBy('name')
+            ->orderBy('id')
+            ->limit(24)
+            ->get();
+
+        return view('recipes.season', [
+            'month' => $month,
+            'months' => Season::monthNames(),
+            'freshFoods' => $foods->filter(fn (Food $food): bool => $food->inSeason($month))->values(),
+            'storageFoods' => $foods
+                ->filter(fn (Food $food): bool => ! $food->inSeason($month) && in_array($month, $food->storage_months ?? [], true))
+                ->values(),
+            'yearFoods' => $foods,
+            'recipes' => $recipes,
         ]);
     }
 

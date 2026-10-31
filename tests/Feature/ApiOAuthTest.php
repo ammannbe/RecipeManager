@@ -101,7 +101,7 @@ class ApiOAuthTest extends TestCase
 
     public function test_the_foods_endpoint_lists_all_foods_without_trashed_ones(): void
     {
-        $tomato = Food::factory()->create(['name' => 'Tomate']);
+        $tomato = Food::factory()->create(['name' => 'Tomate', 'season_months' => [7, 6, 8], 'storage_months' => null]);
         $mince = Food::factory()->create(['name' => 'Hackfleisch']);
         Food::factory()->create(['name' => 'Gelöscht'])->delete();
 
@@ -110,8 +110,8 @@ class ApiOAuthTest extends TestCase
         $this->getJson('/api/foods')
             ->assertOk()
             ->assertExactJson(['data' => [
-                ['id' => $mince->id, 'name' => 'Hackfleisch'],
-                ['id' => $tomato->id, 'name' => 'Tomate'],
+                ['id' => $mince->id, 'name' => 'Hackfleisch', 'season_months' => [], 'storage_months' => []],
+                ['id' => $tomato->id, 'name' => 'Tomate', 'season_months' => [6, 7, 8], 'storage_months' => []],
             ]]);
     }
 

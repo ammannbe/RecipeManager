@@ -26,44 +26,10 @@
         <div class="absolute -top-44 right-0 h-112 w-xl rounded-full bg-[radial-gradient(circle,rgba(59,130,246,0.16),transparent_72%)] blur-3xl dark:bg-[radial-gradient(circle,rgba(59,130,246,0.12),transparent_72%)]"></div>
     </div>
 
-    <nav class="sticky top-0 z-20 border-b border-zinc-200/80 bg-white/90 backdrop-blur dark:border-zinc-800/80 dark:bg-zinc-950/90">
-        <div class="mx-auto flex w-full max-w-7xl items-center justify-between gap-4 px-6 py-4">
-            <a href="{{ route('recipes.index') }}" class="inline-flex items-center gap-3 font-semibold tracking-tight text-zinc-900 dark:text-zinc-100">
-                <img src="{{ asset('favicon.ico') }}" alt="{{ config('app.name') }}" class="h-8 w-8 rounded-lg">
-                <span>{{ config('app.name') }}</span>
-            </a>
+    @include('partials.nav')
 
-            <div class="flex items-center gap-2" x-data="themeToggle">
-                @include('partials.locale-switcher')
-
-                <button
-                    type="button"
-                    class="inline-flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-300 bg-white text-zinc-700 shadow-sm transition hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
-                    @click="toggle()"
-                    :aria-label="dark ? '{{ __('Switch to light mode') }}' : '{{ __('Switch to dark mode') }}'"
-                >
-                    <svg x-show="! dark" viewBox="0 0 24 24" fill="none" aria-hidden="true" class="h-4.5 w-4.5">
-                        <circle cx="12" cy="12" r="4" stroke="currentColor" stroke-width="2" />
-                        <path d="M12 2v2M12 20v2M4 12H2M22 12h-2M19.07 4.93l-1.41 1.41M6.34 17.66l-1.41 1.41M19.07 19.07l-1.41-1.41M6.34 6.34 4.93 4.93" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
-                    </svg>
-                    <svg x-show="dark" x-cloak viewBox="0 0 24 24" fill="none" aria-hidden="true" class="h-4.5 w-4.5">
-                        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
-                    </svg>
-                </button>
-
-                @guest
-                    <a href="{{ url('/admin/login') }}" class="inline-flex items-center rounded-xl border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 shadow-sm transition hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-100">{{ __('Login') }}</a>
-                @endguest
-
-                @auth
-                    <a href="{{ url('/admin') }}" class="inline-flex items-center rounded-xl border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 shadow-sm transition hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-100">{{ __('Backend') }}</a>
-                @endauth
-            </div>
-        </div>
-    </nav>
-
-    <main class="mx-auto grid w-full max-w-7xl gap-6 px-6 py-8 pb-20 lg:gap-8 lg:py-10">
-        @php($activeFilterCount = ($search !== '' ? 1 : 0) + ($quick ? 1 : 0) + ($complexity !== '' ? 1 : 0) + ($selectedCategory ? 1 : 0) + ($selectedCookbook ? 1 : 0) + count($selectedTags) + ($selectedSort !== 'created_at_desc' ? 1 : 0))
+    <main class="mx-auto grid w-full max-w-7xl gap-6 px-4 sm:px-6 [&>*]:min-w-0 py-8 pb-20 lg:gap-8 lg:py-10">
+        @php($activeFilterCount = ($search !== '' ? 1 : 0) + ($quick ? 1 : 0) + ($seasonal ? 1 : 0) + ($complexity !== '' ? 1 : 0) + ($selectedCategory ? 1 : 0) + ($selectedCookbook ? 1 : 0) + count($selectedTags) + ($selectedSort !== 'created_at_desc' ? 1 : 0))
 
         <section
             class="grid gap-3 rounded-2xl border border-zinc-200 bg-white p-3 shadow-[0_12px_32px_-24px_rgba(15,23,42,0.6)] md:p-4 dark:border-zinc-800 dark:bg-zinc-900"
@@ -104,6 +70,15 @@
                         ])>
                             <input type="checkbox" name="quick" value="1" class="sr-only" @checked($quick)>
                             {{ __('Max. 30 min') }}
+                        </label>
+
+                        <label @class([
+                            'inline-flex min-h-7 cursor-pointer select-none items-center rounded-full border px-3 py-1 text-[0.65rem] font-bold uppercase tracking-[0.08em] leading-none transition',
+                            'border-cyan-600 bg-cyan-50 text-cyan-700 shadow-sm dark:border-cyan-500 dark:bg-cyan-500/10 dark:text-cyan-400' => $seasonal,
+                            'border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:text-zinc-100' => ! $seasonal,
+                        ])>
+                            <input type="checkbox" name="seasonal" value="1" class="sr-only" @checked($seasonal)>
+                            {{ __('Seasonal') }}
                         </label>
                     </div>
 
@@ -207,50 +182,7 @@
 
         <section class="grid gap-4 sm:grid-cols-2 cards:grid-cols-3 md:gap-5">
             @forelse ($recipes as $recipe)
-                <article class="group overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-[0_18px_35px_-30px_rgba(15,23,42,0.75)] transition hover:-translate-y-0.5 hover:shadow-[0_26px_40px_-28px_rgba(15,23,42,0.75)] dark:border-zinc-800 dark:bg-zinc-900">
-                    <a href="{{ route('recipes.show', $recipe) }}">
-                        @if ($recipe->photos->isNotEmpty())
-                            <div class="block aspect-video sm:aspect-square overflow-hidden bg-linear-to-br from-zinc-200 to-zinc-50 dark:from-zinc-800 dark:to-zinc-900">
-                                <img
-                                    src="{{ $recipe->photos->first()->url() }}?v={{ $recipe->updated_at->timestamp }}"
-                                    alt="{{ $recipe->name }}"
-                                    class="h-full w-full object-cover transition duration-300 group-hover:scale-105"
-                                >
-                            </div>
-                        @else
-                            <div class="hidden sm:block aspect-video sm:aspect-square overflow-hidden bg-linear-to-br from-zinc-200 to-zinc-50 dark:from-zinc-800 dark:to-zinc-900">
-                                <div class="grid h-full place-items-center text-sm font-semibold text-zinc-400 dark:text-zinc-600">{{ __('No image') }}</div>
-                            </div>
-                        @endif
-
-                        <div class="grid gap-3 p-4 md:p-5">
-                            <div class="flex items-center justify-between gap-2">
-                                <span class="text-[0.68rem] font-bold uppercase tracking-[0.06em] text-zinc-500 dark:text-zinc-400">{{ $recipe->category?->name }}</span>
-
-                                @if ($recipe->cookbook)
-                                    <span class="inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-semibold leading-none text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">{{ $recipe->cookbook->name }}</span>
-                                @endif
-                            </div>
-
-                            <h2 class="text-lg font-semibold leading-tight text-zinc-900 dark:text-zinc-100">{{ $recipe->name }}</h2>
-
-                            <p class="min-h-[5.2rem] overflow-hidden text-sm leading-6 text-zinc-600 [display:-webkit-box] [-webkit-box-orient:vertical] [-webkit-line-clamp:4] dark:text-zinc-400">{{ \Illuminate\Support\Str::limit(strip_tags((string) $recipe->instructions), 170) }}</p>
-
-                            <div class="flex flex-wrap items-center gap-1.5">
-                                <span class="inline-flex items-center rounded-full bg-sky-100 px-2.5 py-1 text-xs font-semibold leading-none text-sky-800 dark:bg-sky-500/15 dark:text-sky-400">{{ $recipe->complexity?->label() }}</span>
-
-                                @if ($recipe->preparation_time)
-                                    <span class="inline-flex items-center rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-semibold leading-none text-zinc-700 dark:bg-zinc-800 dark:text-zinc-300">{{ $recipe->preparation_time->format('H:i') }}</span>
-                                @endif
-                            </div>
-
-                            <div class="flex items-center justify-between gap-3 text-xs text-zinc-500 dark:text-zinc-500">
-                                <span>{{ $recipe->author?->name }}</span>
-                                <span>{{ $recipe->created_at?->isoFormat('L') }}</span>
-                            </div>
-                        </div>
-                    </a>
-                </article>
+                @include('recipes.partials.card', ['recipe' => $recipe])
             @empty
                 <p class="col-span-full rounded-2xl border border-zinc-200 bg-white p-4 text-center text-sm text-zinc-600 dark:border-zinc-800 dark:bg-zinc-900 dark:text-zinc-400">{{ __('No recipes found.') }}</p>
             @endforelse

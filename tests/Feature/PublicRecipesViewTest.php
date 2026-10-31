@@ -28,6 +28,7 @@ class PublicRecipesViewTest extends TestCase
             'cookbooks' => new Collection,
             'search' => '',
             'quick' => false,
+            'seasonal' => false,
             'complexity' => '',
             'selectedCategory' => null,
             'selectedCookbook' => null,
@@ -51,6 +52,7 @@ class PublicRecipesViewTest extends TestCase
             'cookbooks' => new Collection,
             'search' => '',
             'quick' => false,
+            'seasonal' => false,
             'complexity' => '',
             'selectedCategory' => null,
             'selectedCookbook' => null,
@@ -86,6 +88,8 @@ class PublicRecipesViewTest extends TestCase
 
         $view = $this->view('recipes.show', [
             'recipe' => $recipe,
+            'seasonFoods' => new Collection,
+            'inSeasonFoods' => new Collection,
         ]);
 
         $view->assertSee('aspect-16/10', false);
@@ -110,7 +114,7 @@ class PublicRecipesViewTest extends TestCase
         $recipe->setRelation('ingredients', new Collection);
         $recipe->setRelation('ingredientGroups', new Collection);
 
-        $view = $this->view('recipes.show', ['recipe' => $recipe]);
+        $view = $this->view('recipes.show', ['recipe' => $recipe, 'seasonFoods' => new Collection, 'inSeasonFoods' => new Collection]);
 
         $view->assertSee('<strong>Kochen</strong>', false);
         $view->assertDontSee('alert(1)', false);
