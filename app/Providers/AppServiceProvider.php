@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Auth\OidcProvider;
 use App\Listeners\AcceptPendingCookbookInvitations;
+use App\Models\OAuthClient;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Auth\Events\Verified;
@@ -65,6 +66,8 @@ class AppServiceProvider extends ServiceProvider
         Passport::tokensCan([
             'recipes' => 'Read the recipes you can see and save new private recipes',
         ]);
+
+        Passport::useClientModel(OAuthClient::class);
 
         Passport::tokensExpireIn(now()->addHour());
         Passport::refreshTokensExpireIn(now()->addDays(90));

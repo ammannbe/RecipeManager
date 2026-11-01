@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\SetLocale;
+use App\Models\OAuthClient;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -18,8 +19,13 @@ return Application::configure(basePath: dirname(__DIR__))
             SetLocale::class,
         ]);
 
-        // Guests hitting /oauth/authorize log in through Filament and come back afterwards.
-        $middleware->redirectGuestsTo(fn (): string => route('filament.app.auth.login'));
+        // Guests hitting /oauth/authorize log in through Filament and come back afterwards. Trusted
+        // companion apps go straight to the OIDC login: no input when already logged in there.
+        $middleware->redirectGuestsTo(fn (Request $request): string => $request->is('oauth/authorize')
+            && config('login.oidc.enabled')
+            && OAuthClient::isTrusted($request->query('client_id'))
+                ? route('oidc.redirect')
+                : route('filament.app.auth.login'));
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         // API clients get JSON errors even without an "Accept: application/json" header.

@@ -19,6 +19,9 @@
     </source>
     <php>
         <env name="APP_ENV" value="testing"/>
+        <!-- Local DDEV may enable SSO in .ddev/config.local.yaml; tests turn it on themselves. -->
+        <env name="AUTH_OIDC_ENABLED" value="false" force="true"/>
+        <server name="AUTH_OIDC_ENABLED" value="false" force="true"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>

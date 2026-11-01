@@ -139,6 +139,50 @@ class ApiOAuthTest extends TestCase
             ->assertSee(route('passport.authorizations.approve'), false);
     }
 
+    public function test_a_trusted_client_skips_the_approval_screen(): void
+    {
+        $client = $this->client();
+        config(['passport.trusted_clients' => [(string) $client->getKey()]]);
+
+        $response = $this->actingAs(User::factory()->create())
+            ->get(route('passport.authorizations.authorize', $this->authorizeQuery($client)));
+
+        $response->assertRedirect();
+        $this->assertStringStartsWith(self::REDIRECT_URI.'?code=', (string) $response->headers->get('Location'));
+    }
+
+    public function test_a_trusted_client_still_requires_a_verified_email_address(): void
+    {
+        $client = $this->client();
+        config(['passport.trusted_clients' => [(string) $client->getKey()]]);
+
+        $this->actingAs(User::factory()->create(['email_verified_at' => null]))
+            ->get(route('passport.authorizations.authorize', $this->authorizeQuery($client)))
+            ->assertRedirect(route('filament.app.auth.email-verification.prompt'));
+    }
+
+    public function test_guests_of_a_trusted_client_go_to_the_oidc_login_when_enabled(): void
+    {
+        $client = $this->client();
+        config(['passport.trusted_clients' => [(string) $client->getKey()]]);
+        $url = route('passport.authorizations.authorize', $this->authorizeQuery($client));
+
+        $this->get($url)->assertRedirect(route('filament.app.auth.login'));
+
+        config(['login.oidc.enabled' => true]);
+
+        $this->get($url)->assertRedirect(route('oidc.redirect'));
+        $this->assertSame($url, session('url.intended'));
+    }
+
+    public function test_guests_of_other_clients_keep_the_login_form(): void
+    {
+        config(['login.oidc.enabled' => true]);
+
+        $this->get(route('passport.authorizations.authorize', $this->authorizeQuery($this->client())))
+            ->assertRedirect(route('filament.app.auth.login'));
+    }
+
     public function test_the_recipes_scope_is_accepted(): void
     {
         $this->actingAs(User::factory()->create())
