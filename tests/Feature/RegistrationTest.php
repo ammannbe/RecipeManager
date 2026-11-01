@@ -8,6 +8,7 @@ use App\Models\User;
 use Filament\Facades\Filament;
 use Illuminate\Support\Facades\Notification;
 use Livewire\Livewire;
+use RuntimeException;
 use Tests\TestCase;
 
 class RegistrationTest extends TestCase
@@ -53,5 +54,27 @@ class RegistrationTest extends TestCase
             ->assertHasFormErrors(['name' => 'unique']);
 
         $this->assertDatabaseMissing('users', ['email' => 'other@example.com']);
+    }
+
+    public function test_a_failed_user_insert_leaves_no_author_behind(): void
+    {
+        User::creating(fn () => throw new RuntimeException('Insert failed'));
+
+        try {
+            Livewire::test(Register::class)
+                ->fillForm([
+                    'name' => 'Orphan Cook',
+                    'email' => 'orphan@example.com',
+                    'password' => 'secret-password-123',
+                    'passwordConfirmation' => 'secret-password-123',
+                ])
+                ->call('register');
+
+            $this->fail('The registration should have failed.');
+        } catch (RuntimeException $exception) {
+            $this->assertSame('Insert failed', $exception->getMessage());
+        }
+
+        $this->assertDatabaseMissing('authors', ['name' => 'Orphan Cook']);
     }
 }

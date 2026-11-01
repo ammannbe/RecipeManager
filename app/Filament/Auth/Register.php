@@ -12,6 +12,11 @@ use SensitiveParameter;
 
 class Register extends BaseRegister
 {
+    /**
+     * The author is created before the user; roll it back if the user insert fails.
+     */
+    protected ?bool $hasDatabaseTransactions = true;
+
     protected function getNameFormComponent(): Component
     {
         return TextInput::make('name')
