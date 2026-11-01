@@ -207,5 +207,6 @@
     "Show recipes": "Show recipes",
     "Reset all": "Reset all",
     "Remove filter :name": "Remove filter :name",
-    "Close": "Close"
+    "Close": "Close",
+    "Registration failed. Please try again.": "Registration failed. Please try again."
 }

@@ -207,5 +207,6 @@
     "Show recipes": "Rezepte anzeigen",
     "Reset all": "Alle zurücksetzen",
     "Remove filter :name": "Filter :name entfernen",
-    "Close": "Schliessen"
+    "Close": "Schliessen",
+    "Registration failed. Please try again.": "Die Registrierung ist fehlgeschlagen. Bitte versuche es nochmals."
 }
