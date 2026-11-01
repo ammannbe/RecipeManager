@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Auth\OidcProvider;
 use App\Listeners\AcceptPendingCookbookInvitations;
 use App\Models\User;
 use Illuminate\Auth\Events\Registered;
@@ -11,6 +12,7 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\ServiceProvider;
 use Laravel\Passport\Passport;
+use SocialiteProviders\Manager\SocialiteWasCalled;
 use Symfony\Component\HttpFoundation\Response;
 
 class AppServiceProvider extends ServiceProvider
@@ -32,6 +34,9 @@ class AppServiceProvider extends ServiceProvider
 
         Event::listen(Registered::class, AcceptPendingCookbookInvitations::class);
         Event::listen(Verified::class, AcceptPendingCookbookInvitations::class);
+        Event::listen(function (SocialiteWasCalled $event): void {
+            $event->extendSocialite('oidc', OidcProvider::class);
+        });
 
         Blade::directive('nl2br', function (string $expression) {
             return "<?php echo nl2br(e($expression)); ?>";

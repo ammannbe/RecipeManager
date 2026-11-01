@@ -208,5 +208,19 @@
     "Reset all": "Reset all",
     "Remove filter :name": "Remove filter :name",
     "Close": "Close",
-    "Registration failed. Please try again.": "Registration failed. Please try again."
+    "Registration failed. Please try again.": "Registration failed. Please try again.",
+    "The sign-in did not return a user.": "The sign-in did not return a user.",
+    "This account is disabled.": "This account is disabled.",
+    "Your e-mail address must be verified with the sign-in provider.": "Your e-mail address must be verified with the sign-in provider.",
+    "There is no account for this e-mail address.": "There is no account for this e-mail address.",
+    "You do not have access to this app.": "You do not have access to this app.",
+    "This sign-in is already linked to another account.": "This sign-in is already linked to another account.",
+    "This account is already linked to another sign-in.": "This account is already linked to another sign-in.",
+    "The sign-in failed. Please try again.": "The sign-in failed. Please try again.",
+    "The sign-in is linked to your account.": "The sign-in is linked to your account.",
+    "Sign in with :provider": "Sign in with :provider",
+    "Link :provider": "Link :provider",
+    "Unlink :provider": "Unlink :provider",
+    "You can then only sign in with your password.": "You can then only sign in with your password.",
+    "The sign-in is unlinked.": "The sign-in is unlinked."
 }

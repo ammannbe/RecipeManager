@@ -63,6 +63,29 @@ If any command fails, repeat the process from the beginning.
 
 * Use Filament authentication.
 * Users should be able to sign-up themselves.
+* Self-registration (`App\Filament\Auth\Register`) runs in a DB transaction, has a honeypot and a
+  3 s time trap; `users:prune-unverified` (daily) deletes unverified users after 7 days.
+
+### Optional OpenID Connect login (SSO)
+
+* Configured in `config/login.php` (`AUTH_LOCAL_*`, `AUTH_OIDC_*`) and `config/services.php` (`oidc`:
+  issuer, client id/secret). Off by default; any OIDC provider works (Laravel Socialite +
+  `kovah/laravel-socialite-oidc`, JWT signature verified). `App\Auth\OidcProvider` additionally
+  checks `iss`, `aud`/`azp` and `exp` (`OidcClaims`).
+* Routes `/auth/oidc/redirect` and `/auth/oidc/callback` (`OidcController`), matching in
+  `App\Auth\OidcLogin`: by `users.oidc_sub`, otherwise by e-mail only if the provider marks it as
+  verified. Linking an unverified local account verifies it and removes its password (someone else
+  may have registered the address). Unknown users get an account (`AUTH_OIDC_REGISTRATION`) with a
+  unique author name and no password. `AUTH_OIDC_REQUIRED_GROUP` checks the `groups` claim.
+* `AUTH_LOCAL_ENABLED=false` hides the password form (`/admin/login?local=1` shows it) and allows
+  password logins for admins only (emergency access). Password reset stays available, so SSO-only
+  users can set a password (rollback path). `AUTH_LOCAL_REGISTRATION=false` removes registration.
+* Profile: "Link …" / "Unlink …" (unlink only with a password, otherwise the account is lost).
+* Local Pocket ID: `.ddev/docker-compose.pocket-id.yaml` (`https://recipemanager.ddev.site:14111`,
+  first start `/setup`; dev-only keys; Application Configuration via env (`UI_CONFIG_DISABLED=true`),
+  mails to Mailpit). The app uses `AUTH_OIDC_ISSUER=http://pocket-id:1411`.
+  Set the `AUTH_OIDC_*` values in `.ddev/config.local.yaml` (`web_environment`), not in git.
+  Tests mock Socialite (`tests/Feature/OidcLoginTest.php`).
 
 ## Companion App API (Shoppinglist)
 
