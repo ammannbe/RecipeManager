@@ -122,10 +122,23 @@ class OidcLogin
         $user->forceFill($attributes)->save();
 
         if (! $wasVerified) {
+            // Without a password AuthenticateSession no longer checks the sessions, so end them here.
+            $this->endSessions($user);
+
             event(new Verified($user));
         }
 
         return $user;
+    }
+
+    private function endSessions(User $user): void
+    {
+        if (config('session.driver') === 'database') {
+            DB::connection(config('session.connection'))
+                ->table(config('session.table', 'sessions'))
+                ->where('user_id', $user->getKey())
+                ->delete();
+        }
     }
 
     private function register(SocialiteUser $identity, string $sub, string $email): User

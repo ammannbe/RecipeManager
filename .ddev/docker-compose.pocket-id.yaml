@@ -1,5 +1,5 @@
 # Local Pocket ID (OpenID Connect provider) for testing the optional SSO login.
-# Browser: https://recipemanager.ddev.site:14111 (first start: /setup), the app reaches it at http://pocket-id:1411.
+# Browser: https://recipemanager.ddev.site:14111 (first start: /setup), apps reach it at http://ddev-RecipeManager-pocket-id:1411.
 # Development only: the encryption key below must never be used elsewhere.
 services:
   pocket-id:
@@ -15,7 +15,8 @@ services:
       - VIRTUAL_HOST=$DDEV_HOSTNAME
       - HTTPS_EXPOSE=14111:1411
       - APP_URL=https://${DDEV_HOSTNAME}:14111
-      - INTERNAL_APP_URL=http://pocket-id:1411
+      # Container name, so the DDEV projects of the other apps reach it too (shared ddev_default network).
+      - INTERNAL_APP_URL=http://ddev-${DDEV_SITENAME}-pocket-id:1411
       - ENCRYPTION_KEY=local-development-only-key-0123456789
       - STATIC_API_KEY=local-development-only-api-key
       - TRUST_PROXY=true
