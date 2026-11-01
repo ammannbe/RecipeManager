@@ -45,4 +45,22 @@ return [
 
     'connection' => env('PASSPORT_CONNECTION'),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Trusted Clients
+    |--------------------------------------------------------------------------
+    |
+    | Comma separated client IDs of own companion apps (e.g. Shoppinglist).
+    | They skip the approval screen for verified users, and with the OpenID
+    | Connect login enabled, guests are sent to it directly instead of the
+    | login form, so connecting runs without any input when the user is
+    | already logged in at the provider.
+    |
+    */
+
+    'trusted_clients' => array_values(array_filter(array_map(
+        'trim',
+        explode(',', (string) env('PASSPORT_TRUSTED_CLIENTS', '')),
+    ))),
+
 ];

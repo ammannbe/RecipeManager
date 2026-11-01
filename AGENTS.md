@@ -115,6 +115,11 @@ JSON API for the companion app "Shoppinglist", secured with Laravel Passport
   Scope `recipes` is optional. Access tokens live 1 hour, refresh tokens 90 days. The approval
   screen (`resources/views/passport/authorize.blade.php`) is skipped while the user still has a
   valid access token for the client.
+* Trusted clients (`PASSPORT_TRUSTED_CLIENTS`, comma separated client IDs, `App\Models\OAuthClient`):
+  own companion apps skip the approval screen for verified users; with the OIDC login enabled,
+  guests of these clients go straight to `/auth/oidc/redirect` instead of the login form
+  (`redirectGuestsTo` in `bootstrap/app.php`), so connecting needs no input when the user is
+  already logged in at the provider.
 * Create the client once per Shoppinglist installation and give its ID and secret to Shoppinglist
   (the secret is shown only once):
 
