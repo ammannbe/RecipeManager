@@ -3,6 +3,7 @@
 namespace App\Providers\Filament;
 
 use App\Filament\Auth\EditProfile;
+use App\Filament\Auth\Login;
 use App\Filament\Auth\Register;
 use App\Http\Middleware\SetLocale;
 use Filament\Http\Middleware\Authenticate;
@@ -28,13 +29,15 @@ class AppPanelProvider extends PanelProvider
 {
     public function panel(Panel $panel): Panel
     {
-        return $panel
+        $localLogin = (bool) config('login.local.enabled');
+
+        $panel = $panel
             ->default()
             ->id('app')
             ->path('admin')
             ->favicon(asset('favicon.ico'))
-            ->login()
-            ->registration(Register::class)
+            ->login(Login::class)
+            // Kept without the local login, so that admins and SSO-only users can still set a password.
             ->passwordReset()
             ->emailVerification()
             ->profile(EditProfile::class, isSimple: false)
@@ -51,6 +54,10 @@ class AppPanelProvider extends PanelProvider
                 AccountWidget::class,
                 FilamentInfoWidget::class,
             ])
+            ->renderHook(
+                PanelsRenderHook::AUTH_LOGIN_FORM_AFTER,
+                fn (): View => view('filament.oidc-login-button'),
+            )
             ->renderHook(
                 PanelsRenderHook::USER_MENU_BEFORE,
                 fn (): View => view('filament.frontend-link'),
@@ -74,5 +81,11 @@ class AppPanelProvider extends PanelProvider
             ->authMiddleware([
                 Authenticate::class,
             ]);
+
+        if ($localLogin && config('login.local.registration')) {
+            $panel->registration(Register::class);
+        }
+
+        return $panel;
     }
 }

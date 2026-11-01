@@ -208,5 +208,19 @@
     "Reset all": "Alle zurücksetzen",
     "Remove filter :name": "Filter :name entfernen",
     "Close": "Schliessen",
-    "Registration failed. Please try again.": "Die Registrierung ist fehlgeschlagen. Bitte versuche es nochmals."
+    "Registration failed. Please try again.": "Die Registrierung ist fehlgeschlagen. Bitte versuche es nochmals.",
+    "The sign-in did not return a user.": "Die Anmeldung hat keinen Benutzer geliefert.",
+    "This account is disabled.": "Dieses Konto ist deaktiviert.",
+    "Your e-mail address must be verified with the sign-in provider.": "Deine E-Mail-Adresse muss beim Anmeldedienst bestätigt sein.",
+    "There is no account for this e-mail address.": "Für diese E-Mail-Adresse gibt es kein Konto.",
+    "You do not have access to this app.": "Du hast keinen Zugang zu dieser App.",
+    "This sign-in is already linked to another account.": "Diese Anmeldung ist bereits mit einem anderen Konto verknüpft.",
+    "This account is already linked to another sign-in.": "Dieses Konto ist bereits mit einer anderen Anmeldung verknüpft.",
+    "The sign-in failed. Please try again.": "Die Anmeldung ist fehlgeschlagen. Bitte versuche es nochmals.",
+    "The sign-in is linked to your account.": "Die Anmeldung ist mit deinem Konto verknüpft.",
+    "Sign in with :provider": "Anmelden mit :provider",
+    "Link :provider": "Mit :provider verknüpfen",
+    "Unlink :provider": "Verknüpfung mit :provider lösen",
+    "You can then only sign in with your password.": "Danach kannst du dich nur noch mit deinem Passwort anmelden.",
+    "The sign-in is unlinked.": "Die Verknüpfung ist gelöst."
 }

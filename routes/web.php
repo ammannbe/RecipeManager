@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Auth\OidcController;
 use App\Http\Controllers\CookbookInvitationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RecipeController;
@@ -16,3 +17,8 @@ Route::get('/cookbook-invitations/{token}', [CookbookInvitationController::class
     ->name('cookbook-invitations.show');
 
 Route::get('/locale/{locale}', [ProfileController::class, 'locale'])->name('profile.locale');
+
+Route::middleware('throttle:20,1')->group(function () {
+    Route::get('/auth/oidc/redirect', [OidcController::class, 'redirect'])->name('oidc.redirect');
+    Route::get('/auth/oidc/callback', [OidcController::class, 'callback'])->name('oidc.callback');
+});

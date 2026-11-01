@@ -8,9 +8,11 @@
     "require": {
         "php": "^8.3",
         "filament/filament": "^5.6",
+        "kovah/laravel-socialite-oidc": "^0.8.0",
         "lamansky/fraction": "^1.0",
         "laravel/framework": "^13.8",
         "laravel/passport": "^13.0",
+        "laravel/socialite": "^5.31",
         "laravel/tinker": "^3.0",
         "livewire/livewire": "^4.3"
     },
