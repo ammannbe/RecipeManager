@@ -7,6 +7,7 @@ use App\Filament\Auth\Login;
 use App\Models\Author;
 use App\Models\User;
 use Filament\Facades\Filament;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Testing\TestResponse;
 use Laravel\Socialite\Facades\Socialite;
@@ -116,8 +117,12 @@ class OidcLoginTest extends TestCase
     public function test_an_unverified_local_account_loses_its_password_when_linked(): void
     {
         $user = User::factory()->create(['email' => 'cook@example.com', 'email_verified_at' => null]);
+        config(['session.driver' => 'database']);
+        DB::table('sessions')->insert(['id' => 'foreign-session', 'user_id' => $user->id, 'payload' => '', 'last_activity' => now()->getTimestamp()]);
 
         $this->signIn();
+
+        $this->assertDatabaseMissing('sessions', ['id' => 'foreign-session']);
 
         $user->refresh();
         $this->assertAuthenticatedAs($user);

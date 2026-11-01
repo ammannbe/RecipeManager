@@ -74,8 +74,8 @@ If any command fails, repeat the process from the beginning.
   checks `iss`, `aud`/`azp` and `exp` (`OidcClaims`).
 * Routes `/auth/oidc/redirect` and `/auth/oidc/callback` (`OidcController`), matching in
   `App\Auth\OidcLogin`: by `users.oidc_sub`, otherwise by e-mail only if the provider marks it as
-  verified. Linking an unverified local account verifies it and removes its password (someone else
-  may have registered the address). Unknown users get an account (`AUTH_OIDC_REGISTRATION`) with a
+  verified. Linking an unverified local account verifies it, removes its password and ends its sessions
+  (someone else may have registered the address; `AuthenticateSession` skips users without password). Unknown users get an account (`AUTH_OIDC_REGISTRATION`) with a
   unique author name and no password. `AUTH_OIDC_REQUIRED_GROUP` checks the `groups` claim.
 * `AUTH_LOCAL_ENABLED=false` hides the password form (`/admin/login?local=1` shows it) and allows
   password logins for admins only (emergency access). Password reset stays available, so SSO-only
@@ -83,7 +83,8 @@ If any command fails, repeat the process from the beginning.
 * Profile: "Link …" / "Unlink …" (unlink only with a password, otherwise the account is lost).
 * Local Pocket ID: `.ddev/docker-compose.pocket-id.yaml` (`https://recipemanager.ddev.site:14111`,
   first start `/setup`; dev-only keys; Application Configuration via env (`UI_CONFIG_DISABLED=true`),
-  mails to Mailpit). The app uses `AUTH_OIDC_ISSUER=http://pocket-id:1411`.
+  mails to Mailpit). The apps use `AUTH_OIDC_ISSUER=http://ddev-RecipeManager-pocket-id:1411` (also Shoppinglist and
+  Chorelist, which reach it through the shared `ddev_default` network).
   Set the `AUTH_OIDC_*` values in `.ddev/config.local.yaml` (`web_environment`), not in git.
   Tests mock Socialite (`tests/Feature/OidcLoginTest.php`).
 
