@@ -1,7 +1,8 @@
 {{-- Above the login and registration form; $register: the registration page (needs AUTH_OIDC_REGISTRATION). --}}
+{{-- Inline styles: the panel uses Filament's prebuilt CSS, which lacks most Tailwind utilities. --}}
 @if (config('login.oidc.enabled') && (! ($register ?? false) || config('login.oidc.registration')))
     @php($provider = App\Auth\OidcLabel::get())
-    <div class="flex flex-col gap-y-4">
+    <div style="display: flex; flex-direction: column; row-gap: 1rem;">
         <x-filament::button
             tag="a"
             :href="route('oidc.redirect')"
@@ -13,17 +14,17 @@
         </x-filament::button>
 
         @if (config('login.oidc.signup_url'))
-            <p class="text-center text-sm text-gray-500 dark:text-gray-400">
+            <p style="margin: 0; text-align: center; font-size: 0.875rem; color: var(--gray-500);">
                 {{ __('No :provider account yet?', ['provider' => $provider]) }}
-                <a class="underline" href="{{ config('login.oidc.signup_url') }}">{{ __('Create one') }}</a>
+                <x-filament::link :href="config('login.oidc.signup_url')">{{ __('Create one') }}</x-filament::link>
             </p>
         @endif
 
         @if (($register ?? false) || config('login.local.enabled'))
-            <div class="flex items-center gap-x-3 text-sm text-gray-500 dark:text-gray-400">
-                <span class="h-px flex-1 bg-gray-200 dark:bg-white/10"></span>
+            <div style="display: flex; align-items: center; column-gap: 0.75rem; font-size: 0.875rem; color: var(--gray-500);">
+                <span style="height: 1px; flex: 1; background: currentColor; opacity: 0.3;"></span>
                 {{ __('or') }}
-                <span class="h-px flex-1 bg-gray-200 dark:bg-white/10"></span>
+                <span style="height: 1px; flex: 1; background: currentColor; opacity: 0.3;"></span>
             </div>
         @endif
     </div>
