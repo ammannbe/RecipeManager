@@ -4,11 +4,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>{{ __('Season calendar') }} · {{ config('app.name') }}</title>
-    <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="any">
-    <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon-32x32.png') }}">
-    <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('favicon-16x16.png') }}">
-    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('apple-touch-icon.png') }}">
-    <link rel="manifest" href="{{ asset('site.webmanifest') }}">
+    @include('partials.favicon')
+    @include('partials.meta', ['title' => __('Season calendar').' · '.config('app.name')])
     <script>
         (function () {
             var theme = localStorage.getItem('theme');
@@ -40,7 +37,7 @@
                 <h1 class="text-3xl font-black leading-tight tracking-[-0.04em] text-zinc-900 md:text-5xl dark:text-zinc-100">{{ __('Season calendar') }}</h1>
                 <p class="text-sm text-zinc-600 dark:text-zinc-400">
                     {{ trans_choice(':count food is in season in :month.|:count foods are in season in :month.', $freshCount, ['count' => $freshCount, 'month' => $months[$month]]) }}
-                    <a href="{{ route('recipes.index', ['seasonal' => 1]) }}" class="font-semibold text-cyan-700 hover:underline dark:text-cyan-400">{{ __('Show seasonal recipes') }}</a>
+                    <a href="{{ route('recipes.index', ['seasonal' => 1]) }}" class="font-semibold text-violet-700 hover:underline dark:text-violet-400">{{ __('Show seasonal recipes') }}</a>
                 </p>
             </div>
 
@@ -52,7 +49,7 @@
                 </a>
 
                 <label for="month" class="sr-only">{{ __('Month') }}</label>
-                <select id="month" name="month" onchange="this.form.requestSubmit()" class="h-9 rounded-xl border border-zinc-300 bg-white px-3 text-sm text-zinc-800 shadow-sm outline-none transition focus:border-cyan-600 focus:ring-2 focus:ring-cyan-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100">
+                <select id="month" name="month" onchange="this.form.requestSubmit()" class="h-9 rounded-xl border border-zinc-300 bg-white px-3 text-sm text-zinc-800 shadow-sm outline-none transition focus:border-violet-600 focus:ring-2 focus:ring-violet-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100">
                     @foreach ($months as $value => $name)
                         <option value="{{ $value }}" @selected($value === $month)>{{ $name }}</option>
                     @endforeach

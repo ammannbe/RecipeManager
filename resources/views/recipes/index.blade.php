@@ -4,11 +4,8 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
     <title>{{ config('app.name') }}</title>
-    <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="any">
-    <link rel="icon" type="image/png" sizes="32x32" href="{{ asset('favicon-32x32.png') }}">
-    <link rel="icon" type="image/png" sizes="16x16" href="{{ asset('favicon-16x16.png') }}">
-    <link rel="apple-touch-icon" sizes="180x180" href="{{ asset('apple-touch-icon.png') }}">
-    <link rel="manifest" href="{{ asset('site.webmanifest') }}">
+    @include('partials.favicon')
+    @include('partials.meta')
     <script>
         (function () {
             var theme = localStorage.getItem('theme');
@@ -31,9 +28,9 @@
     <main class="mx-auto grid w-full max-w-7xl gap-6 px-4 sm:px-6 [&>*]:min-w-0 py-8 pb-32 md:pb-20 lg:gap-8 lg:py-10">
         @php($panelFilterCount = collect($activeFilters)->where('key', '!=', 'search')->count())
         @php($labelClass = 'text-[0.6rem] font-bold uppercase tracking-widest text-zinc-500 dark:text-zinc-400')
-        @php($fieldClass = 'h-11 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm text-zinc-800 shadow-sm outline-none transition focus:border-cyan-600 focus:ring-2 focus:ring-cyan-500/20 md:h-9 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100')
+        @php($fieldClass = 'h-11 w-full rounded-xl border border-zinc-300 bg-white px-3 text-sm text-zinc-800 shadow-sm outline-none transition focus:border-violet-600 focus:ring-2 focus:ring-violet-500/20 md:h-9 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-100')
         {{-- Checked state via CSS: in the mobile sheet changes are only applied on submit --}}
-        @php($optionClass = 'inline-flex min-h-9 cursor-pointer select-none items-center rounded-full border border-zinc-300 bg-white px-3 py-1 text-[0.65rem] font-bold uppercase tracking-[0.08em] leading-none text-zinc-700 transition hover:border-zinc-400 hover:text-zinc-900 has-checked:border-cyan-600 has-checked:bg-cyan-50 has-checked:text-cyan-700 has-checked:shadow-sm has-focus-visible:ring-2 has-focus-visible:ring-cyan-500/40 md:min-h-7 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:text-zinc-100 dark:has-checked:border-cyan-500 dark:has-checked:bg-cyan-500/10 dark:has-checked:text-cyan-400')
+        @php($optionClass = 'inline-flex min-h-9 cursor-pointer select-none items-center rounded-full border border-zinc-300 bg-white px-3 py-1 text-[0.65rem] font-bold uppercase tracking-[0.08em] leading-none text-zinc-700 transition hover:border-zinc-400 hover:text-zinc-900 has-checked:border-violet-600 has-checked:bg-violet-50 has-checked:text-violet-700 has-checked:shadow-sm has-focus-visible:ring-2 has-focus-visible:ring-violet-500/40 md:min-h-7 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:text-zinc-100 dark:has-checked:border-violet-500 dark:has-checked:bg-violet-500/10 dark:has-checked:text-violet-400')
 
         {{-- Filters: inline with instant submit on desktop, a bottom sheet applied with "Show recipes" on phones --}}
         <section
@@ -56,7 +53,7 @@
                             placeholder="{{ __('Search for recipes...') }}"
                             class="{{ $fieldClass }} pr-11 placeholder:text-zinc-400 dark:placeholder:text-zinc-500 [&::-webkit-search-cancel-button]:hidden"
                         >
-                        <button type="submit" class="absolute inset-y-0 right-0 inline-flex w-11 items-center justify-center rounded-r-xl text-zinc-500 transition hover:text-cyan-700 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-cyan-600 dark:text-zinc-400 dark:hover:text-cyan-400" aria-label="{{ __('Search') }}">
+                        <button type="submit" class="absolute inset-y-0 right-0 inline-flex w-11 items-center justify-center rounded-r-xl text-zinc-500 transition hover:text-violet-700 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-violet-600 dark:text-zinc-400 dark:hover:text-violet-400" aria-label="{{ __('Search') }}">
                             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" class="h-4.5 w-4.5">
                                 <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2" />
                                 <path d="m20 20-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" />
@@ -66,7 +63,7 @@
 
                     <button
                         type="button"
-                        class="hidden h-9 shrink-0 items-center gap-2 rounded-xl border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-700 shadow-sm transition hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-600 md:inline-flex dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                        class="hidden h-9 shrink-0 items-center gap-2 rounded-xl border border-zinc-300 bg-white px-3 text-sm font-semibold text-zinc-700 shadow-sm transition hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600 md:inline-flex dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
                         @click="expanded = ! expanded"
                         aria-expanded="{{ $panelFilterCount > 0 ? 'true' : 'false' }}"
                         :aria-expanded="expanded.toString()"
@@ -78,7 +75,7 @@
                         {{ __('Filters') }}
 
                         @if ($panelFilterCount > 0)
-                            <span class="inline-flex min-w-5 items-center justify-center rounded-full bg-cyan-50 px-1.5 py-0.5 text-[0.65rem] leading-none font-bold text-cyan-700 dark:bg-cyan-500/10 dark:text-cyan-400">{{ $panelFilterCount }}</span>
+                            <span class="inline-flex min-w-5 items-center justify-center rounded-full bg-violet-50 px-1.5 py-0.5 text-[0.65rem] leading-none font-bold text-violet-700 dark:bg-violet-500/10 dark:text-violet-400">{{ $panelFilterCount }}</span>
                         @endif
 
                         <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" class="h-4 w-4 text-zinc-500 transition dark:text-zinc-400" :class="{ 'rotate-180': expanded }">
@@ -92,7 +89,7 @@
                         @foreach ($activeFilters as $filter)
                             <a
                                 href="{{ $filter['url'] }}"
-                                class="inline-flex h-8 max-w-full items-center gap-1 rounded-full border border-cyan-600/30 bg-cyan-50 pr-1.5 pl-3 text-xs font-semibold text-cyan-800 transition hover:border-cyan-600 hover:bg-cyan-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-600 dark:border-cyan-500/30 dark:bg-cyan-500/10 dark:text-cyan-300 dark:hover:border-cyan-500 dark:hover:bg-cyan-500/20"
+                                class="inline-flex h-8 max-w-full items-center gap-1 rounded-full border border-violet-600/30 bg-violet-50 pr-1.5 pl-3 text-xs font-semibold text-violet-800 transition hover:border-violet-600 hover:bg-violet-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600 dark:border-violet-500/30 dark:bg-violet-500/10 dark:text-violet-300 dark:hover:border-violet-500 dark:hover:bg-violet-500/20"
                                 aria-label="{{ __('Remove filter :name', ['name' => $filter['label']]) }}"
                                 data-filter-chip="{{ $filter['key'] }}"
                             >
@@ -103,7 +100,7 @@
                             </a>
                         @endforeach
 
-                        <a href="{{ route('recipes.index') }}" class="inline-flex h-8 items-center rounded-full px-2 text-xs font-semibold text-zinc-600 underline decoration-zinc-300 underline-offset-4 transition hover:text-zinc-900 hover:decoration-zinc-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-600 dark:text-zinc-400 dark:decoration-zinc-600 dark:hover:text-zinc-100">{{ __('Reset all') }}</a>
+                        <a href="{{ route('recipes.index') }}" class="inline-flex h-8 items-center rounded-full px-2 text-xs font-semibold text-zinc-600 underline decoration-zinc-300 underline-offset-4 transition hover:text-zinc-900 hover:decoration-zinc-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600 dark:text-zinc-400 dark:decoration-zinc-600 dark:hover:text-zinc-100">{{ __('Reset all') }}</a>
                     </div>
                 @endif
 
@@ -135,7 +132,7 @@
                         <button
                             type="button"
                             x-ref="close"
-                            class="inline-flex h-11 w-11 items-center justify-center rounded-xl text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-600 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                            class="inline-flex h-11 w-11 items-center justify-center rounded-xl text-zinc-600 transition hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600 dark:text-zinc-400 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
                             @click="closeSheet()"
                             aria-label="{{ __('Close') }}"
                         >
@@ -222,8 +219,8 @@
                     </div>
 
                     <div class="grid grid-cols-[auto_1fr] gap-3 border-t border-zinc-200 px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] md:hidden dark:border-zinc-800">
-                        <button type="button" class="inline-flex h-11 items-center justify-center rounded-xl border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 shadow-sm transition hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100" @click="clearFields()">{{ __('Reset') }}</button>
-                        <button type="submit" class="inline-flex h-11 items-center justify-center rounded-xl bg-cyan-700 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-cyan-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-600 dark:bg-cyan-500 dark:text-zinc-950 dark:hover:bg-cyan-400">{{ __('Show recipes') }}</button>
+                        <button type="button" class="inline-flex h-11 items-center justify-center rounded-xl border border-zinc-300 bg-white px-4 text-sm font-semibold text-zinc-700 shadow-sm transition hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100" @click="clearFields()">{{ __('Reset') }}</button>
+                        <button type="submit" class="inline-flex h-11 items-center justify-center rounded-xl bg-violet-700 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600 dark:bg-violet-500 dark:text-zinc-950 dark:hover:bg-violet-400">{{ __('Show recipes') }}</button>
                     </div>
                 </div>
             </form>
@@ -232,7 +229,7 @@
                 <button
                     type="button"
                     x-ref="opener"
-                    class="pointer-events-auto inline-flex h-12 items-center gap-2 rounded-full bg-zinc-900 px-5 text-sm font-semibold text-white shadow-[0_10px_30px_-8px_rgba(15,23,42,0.6)] ring-1 ring-white/10 transition hover:bg-zinc-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-600 dark:bg-zinc-100 dark:text-zinc-900 dark:ring-zinc-950/10 dark:hover:bg-white"
+                    class="pointer-events-auto inline-flex h-12 items-center gap-2 rounded-full bg-zinc-900 px-5 text-sm font-semibold text-white shadow-[0_10px_30px_-8px_rgba(15,23,42,0.6)] ring-1 ring-white/10 transition hover:bg-zinc-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600 dark:bg-zinc-100 dark:text-zinc-900 dark:ring-zinc-950/10 dark:hover:bg-white"
                     @click="openSheet()"
                     aria-haspopup="dialog"
                     aria-controls="recipe-filter-panel"
@@ -246,7 +243,7 @@
                     {{ __('Filters') }}
 
                     @if ($panelFilterCount > 0)
-                        <span class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-cyan-500 px-1.5 text-[0.7rem] leading-none font-bold text-zinc-950">{{ $panelFilterCount }}</span>
+                        <span class="inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-violet-500 px-1.5 text-[0.7rem] leading-none font-bold text-zinc-950">{{ $panelFilterCount }}</span>
                     @endif
                 </button>
             </div>
@@ -288,7 +285,7 @@
                                 @class([
                                     'inline-flex h-10 min-w-10 items-center justify-center rounded-lg border px-3 text-sm font-bold transition',
                                     'border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-100' => $page !== $currentPage,
-                                    'border-cyan-600 bg-cyan-50 text-cyan-700 dark:border-cyan-500 dark:bg-cyan-500/10 dark:text-cyan-400' => $page === $currentPage,
+                                    'border-violet-600 bg-violet-50 text-violet-700 dark:border-violet-500 dark:bg-violet-500/10 dark:text-violet-400' => $page === $currentPage,
                                 ])
                                 style="min-width: 2.5rem; height: 2.5rem; padding-inline: 0.75rem;"
                             >

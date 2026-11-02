@@ -5,7 +5,7 @@
     ];
     $accountLink = auth()->check() ? ['label' => __('Backend'), 'url' => url('/admin')] : ['label' => __('Login'), 'url' => url('/admin/login')];
 @endphp
-@php($iconButtonClass = 'inline-flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-300 bg-white text-zinc-700 shadow-sm transition hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-100')
+@php($iconButtonClass = 'inline-flex h-9 w-9 items-center justify-center rounded-xl border border-zinc-300 bg-white text-zinc-700 shadow-sm transition hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-100')
 
 {{-- Not blurred itself: backdrop-filter would make the fixed backdrop relative to the header --}}
 <header class="sticky top-0 z-30" x-data="siteNav" @keydown.escape.window="close()" @keydown="trap($event)" data-site-nav>
@@ -20,8 +20,8 @@
 
     <div class="relative border-b border-zinc-200/80 bg-white/90 backdrop-blur dark:border-zinc-800/80 dark:bg-zinc-950/90">
         <div class="mx-auto flex h-14 w-full max-w-7xl items-center justify-between gap-3 px-4 sm:px-6 md:h-16">
-            <a href="{{ route('recipes.index') }}" class="inline-flex min-w-0 items-center gap-3 rounded-xl font-semibold tracking-tight text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-600 dark:text-zinc-100">
-                <img src="{{ asset('favicon.ico') }}" alt="" class="h-8 w-8 shrink-0 rounded-lg">
+            <a href="{{ route('recipes.index') }}" class="inline-flex min-w-0 items-center gap-3 rounded-xl font-semibold tracking-tight text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600 dark:text-zinc-100">
+                <img src="{{ asset('favicon-96x96.png') }}" alt="" class="h-8 w-8 shrink-0 rounded-lg">
                 <span class="truncate">{{ config('app.name') }}</span>
             </a>
 
@@ -32,8 +32,8 @@
                             href="{{ $link['url'] }}"
                             @if ($link['current']) aria-current="page" @endif
                             @class([
-                                'inline-flex h-9 items-center rounded-xl px-3 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-600',
-                                'bg-cyan-50 text-cyan-700 dark:bg-cyan-500/10 dark:text-cyan-400' => $link['active'],
+                                'inline-flex h-9 items-center rounded-xl px-3 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600',
+                                'bg-violet-50 text-violet-700 dark:bg-violet-500/10 dark:text-violet-400' => $link['active'],
                                 'text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100' => ! $link['active'],
                             ])
                         >{{ $link['label'] }}</a>
@@ -59,13 +59,13 @@
                         </svg>
                     </button>
 
-                    <a href="{{ $accountLink['url'] }}" class="inline-flex h-9 items-center rounded-xl bg-cyan-700 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-cyan-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-600 dark:bg-cyan-500 dark:text-zinc-950 dark:hover:bg-cyan-400">{{ $accountLink['label'] }}</a>
+                    <a href="{{ $accountLink['url'] }}" class="inline-flex h-9 items-center rounded-xl bg-violet-700 px-4 text-sm font-semibold text-white shadow-sm transition hover:bg-violet-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600 dark:bg-violet-500 dark:text-zinc-950 dark:hover:bg-violet-400">{{ $accountLink['label'] }}</a>
                 </div>
             </div>
 
             <button
                 type="button"
-                class="-mr-1.5 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-zinc-700 transition hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-600 md:hidden dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                class="-mr-1.5 inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-zinc-700 transition hover:bg-zinc-100 hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600 md:hidden dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
                 x-ref="toggle"
                 @click="open ? close() : show()"
                 aria-controls="mobile-navigation"
@@ -103,8 +103,8 @@
                         @click="close(false)"
                         @if ($link['current']) aria-current="page" @endif
                         @class([
-                            'flex h-12 items-center rounded-xl px-3 text-base font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-600',
-                            'bg-cyan-50 text-cyan-700 dark:bg-cyan-500/10 dark:text-cyan-400' => $link['active'],
+                            'flex h-12 items-center rounded-xl px-3 text-base font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600',
+                            'bg-violet-50 text-violet-700 dark:bg-violet-500/10 dark:text-violet-400' => $link['active'],
                             'text-zinc-800 hover:bg-zinc-100 dark:text-zinc-200 dark:hover:bg-zinc-900' => ! $link['active'],
                         ])
                     >{{ $link['label'] }}</a>
@@ -122,19 +122,19 @@
                 <button
                     type="button"
                     role="switch"
-                    class="flex h-12 w-full items-center justify-between gap-3 rounded-xl px-3 text-left text-sm font-semibold text-zinc-700 transition hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-600 dark:text-zinc-300 dark:hover:bg-zinc-900"
+                    class="flex h-12 w-full items-center justify-between gap-3 rounded-xl px-3 text-left text-sm font-semibold text-zinc-700 transition hover:bg-zinc-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600 dark:text-zinc-300 dark:hover:bg-zinc-900"
                     @click="toggle()"
                     aria-checked="false"
                     :aria-checked="dark.toString()"
                 >
                     <span>{{ __('Dark mode') }}</span>
-                    <span class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full bg-zinc-300 transition dark:bg-cyan-500" aria-hidden="true">
+                    <span class="relative inline-flex h-6 w-11 shrink-0 items-center rounded-full bg-zinc-300 transition dark:bg-violet-500" aria-hidden="true">
                         <span class="absolute left-0.5 h-5 w-5 rounded-full bg-white shadow transition dark:translate-x-5"></span>
                     </span>
                 </button>
             </div>
 
-            <a href="{{ $accountLink['url'] }}" @click="close(false)" class="flex h-12 items-center justify-center rounded-xl bg-cyan-700 px-4 text-base font-semibold text-white shadow-sm transition hover:bg-cyan-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-cyan-600 dark:bg-cyan-500 dark:text-zinc-950 dark:hover:bg-cyan-400">{{ $accountLink['label'] }}</a>
+            <a href="{{ $accountLink['url'] }}" @click="close(false)" class="flex h-12 items-center justify-center rounded-xl bg-violet-700 px-4 text-base font-semibold text-white shadow-sm transition hover:bg-violet-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-violet-600 dark:bg-violet-500 dark:text-zinc-950 dark:hover:bg-violet-400">{{ $accountLink['label'] }}</a>
         </div>
     </div>
 </header>

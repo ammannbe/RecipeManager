@@ -174,8 +174,13 @@ ddev artisan passport:client --name=Shoppinglist --redirect_uri=https://<shoppin
 
 ## Public Frontend
 
-* Blade + Tailwind v4 + Alpine.js (no Alpine plugins), dark mode via `dark:`, zinc/cyan palette.
+* Blade + Tailwind v4 + Alpine.js (no Alpine plugins), dark mode via `dark:`, zinc/violet palette (violet = the logo color).
   Alpine components live in `resources/js/app.js`; run `ddev npm run build` after changes.
+* Icon: the Narrenhaus jester in violet in a cooking pot, master `src/logo.svg`, rendered to
+  `src/favicon.png` (1024 px, transparent). Favicons (`partials/favicon.blade.php`, also in the
+  panel via `HEAD_END`): `ddev npm run favicon -- --source src/favicon.png --theme '#7c3aed' --bg '#fafafa' --padding-bg '#ede7fd' --clean`.
+  The nav, the panel brand (`filament/brand.blade.php`) and the OAuth page show `favicon-96x96.png`.
+  Link previews: `partials/meta.blade.php` + `public/og-image.png` (1200×630).
 * Navigation `partials/nav.blade.php` (`siteNav`): desktop (≥ md) text links Recipes / Season
   calendar (active pill, `aria-current`), then language, theme and Login/Backend (the only button).
   Phones: hamburger opening a slide-down panel (backdrop, Escape/link closes, focus moved in and

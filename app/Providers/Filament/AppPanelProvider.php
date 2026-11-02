@@ -35,14 +35,15 @@ class AppPanelProvider extends PanelProvider
             ->default()
             ->id('app')
             ->path('admin')
-            ->favicon(asset('favicon.ico'))
+            ->brandLogo(fn (): View => view('filament.brand'))
+            ->brandLogoHeight('2rem')
             ->login(Login::class)
             // Kept without the local login, so that admins and SSO-only users can still set a password.
             ->passwordReset()
             ->emailVerification()
             ->profile(EditProfile::class, isSimple: false)
             ->colors([
-                'primary' => Color::Amber,
+                'primary' => Color::Violet,
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
@@ -54,6 +55,10 @@ class AppPanelProvider extends PanelProvider
                 AccountWidget::class,
                 FilamentInfoWidget::class,
             ])
+            ->renderHook(
+                PanelsRenderHook::HEAD_END,
+                fn (): View => view('partials.favicon'),
+            )
             ->renderHook(
                 PanelsRenderHook::AUTH_LOGIN_FORM_BEFORE,
                 fn (): View => view('filament.oidc-login-button'),

@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>{{ __('Authorize :client', ['client' => $client->name]) }} - {{ config('app.name') }}</title>
-    <link rel="icon" href="{{ asset('favicon.ico') }}" sizes="any">
+    @include('partials.favicon')
     <script>
         (function () {
             var theme = localStorage.getItem('theme');
@@ -19,7 +19,7 @@
 <body class="flex min-h-screen items-center justify-center bg-zinc-50 px-6 py-10 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
     <main class="grid w-full max-w-md gap-5 rounded-2xl border border-zinc-200 bg-white p-6 shadow-[0_18px_35px_-30px_rgba(15,23,42,0.75)] dark:border-zinc-800 dark:bg-zinc-900">
         <header class="flex items-center gap-3">
-            <img src="{{ asset('favicon.ico') }}" alt="{{ config('app.name') }}" class="h-8 w-8 rounded-lg">
+            <img src="{{ asset('favicon-96x96.png') }}" alt="{{ config('app.name') }}" class="h-8 w-8 rounded-lg">
             <h1 class="text-xl font-bold tracking-tight">{{ __('Authorize :client', ['client' => $client->name]) }}</h1>
         </header>
 
