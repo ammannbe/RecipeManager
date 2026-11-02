@@ -15,7 +15,8 @@ db_pull_command:
     ssh "${SSH_USER}@${SSH_HOST}" "cd '${PROJECT_PATH}' && bash -s" <<'REMOTE'
     set -eu -o pipefail
     set -a; source .env; set +a
-    mysqldump --single-transaction --quick --no-tablespaces \
+    # utf8mb4: otherwise the client default (utf8mb3) turns emojis into '?'.
+    mysqldump --single-transaction --quick --no-tablespaces --default-character-set=utf8mb4 \
       -h "${DB_HOST:-127.0.0.1}" -P "${DB_PORT:-3306}" \
       -u "${DB_USERNAME}" -p"${DB_PASSWORD}" "${DB_DATABASE}" \
       | gzip > storage/backups/db.sql.gz
