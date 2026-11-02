@@ -3,12 +3,14 @@
 namespace Tests\Feature;
 
 use App\Auth\OidcClaims;
+use App\Auth\OidcLabel;
 use App\Filament\Auth\Login;
 use App\Models\Author;
 use App\Models\User;
 use Filament\Facades\Filament;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Testing\TestResponse;
 use Laravel\Socialite\Facades\Socialite;
 use Laravel\Socialite\Two\AbstractProvider;
@@ -304,6 +306,43 @@ class OidcLoginTest extends TestCase
         $this->get(Filament::getPanel('app')->getLoginUrl())
             ->assertOk()
             ->assertSee('Pocket ID')
-            ->assertSee(route('oidc.redirect'), false);
+            // Above the password form.
+            ->assertSeeInOrder([route('oidc.redirect'), 'type="password"'], false);
+    }
+
+    public function test_the_register_page_offers_the_provider_and_its_signup(): void
+    {
+        config(['login.oidc.signup_url' => 'https://konto.example.com/register']);
+
+        $this->get(Filament::getPanel('app')->getRegistrationUrl())
+            ->assertOk()
+            ->assertSee('Register with Pocket ID')
+            ->assertSee('https://konto.example.com/register', false);
+
+        config(['login.oidc.registration' => false]);
+
+        $this->get(Filament::getPanel('app')->getRegistrationUrl())
+            ->assertOk()
+            ->assertDontSee(route('oidc.redirect'), false);
+    }
+
+    public function test_the_label_falls_back_to_the_name_published_by_pocket_id(): void
+    {
+        config(['login.oidc.label' => null, 'services.oidc.base_url' => 'https://login.example.com']);
+        Http::fake(['login.example.com/api/application-configuration' => Http::response([
+            ['key' => 'appName', 'type' => '', 'value' => 'NarrenLogin'],
+        ])]);
+
+        $this->assertSame('NarrenLogin', OidcLabel::get());
+        $this->get(Filament::getPanel('app')->getLoginUrl())->assertSee('NarrenLogin');
+        Http::assertSentCount(1);
+    }
+
+    public function test_the_label_is_sso_when_the_provider_publishes_no_name(): void
+    {
+        config(['login.oidc.label' => null, 'services.oidc.base_url' => 'https://login.example.com']);
+        Http::fake(['*' => Http::response('Not found', 404)]);
+
+        $this->assertSame(OidcLabel::FALLBACK, OidcLabel::get());
     }
 }

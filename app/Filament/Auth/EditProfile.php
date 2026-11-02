@@ -2,6 +2,7 @@
 
 namespace App\Filament\Auth;
 
+use App\Auth\OidcLabel;
 use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Auth\Pages\EditProfile as BaseEditProfile;
@@ -19,13 +20,13 @@ class EditProfile extends BaseEditProfile
     {
         return [
             Action::make('linkOidc')
-                ->label(fn (): string => __('Link :provider', ['provider' => config('login.oidc.label')]))
+                ->label(fn (): string => __('Link :provider', ['provider' => OidcLabel::get()]))
                 ->icon('heroicon-o-link')
                 ->color('gray')
                 ->url(fn (): string => route('oidc.redirect', ['link' => 1]))
                 ->visible(fn (): bool => config('login.oidc.enabled') && $this->profileUser()->oidc_sub === null),
             Action::make('unlinkOidc')
-                ->label(fn (): string => __('Unlink :provider', ['provider' => config('login.oidc.label')]))
+                ->label(fn (): string => __('Unlink :provider', ['provider' => OidcLabel::get()]))
                 ->icon('heroicon-o-link-slash')
                 ->color('gray')
                 ->requiresConfirmation()

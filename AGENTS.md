@@ -81,6 +81,12 @@ If any command fails, repeat the process from the beginning.
   password logins for admins only (emergency access). Password reset stays available, so SSO-only
   users can set a password (rollback path). `AUTH_LOCAL_REGISTRATION=false` removes registration.
 * Profile: "Link …" / "Unlink …" (unlink only with a password, otherwise the account is lost).
+* Button label `App\Auth\OidcLabel::get()`: `AUTH_OIDC_LABEL`, otherwise the `appName` (Pocket ID's
+  `APP_NAME`) from the public `<issuer>/api/application-configuration` (cached a day, a failure an hour),
+  otherwise "SSO". `filament/oidc-login-button.blade.php` sits above the login and registration form
+  (render hooks `AUTH_LOGIN_FORM_BEFORE`/`AUTH_REGISTER_FORM_BEFORE`; registration only with
+  `AUTH_OIDC_REGISTRATION`); `AUTH_OIDC_SIGNUP_URL` (e.g. the AccountManager's `/register`) adds
+  "No … account yet?". Users switch to SSO voluntarily: linking keeps the local account and its data.
 * Local Pocket ID: `.ddev/docker-compose.pocket-id.yaml` (`https://recipemanager.ddev.site:14111`,
   first start `/setup`; dev-only keys; Application Configuration via env (`UI_CONFIG_DISABLED=true`),
   mails to Mailpit). The apps use `AUTH_OIDC_ISSUER=http://ddev-RecipeManager-pocket-id:1411` (also Shoppinglist and

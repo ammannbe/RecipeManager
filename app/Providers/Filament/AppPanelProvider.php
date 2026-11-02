@@ -55,8 +55,12 @@ class AppPanelProvider extends PanelProvider
                 FilamentInfoWidget::class,
             ])
             ->renderHook(
-                PanelsRenderHook::AUTH_LOGIN_FORM_AFTER,
+                PanelsRenderHook::AUTH_LOGIN_FORM_BEFORE,
                 fn (): View => view('filament.oidc-login-button'),
+            )
+            ->renderHook(
+                PanelsRenderHook::AUTH_REGISTER_FORM_BEFORE,
+                fn (): View => view('filament.oidc-login-button', ['register' => true]),
             )
             ->renderHook(
                 PanelsRenderHook::USER_MENU_BEFORE,
