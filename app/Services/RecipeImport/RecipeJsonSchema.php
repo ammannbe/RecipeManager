@@ -184,6 +184,48 @@ class RecipeJsonSchema
         ];
     }
 
+    /**
+     * The import format as strict JSON schema for the AI recipe import (OpenAI structured output:
+     * every field required, null where optional). No photos and no author; the validator still checks lengths.
+     *
+     * @return array<string, mixed>
+     */
+    public static function aiSchema(): array
+    {
+        $nullable = fn (string $type): array => ['type' => [$type, 'null']];
+        $strings = ['type' => 'array', 'items' => ['type' => 'string']];
+        $object = fn (array $properties): array => [
+            'type' => 'object',
+            'properties' => $properties,
+            'required' => array_keys($properties),
+            'additionalProperties' => false,
+        ];
+
+        $base = [
+            'amount' => $nullable('number'),
+            'amount_max' => $nullable('number'),
+            'unit' => $nullable('string'),
+            'food' => ['type' => 'string'],
+            'attributes' => $strings,
+        ];
+        $ingredient = $object([...$base, 'alternatives' => ['type' => 'array', 'items' => $object($base)]]);
+        $ingredients = ['type' => 'array', 'items' => $ingredient];
+
+        return $object([
+            'name' => ['type' => 'string'],
+            'category' => ['type' => 'string'],
+            'cookbook' => $nullable('string'),
+            'servings' => $nullable('integer'),
+            'serving_type' => $nullable('string'),
+            'complexity' => ['type' => 'string', 'enum' => self::complexities()],
+            'preparation_time' => $nullable('string'),
+            'instructions' => ['type' => 'string'],
+            'tags' => $strings,
+            'ingredients' => $ingredients,
+            'ingredient_groups' => ['type' => 'array', 'items' => $object(['name' => ['type' => 'string'], 'ingredients' => $ingredients])],
+        ]);
+    }
+
     public static function exampleJson(): string
     {
         return json_encode(

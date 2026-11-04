@@ -34,6 +34,7 @@ class User extends Authenticatable implements FilamentUser, HasName, MustVerifyE
         'email_verified_at',
         'password',
         'admin',
+        'ai_enabled',
     ];
 
     protected $hidden = [
@@ -42,9 +43,14 @@ class User extends Authenticatable implements FilamentUser, HasName, MustVerifyE
         'remember_token',
     ];
 
+    protected $attributes = [
+        'ai_enabled' => true,
+    ];
+
     protected $casts = [
         'email_verified_at' => 'datetime',
         'password' => 'hashed',
+        'ai_enabled' => 'boolean',
     ];
 
     protected $with = [

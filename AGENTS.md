@@ -139,6 +139,23 @@ ddev artisan passport:client --name=Shoppinglist --redirect_uri=https://<shoppin
   deployments) or set `PASSPORT_PRIVATE_KEY` / `PASSPORT_PUBLIC_KEY` in the environment.
   Never commit the keys. Rotating the keys invalidates all issued tokens.
 
+## AI features (OpenAI)
+
+* `config/services.php` `openai` (`OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_REASONING_EFFORT`,
+  `OPENAI_IMAGE_MODEL`, `OPENAI_IMAGE_QUALITY`, `OPENAI_HOURLY_LIMIT` default 20). Without a key the
+  AI features are hidden. One global key; `App\Ai\OpenAiClient` (Responses API with strict JSON schema
+  + Images API via `Http`, no SDK, same as Shoppinglist) logs the token usage per request.
+* Access: `App\Ai\RecipeAssistant::allows()`: verified users with `users.ai_enabled` (default on,
+  admins switch it off in the Author resource's user section). Every request (recipe or photo) counts
+  against `ai:<user id>` per hour.
+* Import wizard step 1 "Create with AI": photo/PDF (max. 10 MB) and/or text → `RecipeAssistant::recipe()`
+  (the manual prompt of `ImportPromptBuilder` + `RecipeJsonSchema::aiSchema()`) fills the JSON step; resolve
+  and confirm stay the same. "Manually via chat" stays as collapsed section. Toggle "Also create a photo"
+  calls `RecipeAssistant::image()` after the import (a failure only warns). The recipe edit page has the
+  header action "Create photo with AI". Generated photos are stored like uploads, `is_ai_generated` true.
+* Tests: `phpunit.xml` forces an empty `OPENAI_API_KEY`; tests set a fake key and `Http::fake()`
+  (`tests/Feature/AiRecipeTest.php`).
+
 ## Lookup Requests and Import Decisions
 
 * Foods, units, ingredient attributes and tags use `Requestable` (`requested_by`, `requested_at`):

@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\Recipes\Pages;
 
+use App\Ai\AiException;
+use App\Ai\RecipeAssistant;
 use App\Filament\Resources\Recipes\RecipeResource;
 use App\Models\Recipe;
 use App\Services\Document;
@@ -10,6 +12,7 @@ use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ForceDeleteAction;
 use Filament\Actions\RestoreAction;
+use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Arr;
@@ -85,6 +88,31 @@ class EditRecipe extends EditRecord
                 ->label(__('View'))
                 ->url(fn (): string => route('recipes.show', $this->getRecord()))
                 ->openUrlInNewTab(),
+            Action::make('aiPhoto')
+                ->label(__('Create photo with AI'))
+                ->icon(Heroicon::OutlinedSparkles)
+                ->color('gray')
+                ->visible(fn (): bool => RecipeAssistant::allows(user()))
+                ->requiresConfirmation()
+                ->modalDescription(__('The AI creates a photo of the dish from the name and ingredients. It is added to the photos and marked as AI generated. Unsaved changes are lost.'))
+                ->action(function (RecipeAssistant $assistant): void {
+                    /** @var Recipe $record */
+                    $record = $this->getRecord();
+
+                    set_time_limit(300);
+
+                    try {
+                        $assistant->image(user(), $record);
+                    } catch (AiException $exception) {
+                        Notification::make()->danger()->title(__($exception->getMessage()))->send();
+
+                        return;
+                    }
+
+                    Notification::make()->success()->title(__('Photo created'))->send();
+
+                    $this->redirect(RecipeResource::getUrl('edit', ['record' => $record]));
+                }),
             Action::make('exportJson')
                 ->label(__('Export as JSON'))
                 ->icon(Heroicon::OutlinedArrowDownTray)
