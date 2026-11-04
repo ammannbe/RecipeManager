@@ -11,6 +11,7 @@ use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -88,5 +89,13 @@ class User extends Authenticatable implements FilamentUser, HasName, MustVerifyE
         $name = (string) $this->author->name;
 
         return $name !== '' ? $name : (string) ($this->email ?? 'User');
+    }
+
+    /**
+     * @return HasMany<AiUsage, $this>
+     */
+    public function aiUsages(): HasMany
+    {
+        return $this->hasMany(AiUsage::class);
     }
 }

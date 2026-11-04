@@ -35,7 +35,7 @@ class AiRecipeTest extends TestCase
      */
     private function answer(array $data): array
     {
-        return ['model' => 'test', 'output' => [['type' => 'message', 'content' => [['type' => 'output_text', 'text' => json_encode($data)]]]]];
+        return ['model' => 'test', 'usage' => ['input_tokens' => 120, 'output_tokens' => 80], 'output' => [['type' => 'message', 'content' => [['type' => 'output_text', 'text' => json_encode($data)]]]]];
     }
 
     /**
@@ -74,6 +74,7 @@ class AiRecipeTest extends TestCase
             ->assertNotified('Recipe recognized');
 
         $this->assertSame('Apfelkuchen', json_decode((string) $component->get('data.json'), true)['name']);
+        $this->assertDatabaseHas('ai_usages', ['feature' => 'recipe', 'input_tokens' => 120, 'output_tokens' => 80]);
 
         Http::assertSent(fn (Request $request): bool => $request->url() === 'https://openai.test/v1/responses'
             && $request['text']['format']['strict'] === true
@@ -157,6 +158,8 @@ class AiRecipeTest extends TestCase
         Livewire::test(EditRecipe::class, ['record' => $recipe->getRouteKey()])
             ->callAction('aiPhoto')
             ->assertNotified('Photo created');
+
+        $this->assertDatabaseHas('ai_usages', ['feature' => 'image', 'images' => 1]);
 
         $photo = $recipe->fresh()->photos->sole();
         $this->assertTrue($photo->isAiGenerated());
