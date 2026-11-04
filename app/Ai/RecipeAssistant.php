@@ -88,7 +88,7 @@ class RecipeAssistant
         Storage::disk('recipes')->put($recipe->getKey().'/'.$filename, $binary);
 
         $photos = array_map(fn (Document $photo): array => $photo->jsonSerialize(), array_values($recipe->photos->all()));
-        $photos[] = ['path' => $filename, 'source' => null, 'is_ai_generated' => true];
+        $photos[] = ['path' => $filename, 'source' => (string) config('services.openai.image_source'), 'is_ai_generated' => true];
 
         $recipe->photos = $photos;
         $recipe->save();

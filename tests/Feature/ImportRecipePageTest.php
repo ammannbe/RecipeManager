@@ -644,7 +644,7 @@ class ImportRecipePageTest extends TestCase
         $component = Livewire::withQueryParams(['draft' => $draft->id])
             ->test(ImportRecipe::class)
             ->assertSet('draftId', $draft->id)
-            ->assertWizardCurrentStep(3)
+            ->assertWizardCurrentStep(2)
             ->assertFormFieldExists('cookbook_id')
             ->assertFormFieldExists('is_public');
 

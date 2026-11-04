@@ -144,19 +144,22 @@ ddev artisan passport:client --name=Shoppinglist --redirect_uri=https://<shoppin
 ## AI features (OpenAI)
 
 * `config/services.php` `openai` (`OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_REASONING_EFFORT`,
-  `OPENAI_IMAGE_MODEL`, `OPENAI_IMAGE_QUALITY`, `OPENAI_HOURLY_LIMIT` default 20). Without a key the
+  `OPENAI_IMAGE_MODEL`, `OPENAI_IMAGE_QUALITY`, `OPENAI_IMAGE_SOURCE`, `OPENAI_HOURLY_LIMIT` default 20). Without a key the
   AI features are hidden. One global key; `App\Ai\OpenAiClient` (Responses API with strict JSON schema
   + Images API via `Http`, no SDK, same as Shoppinglist) logs the token usage per request.
 * Access: `App\Ai\RecipeAssistant::allows()`: verified users with `users.ai_enabled` (default on,
   admins switch it off in the Author resource's user section). Every request (recipe or photo) counts
   against `ai:<user id>` per hour.
-* Import wizard step 1 "Create with AI": photo/PDF (max. 10 MB) and/or text → `RecipeAssistant::recipe()`
-  (the manual prompt of `ImportPromptBuilder` + `RecipeJsonSchema::aiSchema()`) fills the JSON step; a web address
-  instead of text is read by `App\Ai\RecipePage` (schema.org Recipe JSON-LD + visible text, public hosts only,
-  redirects checked again against private/reserved IPs, max. 3 MB); resolve
-  and confirm stay the same. "Manually via chat" stays as collapsed section. Toggle "Also create a photo"
-  calls `RecipeAssistant::image()` after the import (a failure only warns). The recipe edit page has the
-  header action "Create photo with AI". Generated photos are stored like uploads, `is_ai_generated` true.
+* Import wizard (`ImportRecipe`): 1. "Read recipe": photo/PDF (max. 10 MB) and/or text or web address, toggle
+  "Also create a photo", collapsible "Paste recipe JSON" (exports; the only input without AI rights), cookbook
+  and visibility. "Next" lets `RecipeAssistant::recipe()` (prompt of `ImportPromptBuilder` +
+  `RecipeJsonSchema::aiSchema()`) write the JSON, only when the inputs changed (`aiInput` hash), and parses it;
+  errors appear at the text field. A web address is read by `App\Ai\RecipePage` (schema.org Recipe JSON-LD +
+  visible text, public hosts only, redirects checked again against private/reserved IPs, max. 3 MB).
+  2. "Resolve", 3. "Confirm". Drafts start at "Resolve" with cookbook and visibility there. The manual way
+  (prompt for an external AI chat) is gone. After the import the photo toggle calls `RecipeAssistant::image()`
+  (a failure only warns); the recipe edit page has "Create photo with AI". Generated photos are stored like
+  uploads with `is_ai_generated` and the source `OPENAI_IMAGE_SOURCE` (default "ChatGPT (OpenAI)").
 * Usage: `RecipeAssistant` records every request in `ai_usages` (user, feature `recipe`/`image`, model,
   input/output tokens, images) from the API's `usage`: basis for billing by usage (later through the
   AccountManager) and the dashboard.

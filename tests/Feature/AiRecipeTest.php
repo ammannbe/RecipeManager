@@ -68,10 +68,15 @@ class AiRecipeTest extends TestCase
         $this->actingAs(User::factory()->create());
 
         $component = Livewire::test(ImportRecipe::class)
-            ->assertSee('Create with AI')
+            ->assertSee('Photo or PDF')
             ->fillForm(['ai_file' => [UploadedFile::fake()->image('recipe.jpg')], 'ai_text' => 'Omas Apfelkuchen'])
-            ->call('createWithAi')
-            ->assertNotified('Recipe recognized');
+            ->goToNextWizardStep()
+            ->assertHasNoFormErrors()
+            ->assertWizardCurrentStep(2);
+
+        // Back and forth with the same inputs costs no second request.
+        $component->goToWizardStep(1)->goToNextWizardStep()->assertWizardCurrentStep(2);
+        Http::assertSentCount(1);
 
         $this->assertSame('Apfelkuchen', json_decode((string) $component->get('data.json'), true)['name']);
         $this->assertDatabaseHas('ai_usages', ['feature' => 'recipe', 'input_tokens' => 120, 'output_tokens' => 80]);
@@ -101,8 +106,8 @@ class AiRecipeTest extends TestCase
 
         Livewire::test(ImportRecipe::class)
             ->fillForm(['ai_text' => 'https://rezepte.test/alt'])
-            ->call('createWithAi')
-            ->assertNotified('Recipe recognized');
+            ->goToNextWizardStep()
+            ->assertWizardCurrentStep(2);
 
         Http::assertSent(function (Request $request): bool {
             if (! str_ends_with($request->url(), '/responses')) {
@@ -119,8 +124,10 @@ class AiRecipeTest extends TestCase
 
         Livewire::test(ImportRecipe::class)
             ->fillForm(['ai_text' => 'https://rezepte.test/link'])
-            ->call('createWithAi')
-            ->assertNotified('Only public web addresses can be read.');
+            ->goToNextWizardStep()
+            ->assertHasFormErrors(['ai_text'])
+            ->assertSee('Only public web addresses can be read.')
+            ->assertWizardCurrentStep(1);
 
         Http::assertNotSent(fn (Request $request): bool => str_contains($request->url(), 'internal.test'));
     }
@@ -129,7 +136,9 @@ class AiRecipeTest extends TestCase
     {
         $this->actingAs(User::factory()->create(['ai_enabled' => false]));
 
-        Livewire::test(ImportRecipe::class)->assertDontSee('Create with AI');
+        Livewire::test(ImportRecipe::class)
+            ->assertDontSee('Photo or PDF')
+            ->assertSee('Paste recipe JSON');
     }
 
     public function test_requests_are_limited_per_hour(): void
@@ -138,10 +147,15 @@ class AiRecipeTest extends TestCase
         $user = User::factory()->create();
         $this->actingAs($user);
 
-        $page = Livewire::test(ImportRecipe::class)->fillForm(['ai_text' => 'Rezept']);
-        $page->call('createWithAi')->assertNotified('Recipe recognized');
-        $page->call('createWithAi')->assertNotified('Recipe recognized');
-        $page->call('createWithAi')->assertNotified('Too many AI requests. Please try again later.');
+        foreach (['Rezept 1', 'Rezept 2'] as $text) {
+            Livewire::test(ImportRecipe::class)->fillForm(['ai_text' => $text])->goToNextWizardStep()->assertHasNoFormErrors();
+        }
+
+        Livewire::test(ImportRecipe::class)
+            ->fillForm(['ai_text' => 'Rezept 3'])
+            ->goToNextWizardStep()
+            ->assertHasFormErrors(['ai_text'])
+            ->assertSee('Too many AI requests. Please try again later.');
 
         Http::assertSentCount(2);
     }
@@ -163,9 +177,25 @@ class AiRecipeTest extends TestCase
 
         $photo = $recipe->fresh()->photos->sole();
         $this->assertTrue($photo->isAiGenerated());
+        $this->assertSame('ChatGPT (OpenAI)', $photo->source());
         Storage::disk('recipes')->assertExists($recipe->getKey().'/'.$photo->name());
 
         Http::assertSent(fn (Request $request): bool => str_contains($request['prompt'], 'Rösti') && $request['output_format'] === 'jpeg');
+    }
+
+    public function test_without_input_the_first_step_asks_for_the_recipe_and_json_still_works(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        Livewire::test(ImportRecipe::class)
+            ->goToNextWizardStep()
+            ->assertHasFormErrors(['ai_text'])
+            ->fillForm(['json' => RecipeJsonSchema::exampleJson()])
+            ->goToNextWizardStep()
+            ->assertHasNoFormErrors()
+            ->assertWizardCurrentStep(2);
+
+        Http::assertNothingSent();
     }
 
     public function test_failed_requests_show_an_error(): void
@@ -175,8 +205,9 @@ class AiRecipeTest extends TestCase
 
         Livewire::test(ImportRecipe::class)
             ->fillForm(['ai_text' => 'Rezept'])
-            ->call('createWithAi')
-            ->assertNotified('The AI request failed.')
+            ->goToNextWizardStep()
+            ->assertHasFormErrors(['ai_text'])
+            ->assertSee('The AI request failed.')
             ->assertSet('data.json', null);
     }
 }
