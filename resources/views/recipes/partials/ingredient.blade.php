@@ -1,4 +1,5 @@
 @php($alternatives = $ingredient->ingredients)
+@php($converter = app(\App\Services\UnitConverter::class))
 
 <li
     x-data="{
@@ -10,14 +11,17 @@
             'namePlural' => $ingredient->unit->name_plural,
             'namePluralShortcut' => $ingredient->unit->name_plural_shortcut,
         ] : null) }},
+        conversion: {{ \Illuminate\Support\Js::from($converter->pageConversion($ingredient)) }},
     }"
 >
-    <span class="font-bold" x-text="formatAmount(amount, amountMax, unit)"></span>
+    <span class="font-bold" x-text="formatAmount(amount, amountMax, unit, conversion)"></span>
     {{ $ingredient->food?->name }}
 
     @if ($ingredient->ingredientAttributes->isNotEmpty())
         <span class="text-zinc-500 dark:text-zinc-400">({{ $ingredient->ingredientAttributes->pluck('name')->implode(', ') }})</span>
     @endif
+
+    <span x-show="converted && conversion" x-cloak class="text-zinc-500 dark:text-zinc-400" x-text="'(' + originalAmount(amount, amountMax, unit) + ')'"></span>
 
     @foreach ($alternatives as $alternative)
         <span
@@ -31,15 +35,18 @@
                     'namePlural' => $alternative->unit->name_plural,
                     'namePluralShortcut' => $alternative->unit->name_plural_shortcut,
                 ] : null) }},
+                conversion: {{ \Illuminate\Support\Js::from($converter->pageConversion($alternative)) }},
             }"
         >
             <em>{{ __('or') }}</em>
-            <span class="font-bold" x-text="formatAmount(amount, amountMax, unit)"></span>
+            <span class="font-bold" x-text="formatAmount(amount, amountMax, unit, conversion)"></span>
             {{ $alternative->food?->name }}
 
             @if ($alternative->ingredientAttributes->isNotEmpty())
                 ({{ $alternative->ingredientAttributes->pluck('name')->implode(', ') }})
             @endif
+
+            <span x-show="converted && conversion" x-cloak x-text="'(' + originalAmount(amount, amountMax, unit) + ')'"></span>
         </span>
     @endforeach
 </li>

@@ -26,6 +26,13 @@ class LookupMerger
             $from = $source->getKey();
             $to = $target->getKey();
 
+            // Piece weights move along; the target's own weight wins.
+            match (true) {
+                $source instanceof Food => $this->mergePivot('food_unit_weights', 'unit_id', 'food_id', $from, $to),
+                $source instanceof Unit => $this->mergePivot('food_unit_weights', 'food_id', 'unit_id', $from, $to),
+                default => null,
+            };
+
             match (true) {
                 $source instanceof Food => DB::table('ingredients')->where('food_id', $from)->update(['food_id' => $to]),
                 $source instanceof Unit => DB::table('ingredients')->where('unit_id', $from)->update(['unit_id' => $to]),

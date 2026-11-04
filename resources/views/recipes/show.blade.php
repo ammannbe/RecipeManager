@@ -293,16 +293,38 @@
                     x-data="stickyWhenFits"
                     :class="{ 'md:sticky': fits }"
                 >
-                    <h2 class="mb-3 text-[1.1rem] font-semibold leading-tight text-zinc-900 dark:text-zinc-100">{{ __('Ingredients') }}</h2>
+                    <div class="mb-3 flex items-center justify-between gap-3">
+                        <h2 class="text-[1.1rem] font-semibold leading-tight text-zinc-900 dark:text-zinc-100">{{ __('Ingredients') }}</h2>
 
-                    <p
-                        x-show="changed"
+                        @if ($convertible ?? false)
+                            <button
+                                type="button"
+                                class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold leading-none transition"
+                                :class="converted
+                                    ? 'border-violet-600 bg-violet-600 text-white hover:bg-violet-700 dark:border-violet-500 dark:bg-violet-500'
+                                    : 'border-zinc-300 text-zinc-700 hover:border-violet-600 hover:text-violet-700 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-violet-500 dark:hover:text-violet-400'"
+                                @click="converted = ! converted"
+                                :aria-pressed="converted.toString()"
+                                title="{{ __('Show amounts in g/kg or ml/dl/l') }}"
+                                data-convert-units
+                            >
+                                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" class="h-3.5 w-3.5">
+                                    <path d="M7 4v16M7 20l-3-3M7 20l3-3M17 20V4M17 4l-3 3M17 4l3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                                {{ __('Convert') }}
+                            </button>
+                        @endif
+                    </div>
+
+                    <div
+                        x-show="changed || converted"
                         x-transition
                         x-cloak
-                        class="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400"
+                        class="mb-4 grid gap-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-400"
                     >
-                        {{ __('Servings amounts are recalculated automatically and may not be perfectly accurate.') }}
-                    </p>
+                        <p x-show="changed">{{ __('Servings amounts are recalculated automatically and may not be perfectly accurate.') }}</p>
+                        <p x-show="converted">{{ __('Converted amounts are approximate (average weights and densities).') }}</p>
+                    </div>
 
                     <div class="space-y-5">
                         @php($ungroupedIngredients = $recipe->ingredients->whereNull('ingredient_group_id'))

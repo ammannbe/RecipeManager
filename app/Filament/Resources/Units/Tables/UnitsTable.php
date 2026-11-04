@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Units\Tables;
 
 use App\Filament\Resources\Concerns\LookupRequests;
 use App\Filament\Resources\Units\UnitResource;
+use App\Models\Unit;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
@@ -15,6 +16,7 @@ use Filament\Actions\RestoreBulkAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
+use Illuminate\Support\Number;
 
 class UnitsTable
 {
@@ -34,6 +36,12 @@ class UnitsTable
                 TextColumn::make('name_plural_shortcut')
                     ->placeholder('-')
                     ->searchable(),
+                TextColumn::make('base_amount')
+                    ->label(__('Unit conversion'))
+                    ->state(fn (Unit $record): ?string => $record->measure === null || $record->base_amount === null
+                        ? null
+                        : '1 '.($record->name_shortcut ?? $record->name).' = '.Number::format($record->base_amount, maxPrecision: 4).' '.$record->measure->baseUnit())
+                    ->placeholder(__('per food')),
                 LookupRequests::column(),
                 TextColumn::make('created_at')
                     ->dateTime()

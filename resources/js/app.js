@@ -183,6 +183,8 @@ Alpine.data('recipeServings', ({ initial }) => ({
     baseServings: initial,
     servings: initial,
     changed: false,
+    // Amounts shown in g/kg or ml/dl/l (UnitConverter), toggled by the "Convert" button.
+    converted: false,
 
     get canAdjust() {
         return this.baseServings !== null && this.baseServings > 0;
@@ -224,7 +226,17 @@ Alpine.data('recipeServings', ({ initial }) => ({
         }).format(value);
     },
 
-    formatAmount(amount, amountMax, unit) {
+    // conversion: { measure: 'mass' | 'volume', factor: g or ml per unit } or null.
+    formatAmount(amount, amountMax, unit, conversion = null) {
+        if (this.converted && conversion && (amount !== null || amountMax !== null)) {
+            return this.convertedAmount(amount, amountMax, conversion);
+        }
+
+        return this.originalAmount(amount, amountMax, unit);
+    },
+
+    // The recipe's amount, shown next to a converted one.
+    originalAmount(amount, amountMax, unit) {
         const multiplier = this.multiplier;
         const scaledAmount = amount !== null ? amount * multiplier : null;
         const scaledAmountMax = amountMax !== null ? amountMax * multiplier : null;
@@ -237,6 +249,34 @@ Alpine.data('recipeServings', ({ initial }) => ({
         const unitName = unit ? this.matchingUnitName(unit, scaledAmountMax ?? scaledAmount) : null;
 
         return [amountString, unitName].filter(Boolean).join(' ');
+    },
+
+    // Same units and rounding as UnitConverter::display().
+    convertedAmount(amount, amountMax, conversion) {
+        const scale = this.multiplier * conversion.factor;
+        const base = [amount, amountMax].map((value) => (value !== null ? value * scale : null));
+        const reference = base[1] ?? base[0] ?? 0;
+
+        let unit = conversion.measure === 'mass' ? 'g' : 'ml';
+        let divisor = 1;
+
+        if (reference >= 1000) {
+            [unit, divisor] = [conversion.measure === 'mass' ? 'kg' : 'l', 1000];
+        } else if (conversion.measure === 'volume' && reference >= 100) {
+            [unit, divisor] = ['dl', 100];
+        }
+
+        const round = (value) => {
+            const shown = value / divisor;
+            const factor = divisor === 1 ? (shown < 10 ? 10 : 1) : 100;
+
+            return Math.round(shown * factor) / factor;
+        };
+
+        return base
+            .filter((value) => value !== null)
+            .map((value) => this.formatNumber(round(value)))
+            .join(' - ') + ' ' + unit;
     },
 
     matchingUnitName(unit, amount) {

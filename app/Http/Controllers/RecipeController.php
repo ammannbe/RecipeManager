@@ -6,10 +6,12 @@ use App\Enums\Complexity;
 use App\Models\Category;
 use App\Models\Cookbook;
 use App\Models\Food;
+use App\Models\Ingredient;
 use App\Models\Recipe;
 use App\Models\Tag;
 use App\Services\Document;
 use App\Services\Season;
+use App\Services\UnitConverter;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -190,7 +192,7 @@ class RecipeController extends Controller
         ]);
     }
 
-    public function show(Recipe $recipe): View
+    public function show(Recipe $recipe, UnitConverter $converter): View
     {
         // 404 rather than 403 so a private recipe's existence is not leaked.
         abort_unless(user()?->can('view', $recipe) ?? $recipe->isPublished(), 404);
@@ -202,10 +204,10 @@ class RecipeController extends Controller
             'tags',
             'ingredients',
             'ingredients.ingredientGroup',
-            'ingredients.food',
+            'ingredients.food.unitWeights',
             'ingredients.unit',
             'ingredients.ingredientAttributes',
-            'ingredients.ingredients.food',
+            'ingredients.ingredients.food.unitWeights',
             'ingredients.ingredients.unit',
             'ingredients.ingredients.ingredientAttributes',
             'ingredientGroups',
@@ -223,6 +225,8 @@ class RecipeController extends Controller
             'recipe' => $recipe,
             'seasonFoods' => $seasonFoods,
             'inSeasonFoods' => $seasonFoods->filter(fn (Food $food): bool => $food->inSeason($month))->values(),
+            // "Convert" only when it changes something (alternatives are in ingredients too).
+            'convertible' => $recipe->ingredients->contains(fn (Ingredient $ingredient): bool => $converter->pageConversion($ingredient) !== null),
         ]);
     }
 

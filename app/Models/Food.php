@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\Measure;
 use App\Models\Concerns\Requestable;
 use Database\Factories\FoodFactory;
 use Illuminate\Database\Eloquent\Casts\Attribute;
@@ -13,6 +14,8 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 /**
  * @property array<int, int>|null $season_months Months (1–12) of fresh Swiss harvest
  * @property array<int, int>|null $storage_months Months available from Swiss storage only, not in season
+ * @property Measure|null $measure the measure its amounts are converted to
+ * @property float|null $density grams per milliliter
  */
 class Food extends Model
 {
@@ -28,11 +31,15 @@ class Food extends Model
         'name',
         'season_months',
         'storage_months',
+        'measure',
+        'density',
     ];
 
     protected $casts = [
         'season_months' => 'array',
         'storage_months' => 'array',
+        'measure' => Measure::class,
+        'density' => 'float',
     ];
 
     /**
@@ -54,6 +61,16 @@ class Food extends Model
     public function ingredients(): HasMany
     {
         return $this->hasMany(Ingredient::class);
+    }
+
+    /**
+     * Grams per piece unit (Stück, Zehe, Bund, …) of this food.
+     *
+     * @return HasMany<FoodUnitWeight, $this>
+     */
+    public function unitWeights(): HasMany
+    {
+        return $this->hasMany(FoodUnitWeight::class);
     }
 
     /**
