@@ -18,7 +18,7 @@ class ListRecipes extends ListRecords
         return [
             Action::make('import')
                 ->label(__('Import recipe'))
-                ->icon(Heroicon::OutlinedArrowUpTray)
+                ->icon(Heroicon::OutlinedSparkles)
                 ->color('gray')
                 ->url(ImportRecipe::getUrl()),
             CreateAction::make(),

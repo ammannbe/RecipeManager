@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Filament\Pages\ImportRecipe;
+use App\Filament\Resources\Recipes\RecipeResource;
 use App\Mail\LookupRequestedMail;
 use App\Models\Category;
 use App\Models\Cookbook;
@@ -83,6 +84,17 @@ class ImportRecipePageTest extends TestCase
         $this->actingAs(User::factory()->create(['admin' => false]));
 
         $this->get(ImportRecipe::getUrl())->assertSuccessful();
+    }
+
+    public function test_it_is_not_in_the_navigation_but_linked_from_the_recipe_list(): void
+    {
+        $this->assertFalse(ImportRecipe::shouldRegisterNavigation());
+
+        $this->actingAs(User::factory()->create(['admin' => false]));
+
+        $this->get(RecipeResource::getUrl('index'))
+            ->assertSuccessful()
+            ->assertSee(ImportRecipe::getUrl(), false);
     }
 
     public function test_the_submit_button_is_rendered_as_markup_not_escaped_html(): void

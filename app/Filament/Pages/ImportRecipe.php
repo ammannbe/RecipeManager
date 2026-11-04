@@ -49,7 +49,7 @@ class ImportRecipe extends Page
 
     protected static ?int $navigationSort = 5;
 
-    protected static bool $shouldRegisterNavigation = true;
+    protected static bool $shouldRegisterNavigation = false;
 
     /**
      * @var array<string, mixed>|null
