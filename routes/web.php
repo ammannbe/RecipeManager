@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\OidcController;
 use App\Http\Controllers\CookbookInvitationController;
+use App\Http\Controllers\McpAuthorizationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RecipeController;
 use Illuminate\Support\Facades\Route;
@@ -22,3 +23,8 @@ Route::middleware('throttle:20,1')->group(function () {
     Route::get('/auth/oidc/redirect', [OidcController::class, 'redirect'])->name('oidc.redirect');
     Route::get('/auth/oidc/callback', [OidcController::class, 'callback'])->name('oidc.callback');
 });
+
+// Approval of AI clients (MCP) with the permissions the user ticked, then Passport's approval.
+Route::post('/oauth/authorize/mcp', [McpAuthorizationController::class, 'approve'])
+    ->middleware('auth')
+    ->name('mcp.authorize.approve');

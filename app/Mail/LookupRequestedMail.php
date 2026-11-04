@@ -6,12 +6,15 @@ use App\Filament\Resources\Foods\FoodResource;
 use App\Filament\Resources\IngredientAttributes\IngredientAttributeResource;
 use App\Filament\Resources\Tags\TagResource;
 use App\Filament\Resources\Units\UnitResource;
+use App\Models\User;
 use App\Services\RecipeImport\LookupType;
 use Illuminate\Bus\Queueable;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Mail;
+use Throwable;
 
 /**
  * Tells an admin that a user requested foods, units, attributes or tags while importing.
@@ -29,6 +32,28 @@ class LookupRequestedMail extends Mailable
         public string $recipe,
         public array $requests,
     ) {}
+
+    /**
+     * Mails every other admin about new requests; a mail problem must not fail the import.
+     *
+     * @param  array<int, array{type: string, value: string}>  $requested
+     */
+    public static function notifyAdmins(?User $user, array $requested, string $recipe): void
+    {
+        if ($requested === []) {
+            return;
+        }
+
+        $name = $user?->author->name ?? (string) $user?->email;
+
+        foreach (User::query()->where('admin', true)->whereKeyNot($user?->getKey())->get() as $admin) {
+            try {
+                Mail::to($admin)->locale($admin->locale ?? config('app.locale'))->send(new self($name, $recipe, $requested));
+            } catch (Throwable $exception) {
+                report($exception);
+            }
+        }
+    }
 
     public function envelope(): Envelope
     {

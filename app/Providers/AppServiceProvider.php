@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Mcp\Server\Registrar;
 use Laravel\Passport\Passport;
 use SocialiteProviders\Manager\SocialiteWasCalled;
 use Symfony\Component\HttpFoundation\Response;
@@ -63,8 +64,10 @@ class AppServiceProvider extends ServiceProvider
     private function configurePassport(): void
     {
         // Clients may ask for "recipes" or for no scope at all; both grant the same access.
+        // mcp:use is the only scope of AI clients (laravel/mcp); their permissions live in mcp_grants.
         Passport::tokensCan([
             'recipes' => 'Read the recipes you can see and save new private recipes',
+            Registrar::OAUTH_SCOPE => 'Use the recipes as an AI client (MCP)',
         ]);
 
         Passport::useClientModel(OAuthClient::class);
