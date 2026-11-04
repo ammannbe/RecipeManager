@@ -1,3 +1,4 @@
+{{-- The panel has no Tailwind utilities of its own, so spacing uses inline styles. --}}
 <x-filament-widgets::widget>
     <x-filament::section :heading="__('In season in :month', ['month' => $month])" icon="heroicon-o-sun">
         <x-slot name="afterHeader">
@@ -5,11 +6,11 @@
         </x-slot>
 
         @if ($foods->isNotEmpty())
-            <p class="text-sm text-gray-600 dark:text-gray-400">{{ $foods->implode(', ') }}</p>
+            <p style="font-size: 0.875rem; opacity: 0.75; margin: 0 0 0.75rem;">{{ $foods->implode(', ') }}</p>
         @endif
 
         @if ($recipes->isNotEmpty())
-            <ul class="mt-3 grid gap-1 text-sm">
+            <ul style="display: grid; gap: 0.25rem; margin: 0; padding: 0; list-style: none;">
                 @foreach ($recipes as $recipe)
                     <li>
                         <x-filament::link :href="route('recipes.show', $recipe)" target="_blank">{{ $recipe->name }}</x-filament::link>
@@ -17,7 +18,7 @@
                 @endforeach
             </ul>
         @else
-            <p class="mt-3 text-sm text-gray-500">{{ __('No seasonal recipes this month yet.') }}</p>
+            <p style="font-size: 0.875rem; opacity: 0.75; margin: 0;">{{ __('No seasonal recipes this month yet.') }}</p>
         @endif
     </x-filament::section>
 </x-filament-widgets::widget>

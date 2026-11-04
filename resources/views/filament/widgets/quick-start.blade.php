@@ -1,6 +1,7 @@
+{{-- The panel has no Tailwind utilities of its own, so the layout uses inline styles. --}}
 <x-filament-widgets::widget>
     <x-filament::section>
-        <div class="flex flex-wrap gap-2">
+        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
             @foreach ($links as $link)
                 <x-filament::button
                     tag="a"

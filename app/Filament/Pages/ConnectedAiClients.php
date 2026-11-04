@@ -50,6 +50,7 @@ class ConnectedAiClients extends Page implements HasTable
         $url = url('/mcp');
         $name = str(config('app.name'))->slug()->toString();
 
+        // Inline styles: the panel has no Tailwind utilities of its own.
         return $schema->components([
             Section::make(__('Connect an AI client'))
                 ->description(__('AI clients like Claude Code, Codex or OpenClaw connect over MCP. Add the address below, then sign in and choose the permissions when the client asks. No plugin is needed.'))
@@ -57,10 +58,10 @@ class ConnectedAiClients extends Page implements HasTable
                 ->schema([
                     Text::make(new HtmlString(implode('', [
                         '<p><strong>'.e(__('Address (MCP server)')).':</strong> <code>'.e($url).'</code></p>',
-                        '<p class="mt-3"><strong>Claude Code:</strong></p><pre class="overflow-x-auto rounded-lg bg-zinc-100 p-3 text-xs dark:bg-zinc-800"><code>claude mcp add --transport http '.e($name).' '.e($url).'</code></pre><p class="text-xs">'.e(__('Then run /mcp in Claude Code and choose "Authenticate".')).'</p>',
-                        '<p class="mt-3"><strong>Codex:</strong></p><pre class="overflow-x-auto rounded-lg bg-zinc-100 p-3 text-xs dark:bg-zinc-800"><code>codex mcp add '.e($name).' --url '.e($url)."\ncodex mcp login ".e($name).'</code></pre>',
-                        '<p class="mt-3"><strong>OpenClaw:</strong> '.e(__('ask your agent: "Connect the MCP server :url as :name" or add it in the settings under MCP servers; the sign-in opens in the browser.', ['url' => $url, 'name' => $name])).'</p>',
-                        '<p class="mt-3"><strong>'.e(__('Other clients (Claude Desktop, ChatGPT, Cursor …)')).':</strong> '.e(__('add a remote MCP server with this address and OAuth.')).'</p>',
+                        '<p style="margin-top: 0.75rem;"><strong>Claude Code:</strong></p><pre style="overflow-x: auto; border-radius: 0.5rem; background: rgba(127, 127, 127, 0.12); padding: 0.75rem; font-size: 0.75rem;"><code>claude mcp add --transport http '.e($name).' '.e($url).'</code></pre><p style="font-size: 0.75rem;">'.e(__('Then run /mcp in Claude Code and choose "Authenticate".')).'</p>',
+                        '<p style="margin-top: 0.75rem;"><strong>Codex:</strong></p><pre style="overflow-x: auto; border-radius: 0.5rem; background: rgba(127, 127, 127, 0.12); padding: 0.75rem; font-size: 0.75rem;"><code>codex mcp add '.e($name).' --url '.e($url)."\ncodex mcp login ".e($name).'</code></pre>',
+                        '<p style="margin-top: 0.75rem;"><strong>OpenClaw:</strong> '.e(__('ask your agent: "Connect the MCP server :url as :name" or add it in the settings under MCP servers; the sign-in opens in the browser.', ['url' => $url, 'name' => $name])).'</p>',
+                        '<p style="margin-top: 0.75rem;"><strong>'.e(__('Other clients (Claude Desktop, ChatGPT, Cursor …)')).':</strong> '.e(__('add a remote MCP server with this address and OAuth.')).'</p>',
                     ]))),
                 ]),
             Section::make(__('Connected clients'))
