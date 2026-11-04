@@ -43,7 +43,7 @@ return [
         'model' => env('OPENAI_MODEL') ?: 'gpt-6-luna',
         // Only for reasoning models; empty to omit the parameter.
         'reasoning_effort' => env('OPENAI_REASONING_EFFORT', 'low'),
-        'image_model' => env('OPENAI_IMAGE_MODEL') ?: 'gpt-image-1',
+        'image_model' => env('OPENAI_IMAGE_MODEL') ?: 'gpt-image-2',
         'image_quality' => env('OPENAI_IMAGE_QUALITY', 'medium'),
         'url' => env('OPENAI_URL', 'https://api.openai.com/v1'),
         'timeout' => (int) env('OPENAI_TIMEOUT', 150),
