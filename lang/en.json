@@ -243,5 +243,8 @@
     "Add weight": "Add weight",
     "Show amounts in g/kg or ml/dl/l": "Show amounts in g/kg or ml/dl/l",
     "Convert": "Convert",
-    "Converted amounts are approximate (average weights and densities).": "Converted amounts are approximate (average weights and densities)."
+    "Converted amounts are approximate (average weights and densities).": "Converted amounts are approximate (average weights and densities).",
+    "With conversion data": "With conversion data",
+    "Without conversion data": "Without conversion data",
+    "per food": "per food"
 }

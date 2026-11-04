@@ -243,5 +243,8 @@
     "Add weight": "Gewicht hinzufügen",
     "Show amounts in g/kg or ml/dl/l": "Mengen in g/kg oder ml/dl/l anzeigen",
     "Convert": "Umrechnen",
-    "Converted amounts are approximate (average weights and densities).": "Umgerechnete Mengen sind Näherungswerte (Durchschnittsgewichte und -dichten)."
+    "Converted amounts are approximate (average weights and densities).": "Umgerechnete Mengen sind Näherungswerte (Durchschnittsgewichte und -dichten).",
+    "With conversion data": "Mit Umrechnungsdaten",
+    "Without conversion data": "Ohne Umrechnungsdaten",
+    "per food": "pro Zutat"
 }

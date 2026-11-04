@@ -4,7 +4,9 @@ namespace Tests\Feature;
 
 use App\Enums\Measure;
 use App\Filament\Resources\Foods\Pages\EditFood;
+use App\Filament\Resources\Foods\Pages\ListFoods;
 use App\Filament\Resources\Units\Pages\EditUnit;
+use App\Filament\Resources\Units\Pages\ListUnits;
 use App\Models\Food;
 use App\Models\FoodUnitWeight;
 use App\Models\Ingredient;
@@ -161,6 +163,27 @@ class UnitConversionTest extends TestCase
         $this->assertSame(Measure::Mass, $food->measure);
         $this->assertSame(0.2, $food->density);
         $this->assertSame(30.0, $food->unitWeights()->sole()->grams);
+    }
+
+    public function test_the_lists_show_and_filter_conversion_data(): void
+    {
+        $this->actingAs(User::factory()->admin()->create());
+        $piece = $this->unit('Stück');
+        $spoon = $this->unit('Esslöffel', Measure::Volume, 15, 'EL');
+        $oil = Food::factory()->create(['measure' => Measure::Volume, 'density' => 0.92]);
+        $egg = Food::factory()->create();
+        FoodUnitWeight::query()->create(['food_id' => $egg->id, 'unit_id' => $piece->id, 'grams' => 55]);
+        $none = Food::factory()->create();
+
+        Livewire::test(ListFoods::class)
+            ->assertTableColumnStateSet('conversion', 'Volume · 0.92 g/ml', $oil)
+            ->assertTableColumnStateSet('conversion', '1 Stück = 55 g', $egg)
+            ->filterTable('conversion_data', false)
+            ->assertCanSeeTableRecords([$none])
+            ->assertCanNotSeeTableRecords([$oil, $egg]);
+
+        Livewire::test(ListUnits::class)
+            ->assertTableColumnStateSet('base_amount', '1 EL = 15 ml', $spoon);
     }
 
     public function test_merging_keeps_the_piece_weights(): void
