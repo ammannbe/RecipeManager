@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\Measure;
 use App\Models\Concerns\Requestable;
 use Database\Factories\UnitFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -9,6 +10,10 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+/**
+ * @property Measure|null $measure
+ * @property float|null $base_amount grams or milliliters per unit
+ */
 class Unit extends Model
 {
     /** @use HasFactory<UnitFactory> */
@@ -22,6 +27,13 @@ class Unit extends Model
         'name_shortcut',
         'name_plural',
         'name_plural_shortcut',
+        'measure',
+        'base_amount',
+    ];
+
+    protected $casts = [
+        'measure' => Measure::class,
+        'base_amount' => 'float',
     ];
 
     public function getMatchingName(int|float|null $amount = null): string

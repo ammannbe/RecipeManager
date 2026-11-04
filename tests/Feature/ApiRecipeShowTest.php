@@ -101,6 +101,8 @@ class ApiRecipeShowTest extends TestCase
             'food' => 'Hackfleisch',
             'group' => 'Sauce',
             'text' => '250 - 300 g Hackfleisch',
+            // The test gram unit has no measure, so nothing converts.
+            'converted' => null,
         ], array_diff_key($ingredients[1], ['alternatives' => true]));
         $this->assertSame(['200 g Tofu'], array_column($ingredients[1]['alternatives'], 'text'));
         $this->assertSame([], $ingredients[0]['alternatives']);

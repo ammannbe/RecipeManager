@@ -110,6 +110,8 @@ JSON API for the companion app "Shoppinglist", secured with Laravel Passport
   Photos are never exposed.
 * Ingredient text and scaling mirror the recipe page (`recipes/show.blade.php`, `recipeServings`
   in `app.js`); alternatives (`ingredient_id`) are returned as `alternatives` of their parent.
+  Each ingredient has `converted` (`{amount, amount_max, unit}` in g/kg or ml/dl/l, scaled, see
+  "Unit conversion"), null without amount or conversion data.
 * The API never creates recipes, foods, units etc. directly. `POST /api/recipe-drafts` takes a
   recipe in the import JSON format (`RecipeJsonValidator`, no photos), stores it as `RecipeDraft`
   (own user, expires after 24 h, pruned daily by `recipe-drafts:prune`) and returns the URL
@@ -171,6 +173,26 @@ ddev artisan passport:client --name=Shoppinglist --redirect_uri=https://<shoppin
   filters). `/season?month=` is the season calendar (year table of all foods with season data,
   foods of the chosen month first, its fresh cells dark green; linked from Shoppinglist's week
   planner); the recipe page names the foods in season ("In season: …").
+
+## Unit conversion
+
+* `units.measure` (`App\Enums\Measure`: mass/volume) + `units.base_amount` (g or ml per unit; EL 15 ml,
+  TL 5 ml, Tasse 2 dl, Cup 2.4 dl). Units without measure are pieces (Stück, Bund, …) or vague amounts
+  (Prise, Messerspitze, nach Belieben) and only convert through `food_unit_weights` (grams per piece unit
+  per food). `foods.measure` is the fixed measure a food's amounts are converted to (empty: the unit's
+  own), `foods.density` (g/ml) converts between mass and volume. Admins edit them in the Unit and Food
+  resources; `LookupMerger` moves piece weights along.
+* `App\Services\UnitConverter`: `factor()` (g/ml per unit), `changes()` (other measure or a non-metric
+  unit), `display()` (g < 1000 ≤ kg; ml < 100 ≤ dl < 1000 ≤ l; g/ml whole from 10, else 1 decimal).
+  The recipe page passes `pageConversion()` per ingredient and multiplies in JS (`convertedAmount()` in
+  `app.js` mirrors `display()`); the "Convert" button (`data-convert-units`) only shows when an
+  ingredient changes, converted rows show the original amount in brackets and a warning like the
+  servings one.
+* Data: `database/data/food-conversions.php` (units by name, foods by name: measure, density, piece
+  weights). `ddev artisan foods:conversions {--dry-run} {--force}` assigns it to exactly matching names,
+  values set by hand are kept without `--force`, and lists data names without a match. A data migration
+  ran it once. Foods whose units mean different things (Kaffee, Gemüsebouillon: liquid or powder) are
+  left out on purpose.
 
 ## Public Frontend
 

@@ -5,6 +5,7 @@ namespace App\Services\Api;
 use App\Models\Ingredient;
 use App\Models\IngredientGroup;
 use App\Models\Recipe;
+use App\Services\UnitConverter;
 use Illuminate\Support\Number;
 
 /**
@@ -14,6 +15,8 @@ use Illuminate\Support\Number;
  */
 class RecipePresenter
 {
+    public function __construct(private UnitConverter $converter) {}
+
     /**
      * @param  array<int, int>  $foodIds  all distinct foods of the recipe
      * @param  array<int, int>  $matchedFoodIds
@@ -38,7 +41,7 @@ class RecipePresenter
      */
     public function detail(Recipe $recipe, ?float $servings, string $locale): array
     {
-        $relations = ['food', 'unit', 'ingredientAttributes', 'ingredients.food', 'ingredients.unit', 'ingredients.ingredientAttributes'];
+        $relations = ['food.unitWeights', 'unit', 'ingredientAttributes', 'ingredients.food.unitWeights', 'ingredients.unit', 'ingredients.ingredientAttributes'];
 
         $recipe->load([
             ...array_map(fn (string $relation): string => 'ungroupedIngredients.'.$relation, $relations),
@@ -104,6 +107,7 @@ class RecipePresenter
             'food' => $food,
             'group' => $group?->name,
             'text' => $text,
+            'converted' => $this->converted($ingredient, $amount, $amountMax),
         ];
 
         if ($withAlternatives) {
@@ -115,6 +119,33 @@ class RecipePresenter
         }
 
         return $data;
+    }
+
+    /**
+     * The amount in the food's measure (g/kg or ml/dl/l, like the recipe page's "Convert"),
+     * null without amount or conversion data.
+     *
+     * @return array{amount: int|float|null, amount_max: int|float|null, unit: string}|null
+     */
+    private function converted(Ingredient $ingredient, ?float $amount, ?float $amountMax): ?array
+    {
+        $conversion = $this->converter->factor($ingredient);
+
+        if ($conversion === null || ($amount === null && $amountMax === null)) {
+            return null;
+        }
+
+        $display = UnitConverter::display(
+            $conversion['measure'],
+            $amount !== null ? $amount * $conversion['factor'] : null,
+            $amountMax !== null ? $amountMax * $conversion['factor'] : null,
+        );
+
+        return [
+            'amount' => $this->number($display['amount']),
+            'amount_max' => $this->number($display['amount_max']),
+            'unit' => $display['unit'],
+        ];
     }
 
     /**
