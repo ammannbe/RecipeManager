@@ -149,7 +149,9 @@ ddev artisan passport:client --name=Shoppinglist --redirect_uri=https://<shoppin
   admins switch it off in the Author resource's user section). Every request (recipe or photo) counts
   against `ai:<user id>` per hour.
 * Import wizard step 1 "Create with AI": photo/PDF (max. 10 MB) and/or text → `RecipeAssistant::recipe()`
-  (the manual prompt of `ImportPromptBuilder` + `RecipeJsonSchema::aiSchema()`) fills the JSON step; resolve
+  (the manual prompt of `ImportPromptBuilder` + `RecipeJsonSchema::aiSchema()`) fills the JSON step; a web address
+  instead of text is read by `App\Ai\RecipePage` (schema.org Recipe JSON-LD + visible text, public hosts only,
+  redirects checked again against private/reserved IPs, max. 3 MB); resolve
   and confirm stay the same. "Manually via chat" stays as collapsed section. Toggle "Also create a photo"
   calls `RecipeAssistant::image()` after the import (a failure only warns). The recipe edit page has the
   header action "Create photo with AI". Generated photos are stored like uploads, `is_ai_generated` true.

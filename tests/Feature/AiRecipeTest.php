@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Ai\RecipeAssistant;
+use App\Ai\RecipePage;
 use App\Filament\Pages\ImportRecipe;
 use App\Filament\Resources\Recipes\Pages\EditRecipe;
 use App\Models\Recipe;
@@ -78,6 +79,49 @@ class AiRecipeTest extends TestCase
             && $request['text']['format']['strict'] === true
             && $request['input'][0]['content'][0]['type'] === 'input_image'
             && $request['input'][0]['content'][1]['text'] === 'Omas Apfelkuchen');
+    }
+
+    public function test_a_web_address_is_read_and_sent_as_page_text(): void
+    {
+        $this->app->bind(RecipePage::class, fn (): RecipePage => new class extends RecipePage
+        {
+            protected function addresses(string $host): array
+            {
+                return $host === 'internal.test' ? ['10.0.0.5'] : ['93.184.215.14'];
+            }
+        });
+
+        Http::fake([
+            'rezepte.test/alt' => Http::response('', 301, ['Location' => 'https://rezepte.test/roesti']),
+            'rezepte.test/roesti' => Http::response('<html><head><script type="application/ld+json">{"@type":"Recipe","name":"Rösti"}</script></head><body><nav>Menü</nav><h1>Rösti</h1><p>1 kg Kartoffeln</p></body></html>'),
+            'openai.test/*' => Http::response($this->answer($this->recipe())),
+        ]);
+        $this->actingAs(User::factory()->create());
+
+        Livewire::test(ImportRecipe::class)
+            ->fillForm(['ai_text' => 'https://rezepte.test/alt'])
+            ->call('createWithAi')
+            ->assertNotified('Recipe recognized');
+
+        Http::assertSent(function (Request $request): bool {
+            if (! str_ends_with($request->url(), '/responses')) {
+                return false;
+            }
+
+            $text = $request['input'][0]['content'][0]['text'];
+
+            return str_contains($text, '{"@type":"Recipe","name":"Rösti"}') && str_contains($text, '1 kg Kartoffeln') && ! str_contains($text, 'Menü');
+        });
+
+        // Internal addresses are refused, also behind a redirect.
+        Http::fake(['rezepte.test/*' => Http::response('', 302, ['Location' => 'http://internal.test/admin'])]);
+
+        Livewire::test(ImportRecipe::class)
+            ->fillForm(['ai_text' => 'https://rezepte.test/link'])
+            ->call('createWithAi')
+            ->assertNotified('Only public web addresses can be read.');
+
+        Http::assertNotSent(fn (Request $request): bool => str_contains($request->url(), 'internal.test'));
     }
 
     public function test_the_import_page_hides_ai_for_users_without_access(): void

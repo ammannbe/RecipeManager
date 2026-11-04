@@ -167,8 +167,8 @@ class ImportRecipe extends Page
 
     private function promptStep(): Step
     {
-        return Step::make(__('AI prompt'))
-            ->description(__('Copy this into your AI together with the recipe'))
+        return Step::make(RecipeAssistant::allows(user()) ? __('Read recipe') : __('AI prompt'))
+            ->description(RecipeAssistant::allows(user()) ? __('With AI or manually via an AI chat') : __('Copy into an AI chat together with the recipe'))
             ->icon(Heroicon::OutlinedSparkles)
             ->schema(fn (): array => [
                 ...(RecipeAssistant::allows(user()) ? [$this->aiSection()] : []),
@@ -196,7 +196,7 @@ class ImportRecipe extends Page
     private function aiSection(): Section
     {
         return Section::make(__('Create with AI'))
-            ->description(__('Upload a photo or PDF of the recipe or paste its text. The AI fills in the recipe JSON of the next step.'))
+            ->description(__('Upload a photo or PDF of the recipe, or paste its text or web address. The AI fills in the recipe JSON of the next step.'))
             ->schema([
                 FileUpload::make('ai_file')
                     ->label(__('Photo or PDF'))
@@ -204,7 +204,8 @@ class ImportRecipe extends Page
                     ->maxSize(10240)
                     ->storeFiles(false),
                 Textarea::make('ai_text')
-                    ->label(__('Recipe text'))
+                    ->label(__('Recipe text or web address'))
+                    ->helperText(__('Paste the text of the recipe or the address of a recipe page (https://…).'))
                     ->rows(5)
                     ->maxLength(20000),
                 Toggle::make('ai_image')

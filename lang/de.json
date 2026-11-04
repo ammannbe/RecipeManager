@@ -32,7 +32,6 @@
     "Cookbook": "Kochbuch",
     "Cookbooks": "Kochbücher",
     "Copy prompt": "Anweisung kopieren",
-    "Copy this into your AI together with the recipe": "Zusammen mit dem Rezept in die KI kopieren",
     "Create \":value\" instead": "Stattdessen \":value\" anlegen",
     "Create recipes": "Rezepte erstellen",
     "Decrease servings": "Portionen verringern",
@@ -230,9 +229,7 @@
     "Create recipes and photos with AI (verified users only).": "Rezepte und Fotos mit KI erstellen (nur bestätigte Benutzer).",
     "Manually via chat": "Manuell via Chat",
     "Create with AI": "Mit KI erstellen",
-    "Upload a photo or PDF of the recipe or paste its text. The AI fills in the recipe JSON of the next step.": "Lade ein Foto oder PDF des Rezepts hoch oder füge den Text ein. Die KI füllt das Rezept-JSON im nächsten Schritt aus.",
     "Photo or PDF": "Foto oder PDF",
-    "Recipe text": "Rezepttext",
     "Also create a photo with AI": "Zusätzlich ein Foto mit KI erstellen",
     "Added to the recipe after the import and marked as AI generated.": "Wird nach dem Import zum Rezept hinzugefügt und als KI-generiert markiert.",
     "Recipe recognized": "Rezept erkannt",
@@ -246,5 +243,13 @@
     "The AI request failed.": "Die Anfrage an die KI ist fehlgeschlagen.",
     "Add a photo, PDF or text of the recipe.": "Füge ein Foto, PDF oder den Text des Rezepts hinzu.",
     "You may not use the AI features.": "Du darfst die KI-Funktionen nicht nutzen.",
-    "Too many AI requests. Please try again later.": "Zu viele KI-Anfragen. Bitte versuche es später nochmals."
+    "Too many AI requests. Please try again later.": "Zu viele KI-Anfragen. Bitte versuche es später nochmals.",
+    "Read recipe": "Rezept einlesen",
+    "With AI or manually via an AI chat": "Mit KI oder manuell über einen KI-Chat",
+    "Copy into an AI chat together with the recipe": "Zusammen mit dem Rezept in einen KI-Chat kopieren",
+    "Recipe text or web address": "Rezepttext oder Internet-Adresse zum Rezept",
+    "Paste the text of the recipe or the address of a recipe page (https://…).": "Füge den Text des Rezepts oder die Adresse einer Rezeptseite ein (https://…).",
+    "Upload a photo or PDF of the recipe, or paste its text or web address. The AI fills in the recipe JSON of the next step.": "Lade ein Foto oder PDF des Rezepts hoch oder füge den Text oder die Internet-Adresse ein. Die KI füllt das Rezept-JSON im nächsten Schritt aus.",
+    "The recipe page could not be loaded.": "Die Rezeptseite konnte nicht geladen werden.",
+    "Only public web addresses can be read.": "Es können nur öffentliche Internet-Adressen gelesen werden."
 }

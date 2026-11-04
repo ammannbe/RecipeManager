@@ -32,7 +32,6 @@
     "Cookbook": "Cookbook",
     "Cookbooks": "Cookbooks",
     "Copy prompt": "Copy prompt",
-    "Copy this into your AI together with the recipe": "Copy this into your AI together with the recipe",
     "Create \":value\" instead": "Create \":value\" instead",
     "Create recipes": "Create recipes",
     "Decrease servings": "Decrease servings",
@@ -230,9 +229,7 @@
     "Create recipes and photos with AI (verified users only).": "Create recipes and photos with AI (verified users only).",
     "Manually via chat": "Manually via chat",
     "Create with AI": "Create with AI",
-    "Upload a photo or PDF of the recipe or paste its text. The AI fills in the recipe JSON of the next step.": "Upload a photo or PDF of the recipe or paste its text. The AI fills in the recipe JSON of the next step.",
     "Photo or PDF": "Photo or PDF",
-    "Recipe text": "Recipe text",
     "Also create a photo with AI": "Also create a photo with AI",
     "Added to the recipe after the import and marked as AI generated.": "Added to the recipe after the import and marked as AI generated.",
     "Recipe recognized": "Recipe recognized",
@@ -246,5 +243,13 @@
     "The AI request failed.": "The AI request failed.",
     "Add a photo, PDF or text of the recipe.": "Add a photo, PDF or text of the recipe.",
     "You may not use the AI features.": "You may not use the AI features.",
-    "Too many AI requests. Please try again later.": "Too many AI requests. Please try again later."
+    "Too many AI requests. Please try again later.": "Too many AI requests. Please try again later.",
+    "Read recipe": "Read recipe",
+    "With AI or manually via an AI chat": "With AI or manually via an AI chat",
+    "Copy into an AI chat together with the recipe": "Copy into an AI chat together with the recipe",
+    "Recipe text or web address": "Recipe text or web address",
+    "Paste the text of the recipe or the address of a recipe page (https://…).": "Paste the text of the recipe or the address of a recipe page (https://…).",
+    "Upload a photo or PDF of the recipe, or paste its text or web address. The AI fills in the recipe JSON of the next step.": "Upload a photo or PDF of the recipe, or paste its text or web address. The AI fills in the recipe JSON of the next step.",
+    "The recipe page could not be loaded.": "The recipe page could not be loaded.",
+    "Only public web addresses can be read.": "Only public web addresses can be read."
 }

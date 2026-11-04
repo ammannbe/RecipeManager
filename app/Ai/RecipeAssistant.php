@@ -22,6 +22,7 @@ class RecipeAssistant
     public function __construct(
         private OpenAiClient $client,
         private ImportPromptBuilder $prompt,
+        private RecipePage $page,
     ) {}
 
     public static function allows(?User $user): bool
@@ -39,6 +40,10 @@ class RecipeAssistant
      */
     public function recipe(?User $user, ?UploadedFile $file, ?string $text): array
     {
+        if (! self::allows($user)) {
+            throw new AiException('You may not use the AI features.');
+        }
+
         $content = [];
 
         if ($file !== null) {
@@ -46,7 +51,8 @@ class RecipeAssistant
         }
 
         if (filled($text)) {
-            $content[] = OpenAiClient::text((string) $text);
+            // A web address: the page's recipe data and text instead of the address itself.
+            $content[] = OpenAiClient::text(RecipePage::isUrl($text) ? $this->page->text((string) $text) : (string) $text);
         }
 
         if ($content === []) {
