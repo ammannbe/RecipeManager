@@ -15,6 +15,14 @@ use RuntimeException;
  */
 class OpenAiClient
 {
+    /**
+     * Model and usage of the last request (Responses API: input_tokens/output_tokens), recorded by
+     * RecipeAssistant for billing by usage.
+     *
+     * @var array{model: string|null, usage: array<string, mixed>}|null
+     */
+    public ?array $lastUsage = null;
+
     public static function enabled(): bool
     {
         return filled(config('services.openai.key'));
@@ -115,6 +123,8 @@ class OpenAiClient
 
             throw new AiException('The AI request failed.', previous: $exception);
         }
+
+        $this->lastUsage = ['model' => $response['model'] ?? $payload['model'] ?? null, 'usage' => is_array($response['usage'] ?? null) ? $response['usage'] : []];
 
         // Cost control of the global key: tokens per request in the log.
         Log::info('OpenAI request', ['name' => $name, 'model' => $response['model'] ?? $payload['model'] ?? null, 'usage' => $response['usage'] ?? null]);

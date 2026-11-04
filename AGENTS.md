@@ -157,6 +157,9 @@ ddev artisan passport:client --name=Shoppinglist --redirect_uri=https://<shoppin
   and confirm stay the same. "Manually via chat" stays as collapsed section. Toggle "Also create a photo"
   calls `RecipeAssistant::image()` after the import (a failure only warns). The recipe edit page has the
   header action "Create photo with AI". Generated photos are stored like uploads, `is_ai_generated` true.
+* Usage: `RecipeAssistant` records every request in `ai_usages` (user, feature `recipe`/`image`, model,
+  input/output tokens, images) from the API's `usage`: basis for billing by usage (later through the
+  AccountManager) and the dashboard.
 * Tests: `phpunit.xml` forces an empty `OPENAI_API_KEY`; tests set a fake key and `Http::fake()`
   (`tests/Feature/AiRecipeTest.php`).
 
@@ -184,6 +187,15 @@ ddev artisan passport:client --name=Shoppinglist --redirect_uri=https://<shoppin
   refresh tokens of the user and deletes the grant).
 * Tests: `tests/Feature/McpServerTest.php` (`Passport::actingAs($user, ['mcp:use'], 'api', $client)` +
   `RecipesServer::tool()`).
+
+## Dashboard
+
+* Widgets in `app/Filament/Widgets` (discovered; Filament's info widget removed): `QuickStartWidget`
+  (import/AI, new recipe, season calendar, AI clients), `RecentRecipesWidget` (own recipes, last changed),
+  `SeasonWidget` (foods of the month used in recipes + visible seasonal recipes, own first),
+  `MyCookbooksWidget` (own or member, recipe count). Admins only: `AdminOverviewWidget` (open requests with
+  link to the filtered list, used foods without conversion/season data, users, AI requests and tokens this
+  month, connected AI clients) and `AiUsageWidget` (per user this month). Tests: `DashboardTest`.
 
 ## Lookup Requests and Import Decisions
 

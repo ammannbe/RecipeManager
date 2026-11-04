@@ -2,6 +2,7 @@
 
 namespace App\Ai;
 
+use App\Models\AiUsage;
 use App\Models\Recipe;
 use App\Models\User;
 use App\Services\Document;
@@ -59,7 +60,7 @@ class RecipeAssistant
             throw new AiException('Add a photo, PDF or text of the recipe.');
         }
 
-        return $this->limited($user, fn (): array => $this->client->structured(
+        return $this->limited($user, 'recipe', fn (): array => $this->client->structured(
             $this->prompt->build($user)."\n\nAntworte direkt mit dem JSON-Objekt gemäss Schema, ohne Code-Block.",
             $content,
             'recipe',
@@ -81,7 +82,7 @@ class RecipeAssistant
             .($foods !== '' ? " (made with {$foods})" : '')
             .', served on a plate, natural daylight, shallow depth of field, no text, no people, no hands.';
 
-        $binary = $this->limited($user, fn (): string => $this->client->image($prompt));
+        $binary = $this->limited($user, 'image', fn (): string => $this->client->image($prompt));
 
         $filename = Str::slug($recipe->name).'-ai-'.Str::lower(Str::random(6)).'.jpg';
         Storage::disk('recipes')->put($recipe->getKey().'/'.$filename, $binary);
@@ -101,7 +102,7 @@ class RecipeAssistant
      *
      * @throws AiException
      */
-    private function limited(?User $user, callable $request): mixed
+    private function limited(?User $user, string $feature, callable $request): mixed
     {
         if ($user === null || ! self::allows($user)) {
             throw new AiException('You may not use the AI features.');
@@ -115,6 +116,18 @@ class RecipeAssistant
 
         RateLimiter::hit($key, 3600);
 
-        return $request();
+        $result = $request();
+
+        $usage = $this->client->lastUsage['usage'] ?? [];
+        AiUsage::query()->create([
+            'user_id' => $user->getKey(),
+            'feature' => $feature,
+            'model' => $this->client->lastUsage['model'] ?? null,
+            'input_tokens' => (int) ($usage['input_tokens'] ?? 0),
+            'output_tokens' => (int) ($usage['output_tokens'] ?? 0),
+            'images' => $feature === 'image' ? 1 : 0,
+        ]);
+
+        return $result;
     }
 }
