@@ -9,7 +9,6 @@ use App\Mail\LookupRequestedMail;
 use App\Models\Cookbook;
 use App\Models\RecipeDraft;
 use App\Models\User;
-use App\Services\RecipeImport\ImportPromptBuilder;
 use App\Services\RecipeImport\LookupType;
 use App\Services\RecipeImport\ParsedRecipe;
 use App\Services\RecipeImport\RecipeImporter;
@@ -25,12 +24,12 @@ use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
-use Filament\Schemas\Components\Actions;
 use Filament\Schemas\Components\Component;
 use Filament\Schemas\Components\EmbeddedSchema;
 use Filament\Schemas\Components\Form;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Text;
+use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Components\Wizard;
 use Filament\Schemas\Components\Wizard\Step;
@@ -79,6 +78,11 @@ class ImportRecipe extends Page
 
     public int $startStep = 1;
 
+    /**
+     * Hash of the AI inputs the current JSON was read from.
+     */
+    public ?string $aiInput = null;
+
     private ?ParsedRecipe $parsed = null;
 
     public static function getNavigationLabel(): string
@@ -93,7 +97,9 @@ class ImportRecipe extends Page
 
     public function getSubheading(): string|Htmlable|null
     {
-        return __('Convert a photo, PDF or text into a recipe using an AI, then import the JSON here.');
+        return RecipeAssistant::allows(user())
+            ? __('The AI reads a photo, PDF, text or web address of a recipe; you match unknown values and confirm.')
+            : __('Paste a recipe in the JSON format, match unknown values and confirm.');
     }
 
     public function mount(): void
@@ -130,9 +136,9 @@ class ImportRecipe extends Page
 
         try {
             $this->parse();
-            $this->startStep = 3;
-        } catch (ValidationException) {
             $this->startStep = 2;
+        } catch (ValidationException) {
+            $this->startStep = 1;
         }
     }
 
@@ -154,8 +160,7 @@ class ImportRecipe extends Page
     private function wizard(): Component
     {
         return Wizard::make([
-            $this->promptStep(),
-            $this->jsonStep(),
+            $this->readStep(),
             $this->resolveStep(),
             $this->confirmStep(),
         ])
@@ -163,82 +168,96 @@ class ImportRecipe extends Page
             ->submitAction($this->importAction());
     }
 
-    private function promptStep(): Step
+    /**
+     * Step 1: the recipe (photo, PDF, text or web address read by the AI, or recipe JSON, e.g. an
+     * export) plus cookbook and visibility. "Next" reads it and goes straight to "Resolve".
+     */
+    private function readStep(): Step
     {
-        return Step::make(RecipeAssistant::allows(user()) ? __('Read recipe') : __('AI prompt'))
-            ->description(RecipeAssistant::allows(user()) ? __('With AI or manually via an AI chat') : __('Copy into an AI chat together with the recipe'))
+        $ai = RecipeAssistant::allows(user());
+
+        return Step::make(__('Read recipe'))
+            ->description($ai ? __('Photo, PDF, text or web address') : __('Recipe JSON'))
             ->icon(Heroicon::OutlinedSparkles)
             ->schema(fn (): array => [
-                ...(RecipeAssistant::allows(user()) ? [$this->aiSection()] : []),
-                Section::make(RecipeAssistant::allows(user()) ? __('Manually via chat') : null)
-                    ->collapsible(RecipeAssistant::allows(user()))
-                    ->collapsed(RecipeAssistant::allows(user()))
+                ...($ai ? [
+                    FileUpload::make('ai_file')
+                        ->label(__('Photo or PDF'))
+                        ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp', 'application/pdf'])
+                        ->maxSize(10240)
+                        ->storeFiles(false),
+                    Textarea::make('ai_text')
+                        ->label(__('Recipe text or web address'))
+                        ->helperText(__('Paste the text of the recipe or the address of a recipe page (https://…). The AI reads it when you continue.'))
+                        ->rows(5)
+                        ->maxLength(20000),
+                    Toggle::make('ai_image')
+                        ->label(__('Also create a photo with AI'))
+                        ->helperText(__('Added to the recipe after the import and marked as AI generated.')),
+                ] : []),
+                Section::make(__('Paste recipe JSON'))
+                    ->description(__('For example from an export of this app.'))
+                    ->collapsible($ai)
+                    ->collapsed(fn (Get $get): bool => $ai && blank($get('json')))
                     ->schema([
-                        Text::make(__('Paste the prompt below into an AI chat and attach the recipe photo, PDF or text. The AI answers with JSON that you paste into the next step.')),
-                        Text::make(__('You can also paste a public recipe URL instead. If your AI tool can browse the web, it may fetch and read the page directly.')),
-                        Textarea::make('prompt')
+                        Textarea::make('json')
                             ->hiddenLabel()
-                            ->readOnly()
-                            ->rows(16)
-                            ->default(fn (ImportPromptBuilder $builder): string => $builder->build(user()))
-                            ->belowContent($this->copyPromptAction()),
+                            ->rows(12)
+                            ->helperText(__('Paste the raw JSON object. Code fences are removed automatically.')),
                     ]),
                 ...($this->draftId === null ? $this->publicationFields() : []),
-            ]);
+            ])
+            ->afterValidation(function (): void {
+                $this->readRecipe();
+
+                try {
+                    $this->parse();
+                } catch (ValidationException $exception) {
+                    // The JSON section is collapsed when the AI wrote it: show the problem at the inputs.
+                    if ($this->aiInput === null) {
+                        throw $exception;
+                    }
+
+                    throw ValidationException::withMessages(['data.ai_text' => $exception->validator->errors()->all()]);
+                }
+            });
     }
 
     /**
-     * "Create with AI": photo, PDF or text to the import JSON of the next step, which the user
-     * checks; resolving and confirming stay the same as for the manual way.
+     * Lets the AI read the inputs into the JSON when they changed since the last time (going back
+     * and forth must not cost a request), or uses the pasted JSON.
+     *
+     * @throws ValidationException
      */
-    private function aiSection(): Section
+    private function readRecipe(): void
     {
-        return Section::make(__('Create with AI'))
-            ->description(__('Upload a photo or PDF of the recipe, or paste its text or web address. The AI fills in the recipe JSON of the next step.'))
-            ->schema([
-                FileUpload::make('ai_file')
-                    ->label(__('Photo or PDF'))
-                    ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp', 'application/pdf'])
-                    ->maxSize(10240)
-                    ->storeFiles(false),
-                Textarea::make('ai_text')
-                    ->label(__('Recipe text or web address'))
-                    ->helperText(__('Paste the text of the recipe or the address of a recipe page (https://…).'))
-                    ->rows(5)
-                    ->maxLength(20000),
-                Toggle::make('ai_image')
-                    ->label(__('Also create a photo with AI'))
-                    ->helperText(__('Added to the recipe after the import and marked as AI generated.')),
-                Actions::make([
-                    Action::make('createWithAi')
-                        ->label(__('Create with AI'))
-                        ->icon(Heroicon::OutlinedSparkles)
-                        ->action(fn () => $this->createWithAi()),
-                ]),
-            ]);
-    }
-
-    public function createWithAi(): void
-    {
-        set_time_limit(300);
-
         $file = collect((array) ($this->data['ai_file'] ?? []))->first(fn (mixed $file): bool => $file instanceof UploadedFile);
+        $text = trim((string) ($this->data['ai_text'] ?? ''));
 
-        try {
-            $recipe = app(RecipeAssistant::class)->recipe(user(), $file, $this->data['ai_text'] ?? null);
-        } catch (AiException $exception) {
-            Notification::make()->danger()->title(__($exception->getMessage()))->send();
+        if ($file === null && $text === '') {
+            if (blank($this->data['json'] ?? null)) {
+                throw ValidationException::withMessages(['data.ai_text' => __('Add a photo, PDF, text or web address of the recipe.')]);
+            }
 
             return;
         }
 
-        $this->data['json'] = (string) json_encode($recipe, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $hash = md5($text.'|'.($file !== null ? md5_file((string) $file->getRealPath()) : ''));
 
-        Notification::make()
-            ->success()
-            ->title(__('Recipe recognized'))
-            ->body(__('Check it in the next step and continue.'))
-            ->send();
+        if ($hash === $this->aiInput && filled($this->data['json'] ?? null)) {
+            return;
+        }
+
+        set_time_limit(300);
+
+        try {
+            $recipe = app(RecipeAssistant::class)->recipe(user(), $file, $text);
+        } catch (AiException $exception) {
+            throw ValidationException::withMessages(['data.ai_text' => __($exception->getMessage())]);
+        }
+
+        $this->data['json'] = (string) json_encode($recipe, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        $this->aiInput = $hash;
     }
 
     /**
@@ -266,23 +285,6 @@ class ImportRecipe extends Page
                 ->live()
                 ->default(true),
         ];
-    }
-
-    private function jsonStep(): Step
-    {
-        return Step::make(__('Recipe JSON'))
-            ->description(__('Paste the AI answer'))
-            ->icon(Heroicon::OutlinedCodeBracket)
-            ->schema([
-                Textarea::make('json')
-                    ->label(__('Recipe JSON'))
-                    ->required()
-                    ->rows(16)
-                    ->helperText(__('Paste the raw JSON object. Code fences are removed automatically.')),
-            ])
-            ->afterValidation(function (): void {
-                $this->parse();
-            });
     }
 
     private function resolveStep(): Step
@@ -510,20 +512,6 @@ class ImportRecipe extends Page
             __('Ingredient groups') => (string) count($parsed->groups),
             __('Tags') => $parsed->tags === [] ? '—' : implode(', ', $parsed->tags),
         ];
-    }
-
-    private function copyPromptAction(): Action
-    {
-        return Action::make('copyPrompt')
-            ->label(__('Copy prompt'))
-            ->icon(Heroicon::OutlinedClipboardDocument)
-            ->action(function (): void {
-                $prompt = app(ImportPromptBuilder::class)->build(user());
-
-                $this->js('window.navigator.clipboard.writeText('.json_encode($prompt).')');
-
-                Notification::make()->success()->title(__('Prompt copied'))->send();
-            });
     }
 
     public function importAction(): Action
