@@ -8,6 +8,7 @@ use App\Filament\Auth\Login;
 use App\Models\Author;
 use App\Models\User;
 use Filament\Facades\Filament;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
@@ -99,7 +100,9 @@ class OidcLoginTest extends TestCase
     {
         $user = User::factory()->create(['oidc_sub' => 'sub-123', 'email' => 'other@example.com']);
 
-        $this->signIn()->assertRedirect(Filament::getPanel('app')->getUrl());
+        $this->signIn()->assertRedirect(Filament::getPanel('app')->getUrl())
+            // Stays signed in beyond the session lifetime.
+            ->assertCookie(Auth::guard()->getRecallerName());
 
         $this->assertAuthenticatedAs($user);
     }

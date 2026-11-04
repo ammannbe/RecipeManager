@@ -63,7 +63,8 @@ class OidcController extends Controller
             return redirect()->to(EditProfile::getUrl(panel: 'app'));
         }
 
-        Auth::login($user);
+        // Remembered like Shoppinglist and Chorelist, otherwise the session ends after SESSION_LIFETIME idle minutes.
+        Auth::login($user, remember: true);
         $request->session()->regenerate();
 
         return redirect()->intended(Filament::getPanel('app')->getUrl());
