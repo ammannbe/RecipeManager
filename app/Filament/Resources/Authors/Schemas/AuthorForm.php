@@ -51,6 +51,10 @@ class AuthorForm
                             ->dehydrated(fn (?string $state): bool => filled($state)),
                         Toggle::make('admin')
                             ->label(__('Admin')),
+                        Toggle::make('ai_enabled')
+                            ->label(__('AI features'))
+                            ->helperText(__('Create recipes and photos with AI (verified users only).'))
+                            ->default(true),
                     ]),
             ]);
     }

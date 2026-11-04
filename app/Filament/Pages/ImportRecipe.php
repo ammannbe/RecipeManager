@@ -2,6 +2,8 @@
 
 namespace App\Filament\Pages;
 
+use App\Ai\AiException;
+use App\Ai\RecipeAssistant;
 use App\Filament\Resources\Recipes\RecipeResource;
 use App\Mail\LookupRequestedMail;
 use App\Models\Cookbook;
@@ -16,12 +18,14 @@ use App\Services\RecipeImport\RelationResolver;
 use App\Services\RecipeImport\UnresolvedValue;
 use BackedEnum;
 use Filament\Actions\Action;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Filament\Schemas\Components\Actions;
 use Filament\Schemas\Components\Component;
 use Filament\Schemas\Components\EmbeddedSchema;
 use Filament\Schemas\Components\Form;
@@ -33,6 +37,7 @@ use Filament\Schemas\Components\Wizard\Step;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Contracts\Support\Htmlable;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\HtmlString;
 use Illuminate\Validation\ValidationException;
@@ -162,20 +167,80 @@ class ImportRecipe extends Page
 
     private function promptStep(): Step
     {
-        return Step::make(__('AI prompt'))
-            ->description(__('Copy this into your AI together with the recipe'))
+        return Step::make(RecipeAssistant::allows(user()) ? __('Read recipe') : __('AI prompt'))
+            ->description(RecipeAssistant::allows(user()) ? __('With AI or manually via an AI chat') : __('Copy into an AI chat together with the recipe'))
             ->icon(Heroicon::OutlinedSparkles)
             ->schema(fn (): array => [
-                Text::make(__('Paste the prompt below into an AI chat and attach the recipe photo, PDF or text. The AI answers with JSON that you paste into the next step.')),
-                Text::make(__('You can also paste a public recipe URL instead. If your AI tool can browse the web, it may fetch and read the page directly.')),
-                Textarea::make('prompt')
-                    ->hiddenLabel()
-                    ->readOnly()
-                    ->rows(16)
-                    ->default(fn (ImportPromptBuilder $builder): string => $builder->build(user()))
-                    ->belowContent($this->copyPromptAction()),
+                ...(RecipeAssistant::allows(user()) ? [$this->aiSection()] : []),
+                Section::make(RecipeAssistant::allows(user()) ? __('Manually via chat') : null)
+                    ->collapsible(RecipeAssistant::allows(user()))
+                    ->collapsed(RecipeAssistant::allows(user()))
+                    ->schema([
+                        Text::make(__('Paste the prompt below into an AI chat and attach the recipe photo, PDF or text. The AI answers with JSON that you paste into the next step.')),
+                        Text::make(__('You can also paste a public recipe URL instead. If your AI tool can browse the web, it may fetch and read the page directly.')),
+                        Textarea::make('prompt')
+                            ->hiddenLabel()
+                            ->readOnly()
+                            ->rows(16)
+                            ->default(fn (ImportPromptBuilder $builder): string => $builder->build(user()))
+                            ->belowContent($this->copyPromptAction()),
+                    ]),
                 ...($this->draftId === null ? $this->publicationFields() : []),
             ]);
+    }
+
+    /**
+     * "Create with AI": photo, PDF or text to the import JSON of the next step, which the user
+     * checks; resolving and confirming stay the same as for the manual way.
+     */
+    private function aiSection(): Section
+    {
+        return Section::make(__('Create with AI'))
+            ->description(__('Upload a photo or PDF of the recipe, or paste its text or web address. The AI fills in the recipe JSON of the next step.'))
+            ->schema([
+                FileUpload::make('ai_file')
+                    ->label(__('Photo or PDF'))
+                    ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp', 'application/pdf'])
+                    ->maxSize(10240)
+                    ->storeFiles(false),
+                Textarea::make('ai_text')
+                    ->label(__('Recipe text or web address'))
+                    ->helperText(__('Paste the text of the recipe or the address of a recipe page (https://…).'))
+                    ->rows(5)
+                    ->maxLength(20000),
+                Toggle::make('ai_image')
+                    ->label(__('Also create a photo with AI'))
+                    ->helperText(__('Added to the recipe after the import and marked as AI generated.')),
+                Actions::make([
+                    Action::make('createWithAi')
+                        ->label(__('Create with AI'))
+                        ->icon(Heroicon::OutlinedSparkles)
+                        ->action(fn () => $this->createWithAi()),
+                ]),
+            ]);
+    }
+
+    public function createWithAi(): void
+    {
+        set_time_limit(300);
+
+        $file = collect((array) ($this->data['ai_file'] ?? []))->first(fn (mixed $file): bool => $file instanceof UploadedFile);
+
+        try {
+            $recipe = app(RecipeAssistant::class)->recipe(user(), $file, $this->data['ai_text'] ?? null);
+        } catch (AiException $exception) {
+            Notification::make()->danger()->title(__($exception->getMessage()))->send();
+
+            return;
+        }
+
+        $this->data['json'] = (string) json_encode($recipe, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+
+        Notification::make()
+            ->success()
+            ->title(__('Recipe recognized'))
+            ->body(__('Check it in the next step and continue.'))
+            ->send();
     }
 
     /**
@@ -620,6 +685,17 @@ class ImportRecipe extends Page
         }
 
         $this->notifyAdmins($requested, $recipe->name);
+
+        if (($this->data['ai_image'] ?? false) === true && RecipeAssistant::allows(user())) {
+            set_time_limit(300);
+
+            try {
+                app(RecipeAssistant::class)->image(user(), $recipe);
+            } catch (AiException $exception) {
+                // The recipe is imported; only the photo is missing.
+                Notification::make()->warning()->title(__('The AI photo could not be created.'))->body(__($exception->getMessage()))->persistent()->send();
+            }
+        }
 
         Notification::make()
             ->success()

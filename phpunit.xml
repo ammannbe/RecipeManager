@@ -22,6 +22,9 @@
         <!-- Local DDEV may enable SSO in .ddev/config.local.yaml; tests turn it on themselves. -->
         <env name="AUTH_OIDC_ENABLED" value="false" force="true"/>
         <server name="AUTH_OIDC_ENABLED" value="false" force="true"/>
+        <!-- Never call OpenAI with the real key; tests set a fake key and Http::fake(). -->
+        <env name="OPENAI_API_KEY" value="" force="true"/>
+        <server name="OPENAI_API_KEY" value="" force="true"/>
         <env name="APP_MAINTENANCE_DRIVER" value="file"/>
         <env name="BCRYPT_ROUNDS" value="4"/>
         <env name="BROADCAST_CONNECTION" value="null"/>
