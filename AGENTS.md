@@ -139,6 +139,31 @@ ddev artisan passport:client --name=Shoppinglist --redirect_uri=https://<shoppin
   deployments) or set `PASSPORT_PRIVATE_KEY` / `PASSPORT_PUBLIC_KEY` in the environment.
   Never commit the keys. Rotating the keys invalidates all issued tokens.
 
+## MCP server (AI clients)
+
+* `laravel/mcp`, `routes/ai.php`: `POST /mcp` (`App\Mcp\Servers\RecipesServer`, middleware `auth:api`,
+  `EnsureMcpGrant`, `throttle:120,1`) and `Mcp::oauthRoutes()` (OAuth discovery under `/.well-known/*`, public
+  dynamic client registration `POST /oauth/register`, throttled 10/min). Clients: Claude Code, Codex, OpenClaw,
+  Claude Desktop … (remote MCP over HTTP + OAuth, no plugin). Public clients with PKCE, scope `mcp:use`
+  (registered in `AppServiceProvider` next to `recipes`, otherwise our `tokensCan()` would drop it).
+* Permissions: laravel/mcp knows only the one scope, so the approval screen (`passport/authorize.blade.php`,
+  MCP clients detected by the `mcp:use` scope) shows checkboxes (`App\Mcp\McpPermission`: read, create,
+  update, delete) and posts to `POST /oauth/authorize/mcp` (`McpAuthorizationController`): stores
+  `mcp_grants` (user + OAuth client + permissions, `last_used_at`) and then calls Passport's approval.
+  `EnsureMcpGrant` refuses tokens without `mcp:use` or without grant; `DenyMcpTokens` keeps AI client tokens
+  off the JSON API. Tools extend `App\Mcp\Tools\RecipeTool` (`shouldRegister()` = grant has the permission);
+  the user's own rights still apply (`visibleTo()`, `RecipePolicy`).
+* Tools: `search-recipes`, `get-recipe`, `list-vocabulary` (read), `get-recipe-format`, `create-recipe`
+  (create: import JSON without photos; unknown values, also tags/attributes, stop with a draft link to the
+  import wizard unless `create_missing`, which creates them as requests for non-admins and mails the
+  admins), `update-recipe` (update: fields, Markdown steps, existing tags; ingredients only in the app),
+  `delete-recipe` (delete: soft delete).
+* Page "Connected AI clients" (`App\Filament\Pages\ConnectedAiClients`, every user): connection guide
+  per client, own grants with permissions (editable), last use, revoke (revokes the client's access and
+  refresh tokens of the user and deletes the grant).
+* Tests: `tests/Feature/McpServerTest.php` (`Passport::actingAs($user, ['mcp:use'], 'api', $client)` +
+  `RecipesServer::tool()`).
+
 ## Lookup Requests and Import Decisions
 
 * Foods, units, ingredient attributes and tags use `Requestable` (`requested_by`, `requested_at`):
