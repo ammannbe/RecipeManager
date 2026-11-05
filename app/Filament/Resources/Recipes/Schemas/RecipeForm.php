@@ -556,9 +556,11 @@ class RecipeForm
     {
         $selected = array_values(array_filter(array_map('intval', (array) $selected)));
 
+        // visibleTo() adds no condition for admins, and an empty nested orWhere is dropped,
+        // which would leave only the selected entries.
         return $model::query()
-            ->where(fn (Builder $query) => $query->whereIn('id', $selected)
-                ->orWhere(fn (Builder $query) => $query->visibleTo(user())))
+            ->when(! user()?->admin, fn (Builder $query) => $query->where(fn (Builder $query) => $query->whereIn('id', $selected)
+                ->orWhere(fn (Builder $query) => $query->visibleTo(user()))))
             ->orderBy('name')
             ->pluck('name', 'id')
             ->all();

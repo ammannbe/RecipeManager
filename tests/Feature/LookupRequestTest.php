@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Filament\Resources\Foods\FoodResource;
 use App\Filament\Resources\Foods\Pages\ListFoods;
+use App\Filament\Resources\Recipes\Pages\EditRecipe;
 use App\Filament\Resources\Tags\Pages\ListTags;
 use App\Models\Food;
 use App\Models\Ingredient;
@@ -11,6 +12,7 @@ use App\Models\Recipe;
 use App\Models\Tag;
 use App\Models\User;
 use App\Services\Lookup\LookupMerger;
+use Filament\Forms\Components\Select;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -36,6 +38,42 @@ class LookupRequestTest extends TestCase
         Livewire::test(ListFoods::class)->assertCanSeeTableRecords([$pending]);
 
         $this->assertSame(['Apfel'], Food::query()->visibleTo(null)->pluck('name')->all());
+    }
+
+    /**
+     * @return array<int|string, mixed>
+     */
+    private function foodOptionsOnEditPage(User $user, Recipe $recipe): array
+    {
+        $this->actingAs($user);
+
+        /** @var EditRecipe $page */
+        $page = Livewire::test(EditRecipe::class, ['record' => $recipe->getRouteKey()])->instance();
+
+        foreach ($page->form->getFlatComponents(withHidden: true) as $component) {
+            if ($component instanceof Select && str_starts_with($component->getStatePath(), 'data.ungroupedIngredients.') && str_ends_with($component->getStatePath(), '.food_id')) {
+                return $component->getOptions();
+            }
+        }
+
+        $this->fail('Food select not found.');
+    }
+
+    public function test_the_food_select_offers_all_visible_foods_beyond_the_selected_one(): void
+    {
+        $requester = User::factory()->create(['admin' => false]);
+        $pending = $this->requested('Yuzu', $requester);
+        $apfel = Food::factory()->create(['name' => 'Apfel']);
+        $birne = Food::factory()->create(['name' => 'Birne']);
+
+        $owner = User::factory()->create(['admin' => false]);
+        $recipe = Recipe::factory()->create(['author_id' => $owner->author_id]);
+        Ingredient::factory()->create(['recipe_id' => $recipe->id, 'ingredient_group_id' => null, 'ingredient_id' => null, 'food_id' => $apfel->id, 'position' => 1]);
+
+        $this->assertSame([$apfel->id, $birne->id], array_keys($this->foodOptionsOnEditPage($owner, $recipe)));
+
+        $admin = User::factory()->admin()->create();
+        $this->assertSame([$apfel->id, $birne->id, $pending->id], array_keys($this->foodOptionsOnEditPage($admin, $recipe)));
     }
 
     public function test_an_admin_approves_a_request(): void
