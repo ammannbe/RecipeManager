@@ -87,6 +87,28 @@ class ParsedRecipe
     }
 
     /**
+     * The same recipe under another name, e.g. the one edited in the import wizard.
+     */
+    public function withName(string $name): self
+    {
+        return new self(
+            name: trim($name),
+            category: $this->category,
+            author: $this->author,
+            cookbook: $this->cookbook,
+            servings: $this->servings,
+            servingType: $this->servingType,
+            complexity: $this->complexity,
+            preparationTime: $this->preparationTime,
+            instructions: $this->instructions,
+            tags: $this->tags,
+            ingredients: $this->ingredients,
+            groups: $this->groups,
+            photos: $this->photos,
+        );
+    }
+
+    /**
      * Every ingredient of the recipe, grouped or not, including alternatives.
      *
      * @return array<int, ParsedIngredient>

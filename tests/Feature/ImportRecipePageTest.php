@@ -17,8 +17,10 @@ use App\Models\User;
 use App\Services\RecipeImport\LookupType;
 use App\Services\RecipeImport\RecipeJsonSchema;
 use App\Services\RecipeImport\ResolutionReport;
+use Filament\Actions\Testing\TestAction;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Livewire\Features\SupportTesting\Testable;
 use Livewire\Livewire;
 use Tests\TestCase;
@@ -142,7 +144,7 @@ class ImportRecipePageTest extends TestCase
         ]);
     }
 
-    public function test_the_confirmation_action_shows_duplicate_errors(): void
+    public function test_the_confirmation_action_refuses_a_duplicate_name(): void
     {
         $this->seedLookups();
 
@@ -157,16 +159,191 @@ class ImportRecipePageTest extends TestCase
         Livewire::test(ImportRecipe::class)
             ->fillForm(['json' => $this->payload()])
             ->callAction('import')
+            ->assertHasErrors(['data.name' => __('A recipe named ":name" already exists in this cookbook.', ['name' => 'Apfelkuchen'])]);
+
+        $this->assertSame(1, Recipe::query()->count());
+    }
+
+    public function test_a_duplicate_is_shown_on_the_resolve_step_with_a_free_name(): void
+    {
+        $this->seedLookups();
+        $user = User::factory()->create(['admin' => false]);
+        $this->actingAs($user);
+        Recipe::factory()->create(['name' => 'Apfelkuchen', 'cookbook_id' => null, 'author_id' => $user->author_id]);
+
+        Livewire::test(ImportRecipe::class)
+            ->fillForm(['json' => $this->payload()])
+            ->goToNextWizardStep()
+            ->assertHasNoFormErrors()
+            ->assertWizardCurrentStep(2)
+            ->assertSet('data.name', 'Apfelkuchen')
+            ->assertSee(__('A recipe named ":name" already exists in this cookbook.', ['name' => 'Apfelkuchen']))
+            ->assertSee(__('Choose another name, for example ":name".', ['name' => 'Apfelkuchen (2)']))
+            ->assertActionHidden(TestAction::make('forceDeleteTrashed')->schemaComponent('nameConflict'))
+            ->goToWizardStep(3)
+            ->assertHasFormErrors(['name'])
+            ->assertWizardCurrentStep(2)
+            ->callAction(TestAction::make('useAvailableName')->schemaComponent('nameConflict'))
+            ->assertSet('data.name', 'Apfelkuchen (2)')
+            ->assertDontSee(__('Choose another name, for example ":name".', ['name' => 'Apfelkuchen (2)']))
+            ->call('import')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas(Recipe::class, ['name' => 'Apfelkuchen (2)', 'author_id' => $user->author_id]);
+    }
+
+    public function test_the_edited_name_is_imported(): void
+    {
+        $this->seedLookups();
+        $this->actingAs(User::factory()->admin()->create());
+
+        Livewire::test(ImportRecipe::class)
+            ->fillForm(['json' => $this->payload()])
+            ->goToNextWizardStep()
+            ->fillForm(['name' => 'Omas Apfelkuchen'])
+            ->goToWizardStep(3)
+            ->assertHasNoFormErrors()
+            ->assertWizardCurrentStep(3)
+            ->assertSee('Omas Apfelkuchen')
+            ->call('import')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas(Recipe::class, ['name' => 'Omas Apfelkuchen']);
+        $this->assertDatabaseMissing(Recipe::class, ['name' => 'Apfelkuchen']);
+    }
+
+    public function test_the_name_is_checked_again_when_the_cookbook_changes(): void
+    {
+        $this->seedLookups();
+        $user = User::factory()->create(['admin' => false]);
+        $this->actingAs($user);
+        $cookbook = Cookbook::factory()->create(['author_id' => $user->author_id]);
+        Recipe::factory()->create(['name' => 'Apfelkuchen', 'cookbook_id' => $cookbook->id, 'author_id' => $user->author_id]);
+        $message = __('Choose another name, for example ":name".', ['name' => 'Apfelkuchen (2)']);
+
+        Livewire::withQueryParams(['draft' => $this->draft($user)->id])
+            ->test(ImportRecipe::class)
+            ->assertWizardCurrentStep(2)
+            ->assertDontSee($message)
+            ->fillForm(['cookbook_id' => $cookbook->id])
+            ->assertSee($message)
+            ->call('import')
+            ->assertHasErrors(['data.name'])
+            ->fillForm(['cookbook_id' => null])
+            ->assertDontSee($message)
+            ->call('import')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas(Recipe::class, ['name' => 'Apfelkuchen', 'cookbook_id' => null]);
+    }
+
+    public function test_a_duplicate_in_the_trash_can_be_deleted_permanently(): void
+    {
+        Storage::fake('recipes');
+        $this->seedLookups();
+        $user = User::factory()->create(['admin' => false]);
+        $this->actingAs($user);
+        $trashed = Recipe::factory()->create(['name' => 'Apfelkuchen', 'cookbook_id' => null, 'author_id' => $user->author_id]);
+        Storage::disk('recipes')->put($trashed->id.'/photo.jpg', 'binary');
+        $trashed->delete();
+
+        Livewire::test(ImportRecipe::class)
+            ->fillForm(['json' => $this->payload()])
+            ->goToNextWizardStep()
+            ->assertSee(__('A recipe named ":name" already exists in this cookbook (in the trash).', ['name' => 'Apfelkuchen']))
+            ->callAction(TestAction::make('forceDeleteTrashed')->schemaComponent('nameConflict'))
+            ->assertNotified(__('The recipe in the trash was deleted permanently.'))
+            ->assertDontSee(__('A recipe named ":name" already exists in this cookbook (in the trash).', ['name' => 'Apfelkuchen']))
+            ->call('import')
+            ->assertHasNoErrors();
+
+        $this->assertModelMissing($trashed);
+        Storage::disk('recipes')->assertMissing($trashed->id.'/photo.jpg');
+        $this->assertDatabaseHas(Recipe::class, ['name' => 'Apfelkuchen', 'deleted_at' => null]);
+    }
+
+    public function test_a_duplicate_in_the_trash_can_be_renamed(): void
+    {
+        $this->seedLookups();
+        $user = User::factory()->create(['admin' => false]);
+        $this->actingAs($user);
+        $trashed = Recipe::factory()->create(['name' => 'Apfelkuchen', 'cookbook_id' => null, 'author_id' => $user->author_id]);
+        $trashed->delete();
+        Recipe::factory()->create(['name' => 'Apfelkuchen alt', 'cookbook_id' => null, 'author_id' => $user->author_id]);
+
+        Livewire::test(ImportRecipe::class)
+            ->fillForm(['json' => $this->payload()])
+            ->goToNextWizardStep()
+            ->mountAction(TestAction::make('renameTrashed')->schemaComponent('nameConflict'))
+            ->assertSchemaStateSet(['name' => 'Apfelkuchen (2)'])
+            ->fillForm(['name' => 'Apfelkuchen alt'])
+            ->callMountedAction()
+            ->assertHasActionErrors(['name'])
+            ->fillForm(['name' => 'Apfelkuchen aus dem Papierkorb'])
+            ->callMountedAction()
+            ->assertHasNoActionErrors()
+            ->assertNotified(__('The recipe in the trash was renamed.'))
+            ->call('import')
+            ->assertHasNoErrors();
+
+        $this->assertSame('Apfelkuchen aus dem Papierkorb', $trashed->fresh()?->name);
+        $this->assertSoftDeleted($trashed);
+        $this->assertDatabaseHas(Recipe::class, ['name' => 'Apfelkuchen', 'deleted_at' => null]);
+    }
+
+    public function test_a_duplicate_in_the_trash_the_user_may_not_change_only_offers_another_name(): void
+    {
+        $this->seedLookups();
+        $user = User::factory()->create(['admin' => false]);
+        $this->actingAs($user);
+        $cookbook = Cookbook::factory()->create();
+        $cookbook->members()->attach($user->id, ['can_read' => true]);
+        $trashed = Recipe::factory()->create(['name' => 'Apfelkuchen', 'cookbook_id' => $cookbook->id, 'author_id' => $cookbook->author_id]);
+        $trashed->delete();
+
+        Livewire::withQueryParams(['draft' => $this->draft($user)->id])
+            ->test(ImportRecipe::class)
+            ->set('data.cookbook_id', $cookbook->id)
+            ->assertSee(__('That recipe is in the trash and you may not change it. Choose another name, for example ":name".', ['name' => 'Apfelkuchen (2)']))
+            ->assertActionHidden(TestAction::make('forceDeleteTrashed')->schemaComponent('nameConflict'))
+            ->assertActionHidden(TestAction::make('renameTrashed')->schemaComponent('nameConflict'))
+            ->assertActionVisible(TestAction::make('useAvailableName')->schemaComponent('nameConflict'));
+
+        $this->assertSoftDeleted($trashed);
+    }
+
+    public function test_a_failed_import_leaves_no_requested_lookups_and_sends_no_mail(): void
+    {
+        $this->seedLookups();
+        Food::query()->where('name', 'Mehl')->forceDelete();
+        Mail::fake();
+        User::factory()->admin()->create();
+        $user = User::factory()->create(['admin' => false]);
+        $this->actingAs($user);
+
+        $component = Livewire::test(ImportRecipe::class)
+            ->fillForm(['json' => $this->payload()])
+            ->goToNextWizardStep();
+        $item = $this->unresolvedValue($component, 'Mehl');
+
+        // Someone saves the same name while the import runs: the importer's own check refuses it.
+        Food::created(fn () => Recipe::factory()->create(['name' => 'Apfelkuchen', 'cookbook_id' => null, 'author_id' => $user->author_id]));
+
+        $component
+            ->set('data.decisions.'.md5($item['key']).'.create', true)
+            ->call('import')
             ->assertHasErrors('data.json')
             ->assertNotified(
                 Notification::make()
                     ->danger()
                     ->title(__('Recipe could not be imported'))
-                    ->body(__('A recipe named ":name" already exists in this cookbook.', [
-                        'name' => 'Apfelkuchen',
-                    ]))
+                    ->body(__('A recipe named ":name" already exists in this cookbook.', ['name' => 'Apfelkuchen']))
                     ->persistent()
             );
+
+        $this->assertDatabaseMissing('foods', ['name' => 'Mehl']);
+        $this->assertSame(0, Recipe::query()->withTrashed()->count());
+        Mail::assertNothingSent();
     }
 
     public function test_it_strips_a_markdown_code_fence(): void

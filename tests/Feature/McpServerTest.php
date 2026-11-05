@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Filament\Pages\ConnectedAiClients;
+use App\Mail\LookupRequestedMail;
 use App\Mcp\McpPermission;
 use App\Mcp\Servers\RecipesServer;
 use App\Mcp\Tools\CreateRecipeTool;
@@ -19,6 +20,8 @@ use App\Models\Tag;
 use App\Models\Unit;
 use App\Models\User;
 use App\Services\RecipeImport\RecipeJsonSchema;
+use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Laravel\Mcp\Server\Registrar;
 use Laravel\Passport\Client;
 use Laravel\Passport\ClientRepository;
@@ -200,6 +203,45 @@ class McpServerTest extends TestCase
         $this->assertNotNull(Tag::query()->where('name', 'Kuchen')->value('requested_at'));
     }
 
+    public function test_a_duplicate_name_is_numbered_or_reported_without_leaving_requests_behind(): void
+    {
+        Mail::fake();
+        User::factory()->admin()->create();
+        $user = User::factory()->create();
+        $this->connect($user, [McpPermission::Create]);
+        Category::factory()->create(['name' => 'Dessert']);
+        Unit::factory()->create(['name' => 'g', 'name_shortcut' => 'g']);
+        Unit::factory()->create(['name' => 'Prise', 'name_shortcut' => null]);
+
+        foreach (['Mehl', 'Butter', 'Margarine', 'Apfel', 'Salz'] as $food) {
+            Food::factory()->create(['name' => $food]);
+        }
+
+        $trashed = Recipe::factory()->create(['name' => 'Apfelkuchen', 'cookbook_id' => null, 'author_id' => $user->author_id]);
+        $trashed->delete();
+        $recipe = [...RecipeJsonSchema::example(), 'cookbook' => null];
+
+        // "error": nothing saved, not even the missing tags, and no mail.
+        RecipesServer::tool(CreateRecipeTool::class, ['recipe' => $recipe, 'create_missing' => true, 'on_duplicate' => 'error'])
+            ->assertHasErrors()
+            ->assertSee(__('A recipe named ":name" already exists in this cookbook (in the trash).', ['name' => 'Apfelkuchen']));
+        $this->assertSame(0, Recipe::query()->count());
+        $this->assertDatabaseMissing('tags', ['name' => 'Kuchen']);
+        Mail::assertNothingSent();
+
+        // Default "rename": saved under a free name; the trashed recipe stays where it is.
+        RecipesServer::tool(CreateRecipeTool::class, ['recipe' => $recipe, 'create_missing' => true])
+            ->assertOk()
+            ->assertSee('"name":"Apfelkuchen (2)"')
+            ->assertSee('"renamed":true')
+            ->assertSee('"original_name":"Apfelkuchen"');
+        $this->assertSame('Apfelkuchen (2)', Recipe::query()->sole()->name);
+        $this->assertSoftDeleted($trashed);
+        Mail::assertSent(LookupRequestedMail::class);
+
+        RecipesServer::tool(CreateRecipeTool::class, ['recipe' => $recipe, 'on_duplicate' => 'skip'])->assertHasErrors();
+    }
+
     public function test_updating_and_deleting_need_the_user_s_own_rights(): void
     {
         $user = User::factory()->create();
@@ -215,9 +257,13 @@ class McpServerTest extends TestCase
 
         RecipesServer::tool(UpdateRecipeTool::class, ['id' => $foreign->id, 'name' => 'Meins'])->assertHasErrors();
         RecipesServer::tool(DeleteRecipeTool::class, ['id' => $foreign->id])->assertHasErrors();
+        Storage::fake('recipes');
+        Storage::disk('recipes')->put($own->id.'/photo.jpg', 'binary');
         RecipesServer::tool(DeleteRecipeTool::class, ['id' => $own->id])->assertOk();
 
+        // Only to the trash: restorable, with its photos.
         $this->assertSoftDeleted($own);
+        Storage::disk('recipes')->assertExists($own->id.'/photo.jpg');
         $this->assertNotSoftDeleted($foreign);
     }
 

@@ -5,8 +5,10 @@ namespace App\Filament\Pages;
 use App\Ai\AiException;
 use App\Ai\RecipeAssistant;
 use App\Filament\Resources\Recipes\RecipeResource;
+use App\Filament\Resources\Recipes\RecipeTrashActions;
 use App\Mail\LookupRequestedMail;
 use App\Models\Cookbook;
+use App\Models\Recipe;
 use App\Models\RecipeDraft;
 use App\Models\User;
 use App\Services\RecipeImport\LookupType;
@@ -14,16 +16,21 @@ use App\Services\RecipeImport\ParsedRecipe;
 use App\Services\RecipeImport\RecipeImporter;
 use App\Services\RecipeImport\RecipeJsonValidator;
 use App\Services\RecipeImport\RelationResolver;
+use App\Services\RecipeImport\ResolutionReport;
 use App\Services\RecipeImport\UnresolvedValue;
+use App\Services\RecipeNames;
 use BackedEnum;
+use Closure;
 use Filament\Actions\Action;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Filament\Schemas\Components\Callout;
 use Filament\Schemas\Components\Component;
 use Filament\Schemas\Components\EmbeddedSchema;
 use Filament\Schemas\Components\Form;
@@ -37,6 +44,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\HtmlString;
 use Illuminate\Validation\ValidationException;
 
@@ -83,7 +91,28 @@ class ImportRecipe extends Page
      */
     public ?string $aiInput = null;
 
+    /**
+     * The JSON name the name field was filled with: a new recipe refills it, going back and forth keeps
+     * the user's edit.
+     */
+    public ?string $parsedName = null;
+
+    /**
+     * Cookbook and author named in the JSON (author only for admins), with the id when matched:
+     * the scope a duplicate name is checked in before the import.
+     *
+     * @var array<string, array{key: string, id: int|null}>
+     */
+    public array $scopeLookups = [];
+
     private ?ParsedRecipe $parsed = null;
+
+    /**
+     * Duplicate lookups of this request, by name and scope.
+     *
+     * @var array<string, Recipe|null>
+     */
+    private array $conflicts = [];
 
     public static function getNavigationLabel(): string
     {
@@ -293,6 +322,7 @@ class ImportRecipe extends Page
             ->description(__('Match unknown values'))
             ->icon(Heroicon::OutlinedQuestionMarkCircle)
             ->schema(fn (): array => [
+                $this->nameSection(),
                 ...($this->draftId !== null ? [
                     Section::make(__('Publication'))
                         ->schema($this->publicationFields())
@@ -303,6 +333,189 @@ class ImportRecipe extends Page
             ->afterValidation(function (): void {
                 $this->parse();
             });
+    }
+
+    /**
+     * The recipe name, checked against the cookbook chosen before (or on this step for drafts)
+     * including its trash, so a duplicate shows up here and not only on import.
+     */
+    private function nameSection(): Section
+    {
+        return Section::make(__('Recipe'))
+            ->schema([
+                TextInput::make('name')
+                    ->label(__('Name'))
+                    ->required()
+                    ->maxLength(RecipeNames::MAX_LENGTH)
+                    ->live(onBlur: true)
+                    ->rules([fn (): Closure => function (string $attribute, mixed $value, Closure $fail): void {
+                        if (is_string($value) && ($conflict = $this->nameConflict($value)) !== null) {
+                            $fail(app(RecipeNames::class)->duplicateMessage($value, $conflict));
+                        }
+                    }]),
+                Callout::make(fn (): string => ($conflict = $this->nameConflict()) !== null
+                    ? app(RecipeNames::class)->duplicateMessage((string) $this->data['name'], $conflict)
+                    : '')
+                    ->key('nameConflict')
+                    ->warning()
+                    ->description(fn (): string => $this->conflictHint())
+                    ->visible(fn (): bool => $this->nameConflict() !== null)
+                    ->actions([
+                        $this->useAvailableNameAction(),
+                        $this->renameTrashedAction(),
+                        $this->forceDeleteTrashedAction(),
+                    ]),
+            ]);
+    }
+
+    private function conflictHint(): string
+    {
+        $conflict = $this->nameConflict();
+
+        if ($conflict === null) {
+            return '';
+        }
+
+        $suggestion = ['name' => $this->availableName()];
+
+        if (! $conflict->trashed()) {
+            return __('Choose another name, for example ":name".', $suggestion);
+        }
+
+        return $this->canChangeTrashed($conflict, 'forceDelete') || $this->canChangeTrashed($conflict, 'update')
+            ? __('That recipe is in the trash. Choose another name, for example ":name", or delete the recipe in the trash permanently or rename it.', $suggestion)
+            : __('That recipe is in the trash and you may not change it. Choose another name, for example ":name".', $suggestion);
+    }
+
+    private function useAvailableNameAction(): Action
+    {
+        return Action::make('useAvailableName')
+            ->label(fn (): string => __('Use ":name"', ['name' => $this->availableName()]))
+            ->color('gray')
+            ->action(function (): void {
+                $this->data['name'] = $this->availableName();
+                $this->conflicts = [];
+            });
+    }
+
+    private function forceDeleteTrashedAction(): Action
+    {
+        return Action::make('forceDeleteTrashed')
+            ->label(__('Delete the recipe in the trash permanently'))
+            ->color('danger')
+            ->icon(Heroicon::OutlinedTrash)
+            ->requiresConfirmation()
+            ->modalHeading(fn (): string => __('Delete ":name" permanently?', ['name' => (string) $this->nameConflict()?->name]))
+            ->modalDescription(__('The recipe and its photos are deleted permanently. This cannot be undone.'))
+            ->visible(fn (): bool => $this->canChangeTrashed($this->nameConflict(), 'forceDelete'))
+            ->action(function (): void {
+                $conflict = $this->nameConflict();
+
+                if (! $this->canChangeTrashed($conflict, 'forceDelete')) {
+                    abort(403);
+                }
+
+                $conflict?->forceDelete();
+                $this->conflicts = [];
+
+                Notification::make()->success()->title(__('The recipe in the trash was deleted permanently.'))->send();
+            });
+    }
+
+    private function renameTrashedAction(): Action
+    {
+        return Action::make('renameTrashed')
+            ->label(__('Rename the recipe in the trash'))
+            ->color('gray')
+            ->icon(Heroicon::OutlinedPencilSquare)
+            ->visible(fn (): bool => $this->canChangeTrashed($this->nameConflict(), 'update'))
+            ->fillForm(fn (): array => ['name' => ($conflict = $this->nameConflict()) !== null
+                ? app(RecipeNames::class)->availableName($conflict->name, $conflict->cookbook_id, $conflict->author_id)
+                : null])
+            ->schema(fn (): array => ($conflict = $this->nameConflict()) !== null ? [RecipeTrashActions::nameInput($conflict)] : [])
+            ->action(function (array $data): void {
+                $conflict = $this->nameConflict();
+
+                if (! $this->canChangeTrashed($conflict, 'update')) {
+                    abort(403);
+                }
+
+                $conflict?->update(['name' => trim((string) $data['name'])]);
+                $this->conflicts = [];
+
+                Notification::make()->success()->title(__('The recipe in the trash was renamed.'))->send();
+            });
+    }
+
+    private function canChangeTrashed(?Recipe $conflict, string $ability): bool
+    {
+        return $conflict !== null && $conflict->trashed() && (bool) user()?->can($ability, $conflict);
+    }
+
+    /**
+     * The recipe the import would collide with (also in the trash): same name in the cookbook chosen
+     * here or named in the JSON, without cookbook among the author's recipes, like the importer.
+     * Null while the cookbook or author named in the JSON is undecided; the importer checks anyway.
+     */
+    private function nameConflict(?string $name = null): ?Recipe
+    {
+        $name = trim($name ?? (string) ($this->data['name'] ?? ''));
+        $scope = $this->nameScope();
+
+        if ($name === '' || $scope === null) {
+            return null;
+        }
+
+        $key = $name.'|'.implode('|', $scope);
+
+        if (! array_key_exists($key, $this->conflicts)) {
+            $this->conflicts[$key] = app(RecipeNames::class)->findDuplicate($name, ...$scope);
+        }
+
+        return $this->conflicts[$key];
+    }
+
+    private function availableName(): string
+    {
+        return app(RecipeNames::class)->availableName((string) ($this->data['name'] ?? ''), ...($this->nameScope() ?? [null, null]));
+    }
+
+    /**
+     * @return array{0: int|null, 1: int|null}|null cookbook and author id
+     */
+    private function nameScope(): ?array
+    {
+        $cookbookId = filled($this->data['cookbook_id'] ?? null)
+            ? (int) $this->data['cookbook_id']
+            : $this->scopeLookupId('cookbook');
+        $authorId = $this->scopeLookupId('author') ?? user()?->author_id;
+
+        if ($cookbookId === false || $authorId === false) {
+            return null;
+        }
+
+        return [$cookbookId, $authorId];
+    }
+
+    /**
+     * The id of the cookbook or author named in the JSON: matched, or as chosen on this step;
+     * false while undecided or to be created (a new one has no recipes yet).
+     */
+    private function scopeLookupId(string $type): int|false|null
+    {
+        $lookup = $this->scopeLookups[$type] ?? null;
+
+        if ($lookup === null) {
+            return null;
+        }
+
+        if ($lookup['id'] !== null) {
+            return $lookup['id'];
+        }
+
+        $id = data_get($this->data, 'decisions.'.$this->stateKey($lookup['key']).'.id');
+
+        return is_numeric($id) ? (int) $id : false;
     }
 
     private function confirmStep(): Step
@@ -458,7 +671,9 @@ class ImportRecipe extends Page
 
         $lines = [];
 
-        foreach ([...$this->summary, ...$this->decisionSummary()] as $label => $value) {
+        $summary = [...$this->summary, __('Recipe') => (string) ($this->data['name'] ?? '')];
+
+        foreach ([...$summary, ...$this->decisionSummary()] as $label => $value) {
             $lines[] = e($label).': '.e($value);
         }
 
@@ -560,6 +775,22 @@ class ImportRecipe extends Page
 
         $this->preselectDecisions();
 
+        $this->scopeLookups = [];
+
+        foreach (['cookbook' => LookupType::Cookbook, 'author' => LookupType::Author] as $scope => $type) {
+            $value = $scope === 'cookbook' ? $this->parsed->cookbook : ($this->parsed->author !== null && user()?->admin ? $this->parsed->author : null);
+
+            if ($value !== null) {
+                $key = ResolutionReport::key($type, $value);
+                $this->scopeLookups[$scope] = ['key' => $key, 'id' => $report->resolved[$key] ?? null];
+            }
+        }
+
+        if ($this->parsedName !== $this->parsed->name || blank($this->data['name'] ?? null)) {
+            $this->data['name'] = $this->parsed->name;
+            $this->parsedName = $this->parsed->name;
+        }
+
         $this->summary = $this->buildSummary($this->parsed);
 
         return $this->parsed;
@@ -586,10 +817,56 @@ class ImportRecipe extends Page
 
     public function import(): void
     {
-        $this->form->validate();
-
+        // Parsed first: it fills the name field the form validates.
         $parsed = $this->parse();
 
+        $this->form->validate();
+
+        $parsed = $parsed->withName((string) $this->data['name']);
+        $requested = [];
+
+        // New lookups and the recipe are saved together: a failed import leaves no requests behind.
+        $recipe = DB::transaction(function () use ($parsed, &$requested): Recipe {
+            [$decisions, $requested] = $this->decisions();
+
+            return $this->importRecipe($parsed, $decisions);
+        });
+
+        if ($this->draftId !== null) {
+            RecipeDraft::query()->whereKey($this->draftId)->delete();
+        }
+
+        LookupRequestedMail::notifyAdmins(user(), $requested, $recipe->name);
+
+        if (($this->data['ai_image'] ?? false) === true && RecipeAssistant::allows(user())) {
+            set_time_limit(300);
+
+            try {
+                app(RecipeAssistant::class)->image(user(), $recipe);
+            } catch (AiException $exception) {
+                // The recipe is imported; only the photo is missing.
+                Notification::make()->warning()->title(__('The AI photo could not be created.'))->body(__($exception->getMessage()))->persistent()->send();
+            }
+        }
+
+        Notification::make()
+            ->success()
+            ->title(__('Recipe imported'))
+            ->body($recipe->name)
+            ->send();
+
+        $this->redirect(RecipeResource::getUrl('edit', ['record' => $recipe]));
+    }
+
+    /**
+     * The chosen id per lookup key (null to omit), creating the values the user asked for.
+     *
+     * @return array{0: array<string, int|null>, 1: array<int, array{type: string, value: string}>} decisions and requested values
+     *
+     * @throws ValidationException
+     */
+    private function decisions(): array
+    {
         $resolver = app(RelationResolver::class);
         $decisions = [];
         $requested = [];
@@ -641,10 +918,20 @@ class ImportRecipe extends Page
             $decisions[$item['key']] = (int) $id;
         }
 
+        return [$decisions, $requested];
+    }
+
+    /**
+     * @param  array<string, int|null>  $decisions
+     *
+     * @throws ValidationException
+     */
+    private function importRecipe(ParsedRecipe $parsed, array $decisions): Recipe
+    {
         $cookbookId = $this->data['cookbook_id'] ?? null;
 
         try {
-            $recipe = app(RecipeImporter::class)->import(
+            return app(RecipeImporter::class)->import(
                 $parsed,
                 user(),
                 $decisions,
@@ -665,31 +952,6 @@ class ImportRecipe extends Page
                 'data.json' => $messages,
             ]);
         }
-
-        if ($this->draftId !== null) {
-            RecipeDraft::query()->whereKey($this->draftId)->delete();
-        }
-
-        LookupRequestedMail::notifyAdmins(user(), $requested, $recipe->name);
-
-        if (($this->data['ai_image'] ?? false) === true && RecipeAssistant::allows(user())) {
-            set_time_limit(300);
-
-            try {
-                app(RecipeAssistant::class)->image(user(), $recipe);
-            } catch (AiException $exception) {
-                // The recipe is imported; only the photo is missing.
-                Notification::make()->warning()->title(__('The AI photo could not be created.'))->body(__($exception->getMessage()))->persistent()->send();
-            }
-        }
-
-        Notification::make()
-            ->success()
-            ->title(__('Recipe imported'))
-            ->body($recipe->name)
-            ->send();
-
-        $this->redirect(RecipeResource::getUrl('edit', ['record' => $recipe]));
     }
 
     /**

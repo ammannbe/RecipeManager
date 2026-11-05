@@ -7,6 +7,7 @@ use App\Models\Ingredient;
 use App\Models\IngredientGroup;
 use App\Models\Recipe;
 use App\Models\User;
+use App\Services\RecipeNames;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -20,12 +21,14 @@ class RecipeImporter
     public function __construct(
         private readonly RelationResolver $resolver,
         private readonly ImageDownloader $downloader,
+        private readonly RecipeNames $names,
     ) {}
 
     /**
      * @param  array<string, int|null>  $decisions  lookup key => chosen model id, or null to omit
      * @param  int|null  $cookbookId  explicit cookbook chosen in the import wizard, overrides the JSON "cookbook" field
      * @param  bool|null  $isPublic  explicit visibility chosen in the import wizard, defaults to public unless the cookbook is private
+     * @param  bool  $renameDuplicate  save a duplicate name as "Name (2)" … instead of refusing it
      *
      * @throws ValidationException
      */
@@ -35,6 +38,7 @@ class RecipeImporter
         array $decisions = [],
         ?int $cookbookId = null,
         ?bool $isPublic = null,
+        bool $renameDuplicate = false,
     ): Recipe {
         $report = $this->resolver->resolve($parsed, $user);
 
@@ -76,13 +80,14 @@ class RecipeImporter
             ]);
         }
 
-        $this->guardDuplicate($parsed, $user);
+        $resolvedCookbookId = $cookbookId ?? ($parsed->cookbook !== null
+            ? $this->requiredId(LookupType::Cookbook, $parsed->cookbook)
+            : null);
+        $authorId = $this->authorId($parsed, $user);
 
-        return DB::transaction(function () use ($parsed, $user, $cookbookId, $isPublic): Recipe {
-            $resolvedCookbookId = $cookbookId ?? ($parsed->cookbook !== null
-                ? $this->requiredId(LookupType::Cookbook, $parsed->cookbook)
-                : null);
+        $parsed = $this->guardDuplicate($parsed, $resolvedCookbookId, $authorId, $renameDuplicate);
 
+        return DB::transaction(function () use ($parsed, $resolvedCookbookId, $authorId, $isPublic): Recipe {
             /** @var Cookbook|null $resolvedCookbook */
             $resolvedCookbook = Cookbook::query()->find($resolvedCookbookId);
 
@@ -103,7 +108,7 @@ class RecipeImporter
                 ]),
             ]);
 
-            $recipe->setAttribute('author_id', $this->authorId($parsed, $user));
+            $recipe->setAttribute('author_id', $authorId);
             $recipe->save();
 
             $this->syncTags($recipe, $parsed);
@@ -124,27 +129,25 @@ class RecipeImporter
     }
 
     /**
+     * Checked with the cookbook and author the recipe is saved with, trashed recipes included.
+     *
      * @throws ValidationException
      */
-    private function guardDuplicate(ParsedRecipe $parsed, ?User $user): void
+    private function guardDuplicate(ParsedRecipe $parsed, ?int $cookbookId, int $authorId, bool $rename): ParsedRecipe
     {
-        $cookbookId = $parsed->cookbook !== null
-            ? $this->requiredId(LookupType::Cookbook, $parsed->cookbook)
-            : null;
+        $duplicate = $this->names->findDuplicate($parsed->name, $cookbookId, $authorId);
 
-        $exists = Recipe::withTrashed()
-            ->where('name', $parsed->name)
-            ->where('cookbook_id', $cookbookId)
-            ->when($cookbookId === null, fn ($query) => $query->where('author_id', $this->authorId($parsed, $user)))
-            ->exists();
-
-        if ($exists) {
-            throw ValidationException::withMessages([
-                'json' => __('A recipe named ":name" already exists in this cookbook.', [
-                    'name' => $parsed->name,
-                ]),
-            ]);
+        if ($duplicate === null) {
+            return $parsed;
         }
+
+        if ($rename) {
+            return $parsed->withName($this->names->availableName($parsed->name, $cookbookId, $authorId));
+        }
+
+        throw ValidationException::withMessages([
+            'json' => $this->names->duplicateMessage($parsed->name, $duplicate),
+        ]);
     }
 
     private function syncTags(Recipe $recipe, ParsedRecipe $parsed): void
