@@ -2,46 +2,44 @@
 
 namespace App\Services\RecipeImport;
 
-use Illuminate\Support\Facades\Http;
+use App\Services\PublicHttp;
+use App\Services\PublicUrlException;
+use App\Services\RecipePhotos;
+use InvalidArgumentException;
 
 class ImageDownloader
 {
+    public function __construct(
+        private readonly PublicHttp $http,
+        private readonly RecipePhotos $photos,
+    ) {}
+
     /**
-     * Downloads an image from a public URL, rejecting anything that is not an allowed
-     * image type or exceeds the size limit. Mirrors the base64 decoding checks so both
-     * import paths enforce the same constraints.
+     * Downloads an image from a public URL, or null when it is not an allowed image, too large
+     * or not reachable (the import skips such photos).
      *
      * @return array{0: string, 1: string}|null binary contents and file extension
      */
-    public function download(string $url): ?array
+    public function download(string $url, int $maxBytes = RecipeJsonSchema::MAX_PHOTO_BYTES): ?array
     {
         try {
-            $response = Http::timeout(10)->get($url);
-        } catch (\Throwable) {
+            return $this->fetch($url, $maxBytes);
+        } catch (PublicUrlException|InvalidArgumentException) {
             return null;
         }
+    }
 
-        if (! $response->successful()) {
-            return null;
-        }
+    /**
+     * Same checks as base64 photos (RecipePhotos); only public hosts, redirects checked again.
+     *
+     * @return array{0: string, 1: string} binary contents and file extension
+     *
+     * @throws PublicUrlException|InvalidArgumentException with a message for the user
+     */
+    public function fetch(string $url, int $maxBytes = RecipeJsonSchema::MAX_PHOTO_BYTES): array
+    {
+        $binary = $this->http->get($url, $maxBytes, 10, ['Accept' => 'image/*']);
 
-        $binary = $response->body();
-
-        if ($binary === '' || strlen($binary) > RecipeJsonSchema::MAX_PHOTO_BYTES) {
-            return null;
-        }
-
-        $mime = (new \finfo(FILEINFO_MIME_TYPE))->buffer($binary);
-
-        if (! is_string($mime) || ! in_array($mime, RecipeJsonSchema::ALLOWED_PHOTO_MIMES, true)) {
-            return null;
-        }
-
-        return [$binary, match ($mime) {
-            'image/jpeg' => 'jpg',
-            'image/png' => 'png',
-            'image/webp' => 'webp',
-            'image/gif' => 'gif',
-        }];
+        return [$binary, $this->photos->extension($binary, $maxBytes)];
     }
 }

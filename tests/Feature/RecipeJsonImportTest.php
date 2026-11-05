@@ -444,6 +444,7 @@ class RecipeJsonImportTest extends TestCase
 
     public function test_it_downloads_a_photo_from_a_url(): void
     {
+        $this->fakeDns();
         Http::fake([
             'example.com/*' => Http::response(
                 base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='),

@@ -25,7 +25,12 @@ class GetRecipeFormatTool extends RecipeTool
     {
         $this->user($request);
 
-        return Response::text(RecipeJsonSchema::describe()."\n\nExample:\n".RecipeJsonSchema::exampleJson()."\n\nPhotos are not accepted through MCP.");
+        return Response::text(RecipeJsonSchema::describe()."\n\nExample:\n".RecipeJsonSchema::exampleJson()
+            ."\n\nPhotos are not accepted in create-recipe; add them afterwards with add-recipe-photo or generate-recipe-photo."
+            ."\n\nNew foods created by create-recipe (listed in create) may get optional conversion and season data through its conversions argument (outside the recipe JSON): "
+            .'{"Yuzu": {"measure": "mass", "density": null, "piece_weights": {"Stück": 80}, "season_months": [], "storage_months": []}}. '
+            .'season_months are the months (1-12, each once) of fresh Swiss harvest per the Swiss seasonal calendar, storage_months the months '
+            .'only available from Swiss storage; empty for foods without a Swiss season (spices, oil, pasta, imported fruit).');
     }
 
     public function schema(JsonSchema $schema): array

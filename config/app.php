@@ -86,6 +86,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Recipe Spelling
+    |--------------------------------------------------------------------------
+    |
+    | "de_CH": the AI import and the MCP tools write Swiss German ("ss" instead
+    | of "ß", App\Services\SwissSpelling). Any other value (e.g. "de_DE")
+    | leaves the spelling as the source has it.
+    |
+    */
+
+    'recipe_spelling' => env('RECIPE_SPELLING', 'de_CH'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Available Locales
     |--------------------------------------------------------------------------
     |

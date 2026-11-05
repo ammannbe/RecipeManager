@@ -8,6 +8,7 @@ use App\Models\Cookbook;
 use App\Models\Recipe;
 use App\Models\Tag;
 use App\Services\RecipeImport\RecipeJsonSchema;
+use App\Services\SwissSpelling;
 use Illuminate\Contracts\JsonSchema\JsonSchema;
 use Illuminate\Support\Str;
 use Laravel\Mcp\Request;
@@ -44,6 +45,17 @@ class UpdateRecipeTool extends RecipeTool
             'source' => ['sometimes', 'nullable', 'string', 'max:255'],
             'is_public' => ['sometimes', 'boolean'],
         ]);
+
+        // Swiss spelling (RECIPE_SPELLING), like create-recipe.
+        foreach (['name', 'serving_type', 'instructions'] as $key) {
+            if (is_string($data[$key] ?? null)) {
+                $data[$key] = SwissSpelling::text($data[$key]);
+            }
+        }
+
+        if (is_array($data['tags'] ?? null)) {
+            $data['tags'] = array_map(fn (string $tag): string => SwissSpelling::text($tag), $data['tags']);
+        }
 
         /** @var Recipe|null $recipe */
         $recipe = Recipe::query()->find((int) $data['id']);
@@ -105,6 +117,11 @@ class UpdateRecipeTool extends RecipeTool
             'url' => route('recipes.show', $recipe),
             'edit_url' => route('filament.app.resources.recipes.edit', ['record' => $recipe]),
         ]);
+    }
+
+    public function description(): string
+    {
+        return trim(parent::description().' '.SwissSpelling::instruction());
     }
 
     public function schema(JsonSchema $schema): array

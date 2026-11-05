@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\Recipes\Schemas;
 
+use App\Ai\AiException;
+use App\Ai\RecipeAssistant;
 use App\Enums\Complexity;
 use App\Filament\Resources\Recipes\RecipeResource;
 use App\Models\Author;
@@ -14,6 +16,7 @@ use App\Models\IngredientGroup;
 use App\Models\Recipe;
 use App\Models\Tag;
 use App\Models\Unit;
+use App\Services\Document;
 use App\Services\RecipeImport\RecipeJsonSchema;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Field;
@@ -23,6 +26,7 @@ use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Repeater\TableColumn;
 use Filament\Forms\Components\RichEditor;
 use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\TimePicker;
 use Filament\Forms\Components\Toggle;
@@ -325,6 +329,76 @@ class RecipeForm
     }
 
     /**
+     * Lets the AI improve a stored photo; the result is added as another photo, the original
+     * stays. Written straight to the recipe, so the page is reloaded like after "Create photo with AI".
+     */
+    private static function enhancePhotoAction(): Action
+    {
+        return Action::make('enhancePhoto')
+            ->label(__('Enhance with AI'))
+            ->icon(Heroicon::OutlinedSparkles)
+            ->visible(fn (Repeater $component, array $arguments): bool => self::enhanceablePhoto($component, $arguments) !== null)
+            ->modalHeading(__('Enhance photo with AI'))
+            ->modalDescription(__('The AI creates an improved copy of the photo, added to the photos and marked as AI generated; the original stays. Unsaved changes are lost.'))
+            ->modalSubmitActionLabel(__('Enhance'))
+            ->schema([
+                Textarea::make('instruction')
+                    ->label(__('Instruction'))
+                    ->helperText(__('Empty: improve light, colors and sharpness without changing the dish or the composition.'))
+                    ->rows(3)
+                    ->maxLength(1000),
+            ])
+            ->action(function (array $data, Repeater $component, array $arguments, RecipeAssistant $assistant): void {
+                $filename = self::enhanceablePhoto($component, $arguments);
+                $recipe = $component->getRecord();
+
+                if ($filename === null || ! $recipe instanceof Recipe) {
+                    abort(403);
+                }
+
+                set_time_limit(300);
+
+                try {
+                    $assistant->enhance(user(), $recipe, $filename, $data['instruction'] ?? null);
+                } catch (AiException $exception) {
+                    Notification::make()->danger()->title(__($exception->getMessage()))->send();
+
+                    return;
+                }
+
+                Notification::make()->success()->title(__('Enhanced photo added'))->send();
+
+                redirect(RecipeResource::getUrl('edit', ['record' => $recipe]));
+            });
+    }
+
+    /**
+     * The stored photo of a repeater item the user may let the AI enhance (not a new upload).
+     *
+     * @param  array<string, mixed>  $arguments
+     */
+    private static function enhanceablePhoto(Repeater $component, array $arguments): ?string
+    {
+        $recipe = $component->getRecord();
+        $item = $arguments['item'] ?? null;
+
+        if (! $recipe instanceof Recipe || $recipe->trashed() || ! is_string($item) || ! RecipeAssistant::allows(user()) || ! user()?->can('update', $recipe)) {
+            return null;
+        }
+
+        $path = $component->getRawItemState($item)['path'] ?? null;
+        $path = is_array($path) ? reset($path) : $path;
+
+        if (! is_string($path) || $path === '') {
+            return null;
+        }
+
+        $filename = basename($path);
+
+        return $recipe->photos->contains(fn (Document $photo): bool => $photo->name() === $filename) ? $filename : null;
+    }
+
+    /**
      * @param  array<string, mixed>  $arguments
      */
     private static function ingredientFromItemKey(array $arguments): ?Ingredient
@@ -480,6 +554,7 @@ class RecipeForm
                     ->label(__('Images'))
                     ->reorderable()
                     ->visibleOn('edit')
+                    ->extraItemActions([self::enhancePhotoAction()])
                     ->grid(['default' => 1, 'md' => 3])
                     ->schema([
                         FileUpload::make('path')

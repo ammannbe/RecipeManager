@@ -82,14 +82,17 @@ class DashboardTest extends TestCase
         Tag::factory()->create(['requested_by' => $user->id, 'requested_at' => now()]);
         AiUsage::query()->create(['user_id' => $user->id, 'feature' => 'recipe', 'model' => 'm', 'input_tokens' => 1000, 'output_tokens' => 200]);
         AiUsage::query()->create(['user_id' => $user->id, 'feature' => 'image', 'model' => 'm', 'images' => 1]);
+        AiUsage::query()->create(['user_id' => $user->id, 'feature' => 'conversion', 'model' => 'm', 'input_tokens' => 10]);
         AiUsage::query()->create(['user_id' => $user->id, 'feature' => 'recipe', 'model' => 'm', 'input_tokens' => 5])->forceFill(['created_at' => now()->subMonths(2)])->save();
 
         Livewire::test(AdminOverviewWidget::class)->assertSee('Open requests')->assertSee('Tags: 1');
 
         Livewire::test(AiUsageWidget::class)
             ->assertCanSeeTableRecords([$user])
-            ->assertTableColumnStateSet('requests', 2, $user)
-            ->assertTableColumnStateSet('input_tokens', 1000, $user)
+            ->assertTableColumnStateSet('requests', 3, $user)
+            ->assertSee('Conversions: 1')
+            ->assertSee('Photo: 1')
+            ->assertTableColumnStateSet('input_tokens', 1010, $user)
             ->assertTableColumnStateSet('images', 1, $user);
     }
 }

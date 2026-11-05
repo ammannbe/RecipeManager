@@ -2,13 +2,14 @@
 
 namespace Tests\Feature;
 
+use App\Ai\AiException;
 use App\Ai\RecipeAssistant;
-use App\Ai\RecipePage;
 use App\Filament\Pages\ImportRecipe;
 use App\Filament\Resources\Recipes\Pages\EditRecipe;
 use App\Models\Recipe;
 use App\Models\User;
 use App\Services\RecipeImport\RecipeJsonSchema;
+use Filament\Actions\Testing\TestAction;
 use Illuminate\Http\Client\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
@@ -18,6 +19,9 @@ use Tests\TestCase;
 
 class AiRecipeTest extends TestCase
 {
+    /** A 1×1 PNG. */
+    private const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -89,13 +93,7 @@ class AiRecipeTest extends TestCase
 
     public function test_a_web_address_is_read_and_sent_as_page_text(): void
     {
-        $this->app->bind(RecipePage::class, fn (): RecipePage => new class extends RecipePage
-        {
-            protected function addresses(string $host): array
-            {
-                return $host === 'internal.test' ? ['10.0.0.5'] : ['93.184.215.14'];
-            }
-        });
+        $this->fakeDns(['internal.test' => ['10.0.0.5']]);
 
         Http::fake([
             'rezepte.test/alt' => Http::response('', 301, ['Location' => 'https://rezepte.test/roesti']),
@@ -209,5 +207,140 @@ class AiRecipeTest extends TestCase
             ->assertHasFormErrors(['ai_text'])
             ->assertSee('The AI request failed.')
             ->assertSet('data.json', null);
+    }
+
+    public function test_the_ai_import_writes_swiss_spelling_unless_disabled(): void
+    {
+        $recipe = $this->recipe();
+        $recipe['name'] = 'Süßkartoffel-Gratin';
+        $recipe['instructions'] = '1. Große Süßkartoffeln schälen.';
+        $recipe['ingredient_groups'][0]['ingredients'][0]['food'] = 'Weißwein';
+        Http::fake(['openai.test/*' => Http::response($this->answer($recipe))]);
+        $this->actingAs(User::factory()->create());
+
+        $json = (string) Livewire::test(ImportRecipe::class)
+            ->fillForm(['ai_text' => 'Süßkartoffel-Gratin'])
+            ->goToNextWizardStep()
+            ->get('data.json');
+
+        $this->assertStringNotContainsString('ß', $json);
+        $this->assertSame('Süsskartoffel-Gratin', json_decode($json, true)['name']);
+        $this->assertSame('1. Grosse Süsskartoffeln schälen.', json_decode($json, true)['instructions']);
+        $this->assertSame('Weisswein', json_decode($json, true)['ingredient_groups'][0]['ingredients'][0]['food']);
+        Http::assertSent(fn (Request $request): bool => str_contains($request['instructions'] ?? '', 'Schweizer Rechtschreibung'));
+
+        config(['app.recipe_spelling' => 'de_DE']);
+
+        $json = (string) Livewire::test(ImportRecipe::class)
+            ->fillForm(['ai_text' => 'Süßkartoffel-Gratin, deutsch'])
+            ->goToNextWizardStep()
+            ->get('data.json');
+
+        $this->assertSame('Süßkartoffel-Gratin', json_decode($json, true)['name']);
+    }
+
+    /**
+     * A recipe of the admin with one stored PNG photo.
+     */
+    private function recipeWithPhoto(User $user): Recipe
+    {
+        Storage::fake('recipes');
+        $recipe = Recipe::factory()->create(['author_id' => $user->author_id, 'cookbook_id' => null, 'name' => 'Rösti', 'photos' => [
+            ['path' => 'roesti.png', 'source' => 'Anna', 'is_ai_generated' => false],
+        ]]);
+        Storage::disk('recipes')->put($recipe->id.'/roesti.png', (string) base64_decode(self::PNG));
+
+        return $recipe;
+    }
+
+    private function enhanceAction(string $item): TestAction
+    {
+        return TestAction::make('enhancePhoto')->arguments(['item' => $item])->schemaComponent('photos');
+    }
+
+    public function test_a_photo_is_enhanced_as_an_additional_photo(): void
+    {
+        Http::fake(['openai.test/v1/images/edits' => Http::response(['data' => [['b64_json' => base64_encode('edited-jpeg')]], 'usage' => ['input_tokens' => 300, 'output_tokens' => 1000]])]);
+        $user = User::factory()->create();
+        $this->actingAs($user);
+        $recipe = $this->recipeWithPhoto($user);
+
+        $component = Livewire::test(EditRecipe::class, ['record' => $recipe->getRouteKey()]);
+        $item = (string) array_key_first($component->get('data.photos'));
+
+        $component
+            ->assertActionVisible($this->enhanceAction($item))
+            ->callAction($this->enhanceAction($item), data: ['instruction' => 'Etwas wärmeres Licht.'])
+            ->assertNotified('Enhanced photo added');
+
+        $photos = $recipe->fresh()->photos->values();
+        $this->assertCount(2, $photos);
+        // The original stays first and unchanged.
+        $this->assertSame('roesti.png', $photos[0]->name());
+        $this->assertFalse($photos[0]->isAiGenerated());
+        Storage::disk('recipes')->assertExists($recipe->id.'/roesti.png');
+
+        $this->assertTrue($photos[1]->isAiGenerated());
+        $this->assertSame('ChatGPT (OpenAI)', $photos[1]->source());
+        $this->assertStringEndsWith('.jpg', $photos[1]->name());
+        $this->assertSame('edited-jpeg', Storage::disk('recipes')->get($recipe->id.'/'.$photos[1]->name()));
+        $this->assertDatabaseHas('ai_usages', ['user_id' => $user->id, 'feature' => 'image_edit', 'images' => 1, 'input_tokens' => 300]);
+
+        Http::assertSent(fn (Request $request): bool => $request->url() === 'https://openai.test/v1/images/edits'
+            && $request->isMultipart()
+            && collect($request->data())->contains(fn (array $part): bool => $part['name'] === 'image' && $part['contents'] === base64_decode(self::PNG))
+            && collect($request->data())->contains(fn (array $part): bool => $part['name'] === 'prompt' && str_contains((string) $part['contents'], 'Etwas wärmeres Licht.'))
+            && collect($request->data())->contains(fn (array $part): bool => $part['name'] === 'model' && $part['contents'] === 'gpt-image-2'));
+    }
+
+    public function test_without_an_instruction_the_photo_is_only_retouched(): void
+    {
+        Http::fake(['openai.test/v1/images/edits' => Http::response(['data' => [['b64_json' => base64_encode('edited-jpeg')]]])]);
+        $user = User::factory()->create();
+        $this->actingAs($user);
+        $recipe = $this->recipeWithPhoto($user);
+
+        $component = Livewire::test(EditRecipe::class, ['record' => $recipe->getRouteKey()]);
+        $component->callAction($this->enhanceAction((string) array_key_first($component->get('data.photos'))));
+
+        Http::assertSent(fn (Request $request): bool => collect($request->data())->contains(
+            fn (array $part): bool => $part['name'] === 'prompt' && str_contains((string) $part['contents'], RecipeAssistant::DEFAULT_ENHANCE_INSTRUCTION),
+        ));
+    }
+
+    public function test_enhancing_needs_ai_access_and_edit_rights(): void
+    {
+        $user = User::factory()->create(['ai_enabled' => false]);
+        $this->actingAs($user);
+        $recipe = $this->recipeWithPhoto($user);
+
+        $component = Livewire::test(EditRecipe::class, ['record' => $recipe->getRouteKey()]);
+        $component->assertActionHidden($this->enhanceAction((string) array_key_first($component->get('data.photos'))));
+
+        // The service checks the rights itself, too.
+        $this->expectException(AiException::class);
+
+        try {
+            app(RecipeAssistant::class)->enhance($user, $recipe, 'roesti.png');
+        } finally {
+            Http::assertNothingSent();
+            $this->assertCount(1, $recipe->fresh()->photos);
+        }
+    }
+
+    public function test_photos_of_recipes_the_user_may_not_change_cannot_be_enhanced(): void
+    {
+        $owner = User::factory()->create();
+        $recipe = $this->recipeWithPhoto($owner);
+        $recipe->update(['is_public' => true]);
+
+        $this->actingAs(User::factory()->create());
+        Livewire::test(EditRecipe::class, ['record' => $recipe->getRouteKey()])->assertNotFound();
+
+        // Trashed recipes are read-only.
+        $this->actingAs($owner);
+        $recipe->delete();
+        $component = Livewire::test(EditRecipe::class, ['record' => $recipe->getRouteKey()]);
+        $component->assertActionHidden($this->enhanceAction((string) array_key_first($component->get('data.photos'))));
     }
 }
