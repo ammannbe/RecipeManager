@@ -183,8 +183,10 @@ ddev artisan passport:client --name=Shoppinglist --redirect_uri=https://<shoppin
 * Tools: `search-recipes`, `get-recipe`, `list-vocabulary` (read), `get-recipe-format`, `create-recipe`
   (create: import JSON without photos; unknown values, also tags/attributes, stop with a draft link to the
   import wizard unless `create_missing`, which creates them as requests for non-admins and mails the
-  admins), `update-recipe` (update: fields, Markdown steps, existing tags; ingredients only in the app),
-  `delete-recipe` (delete: soft delete).
+  admins; `on_duplicate`: `rename` (default, saves "Name (2)" …, answers `renamed` + `original_name`) or
+  `error` (names the conflict, also when it is in the trash); never force deletes), `update-recipe`
+  (update: fields, Markdown steps, existing tags; ingredients only in the app), `delete-recipe` (delete:
+  soft delete).
 * Page "Connected AI clients" (`App\Filament\Pages\ConnectedAiClients`, every user): connection guide
   per client, own grants with permissions (editable), last use, revoke (revokes the client's access and
   refresh tokens of the user and deletes the grant).
@@ -210,11 +212,30 @@ ddev artisan passport:client --name=Shoppinglist --redirect_uri=https://<shoppin
 * Admins approve requests or merge them into an existing entry (`LookupRequests` table actions,
   `LookupMerger`: repoints ingredients and pivot rows, then deletes the source). The resources show
   the number of open requests as navigation badge. Every admin gets a mail (`LookupRequestedMail`,
-  in their locale) when an import created requests.
+  in their locale) when an import created requests. The wizard and `create-recipe` create new lookups
+  and the recipe in one transaction and mail only after it: a failed import leaves no requests.
 * "Omit" in the resolve step: units, attributes and tags are dropped; an omitted food drops its
   ingredient (with alternatives) and a group left empty. Units and attributes only used on omitted
   ingredients need no decision (`isObsolete()` in the wizard, `isUsed()` in `RecipeImporter`).
   Categories, cookbooks and authors cannot be omitted; at least one ingredient must remain.
+
+## Recipe names and trash
+
+* Names are unique per cookbook, trashed recipes included (unique index `name` + `cookbook_id`); without
+  cookbook per author, which only `App\Services\RecipeNames` checks (MariaDB lets NULLs repeat):
+  `findDuplicate()`, `availableName()` ("Name (2)", "(3)" … within 100 chars), `rule()`.
+  `RecipeImporter` checks the effective cookbook (explicit choice, else the JSON's) and author.
+* Import wizard: "Resolve" starts with the editable name (filled from the JSON, kept when going back and
+  forth) and checks it live against the chosen cookbook; a conflict shows a callout with "Use …" and, for
+  a recipe in the trash the user may change (policy), "Delete permanently" / "Rename". The importer's
+  own check stays as safety net.
+* Recipe list: tabs "All" / "Trash" (no `TrashedFilter`), row actions Delete, Restore, "Restore under
+  another name" and Force delete (`RecipeTrashActions`, also on the edit page), bulk actions per record
+  authorized. Trashed recipes are read-only on the edit page.
+* `RecipeObserver`: deleting trashes ingredients and groups with the recipe's timestamp and keeps their
+  positions, restoring brings them back and is refused while a live recipe has the name; force deleting
+  leaves rows to the FK cascades and deletes the photo directory `{id}/` on the `recipes` disk.
+  Tests: `RecipeTrashTest`, `RecipeImportDuplicatesTest`.
 
 ## Seasons
 

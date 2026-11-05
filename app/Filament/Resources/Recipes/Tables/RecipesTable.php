@@ -3,14 +3,18 @@
 namespace App\Filament\Resources\Recipes\Tables;
 
 use App\Enums\Complexity;
+use App\Filament\Resources\Recipes\Pages\ListRecipes;
 use App\Filament\Resources\Recipes\RecipeResource;
+use App\Filament\Resources\Recipes\RecipeTrashActions;
 use App\Models\Author;
 use App\Models\Category;
 use App\Models\Cookbook;
 use App\Models\Recipe;
 use Filament\Actions\BulkActionGroup;
+use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Actions\ForceDeleteAction;
 use Filament\Actions\ForceDeleteBulkAction;
 use Filament\Actions\RestoreBulkAction;
 use Filament\Actions\ViewAction;
@@ -19,7 +23,6 @@ use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
-use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -99,19 +102,32 @@ class RecipesTable
                 SelectFilter::make('cookbook_id')
                     ->label(__('Cookbook'))
                     ->options(fn (): array => Cookbook::query()->administeredBy(user())->orderBy('name')->pluck('name', 'id')->all()),
-                TrashedFilter::make(),
             ])
             ->recordUrl(fn (Recipe $record): string => RecipeResource::getUrl('edit', ['record' => $record]))
+            // The "Trash" tab of ListRecipes lists trashed recipes, with their own actions.
             ->recordActions([
                 ViewAction::make()
-                    ->url(fn (Recipe $record): string => route('recipes.show', $record)),
-                EditAction::make(),
+                    ->url(fn (Recipe $record): string => route('recipes.show', $record))
+                    ->hidden(fn (Recipe $record): bool => $record->trashed()),
+                EditAction::make()
+                    ->hidden(fn (Recipe $record): bool => $record->trashed()),
+                DeleteAction::make(),
+                RecipeTrashActions::restoreAction(),
+                RecipeTrashActions::restoreUnderAnotherNameAction(),
+                ForceDeleteAction::make()
+                    ->modalDescription(__('The recipe and its photos are deleted permanently. This cannot be undone.')),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
-                    DeleteBulkAction::make(),
-                    ForceDeleteBulkAction::make(),
-                    RestoreBulkAction::make(),
+                    DeleteBulkAction::make()
+                        ->authorizeIndividualRecords('delete')
+                        ->hidden(fn (ListRecipes $livewire): bool => $livewire->activeTab === ListRecipes::TRASH_TAB),
+                    ForceDeleteBulkAction::make()
+                        ->authorizeIndividualRecords('forceDelete')
+                        ->visible(fn (ListRecipes $livewire): bool => $livewire->activeTab === ListRecipes::TRASH_TAB),
+                    RestoreBulkAction::make()
+                        ->authorizeIndividualRecords('restore')
+                        ->visible(fn (ListRecipes $livewire): bool => $livewire->activeTab === ListRecipes::TRASH_TAB),
                 ]),
             ]);
     }

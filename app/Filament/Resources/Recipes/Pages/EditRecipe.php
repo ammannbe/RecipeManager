@@ -5,15 +5,16 @@ namespace App\Filament\Resources\Recipes\Pages;
 use App\Ai\AiException;
 use App\Ai\RecipeAssistant;
 use App\Filament\Resources\Recipes\RecipeResource;
+use App\Filament\Resources\Recipes\RecipeTrashActions;
 use App\Models\Recipe;
 use App\Services\Document;
 use App\Services\RecipeImport\RecipeJsonExporter;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\ForceDeleteAction;
-use Filament\Actions\RestoreAction;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
+use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Storage;
@@ -128,8 +129,41 @@ class EditRecipe extends EditRecord
                     );
                 }),
             DeleteAction::make(),
-            ForceDeleteAction::make(),
-            RestoreAction::make(),
+            ForceDeleteAction::make()
+                ->modalDescription(__('The recipe and its photos are deleted permanently. This cannot be undone.')),
+            RecipeTrashActions::restoreAction(),
+            RecipeTrashActions::restoreUnderAnotherNameAction(),
         ];
+    }
+
+    /**
+     * A trashed recipe is read-only until it is restored: its ingredients wait in the trash with
+     * their positions, which new ones would collide with.
+     */
+    public function form(Schema $schema): Schema
+    {
+        return parent::form($schema)->disabled(fn (): bool => $this->isTrashed());
+    }
+
+    protected function getFormActions(): array
+    {
+        return $this->isTrashed() ? [] : parent::getFormActions();
+    }
+
+    protected function beforeSave(): void
+    {
+        if ($this->isTrashed()) {
+            Notification::make()->warning()->title(__('Restore the recipe to edit it.'))->send();
+
+            $this->halt();
+        }
+    }
+
+    private function isTrashed(): bool
+    {
+        /** @var Recipe $record */
+        $record = $this->getRecord();
+
+        return $record->trashed();
     }
 }
