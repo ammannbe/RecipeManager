@@ -24,7 +24,8 @@ class LookupRequests
 {
     public static function column(): TextColumn
     {
-        return TextColumn::make('requester.name')
+        // Users have no name of their own, it lives on their author.
+        return TextColumn::make('requester.author.name')
             ->label(__('Requested by'))
             ->badge()
             ->color('warning')

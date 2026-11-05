@@ -76,6 +76,18 @@ class LookupRequestTest extends TestCase
         $this->assertSame([$apfel->id, $birne->id, $pending->id], array_keys($this->foodOptionsOnEditPage($admin, $recipe)));
     }
 
+    public function test_the_foods_table_names_the_requester(): void
+    {
+        $requester = User::factory()->create(['admin' => false]);
+        $requester->author->update(['name' => 'Rita Requester']);
+        $pending = $this->requested('Yuzu', $requester);
+
+        $this->actingAs(User::factory()->admin()->create());
+
+        Livewire::test(ListFoods::class)
+            ->assertTableColumnStateSet('requester.author.name', 'Rita Requester', $pending);
+    }
+
     public function test_an_admin_approves_a_request(): void
     {
         $pending = $this->requested('Yuzu', User::factory()->create(['admin' => false]));
