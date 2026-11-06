@@ -45,6 +45,8 @@ return [
         'reasoning_effort' => env('OPENAI_REASONING_EFFORT', 'low'),
         'image_model' => env('OPENAI_IMAGE_MODEL') ?: 'gpt-image-2',
         'image_quality' => env('OPENAI_IMAGE_QUALITY', 'medium'),
+        // "Enhance with AI": "high" or "low" for models that accept input_fidelity; empty to omit it.
+        'image_input_fidelity' => env('OPENAI_IMAGE_INPUT_FIDELITY'),
         // Shown as source of generated photos (next to "AI generated").
         'image_source' => env('OPENAI_IMAGE_SOURCE') ?: 'ChatGPT (OpenAI)',
         'url' => env('OPENAI_URL', 'https://api.openai.com/v1'),

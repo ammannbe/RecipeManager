@@ -8,10 +8,12 @@ use App\Models\IngredientGroup;
 use App\Models\Recipe;
 use App\Models\User;
 use App\Services\RecipeNames;
+use App\Services\RecipePhotos;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use InvalidArgumentException;
 
 class RecipeImporter
 {
@@ -22,6 +24,7 @@ class RecipeImporter
         private readonly RelationResolver $resolver,
         private readonly ImageDownloader $downloader,
         private readonly RecipeNames $names,
+        private readonly RecipePhotos $photos,
     ) {}
 
     /**
@@ -308,9 +311,13 @@ class RecipeImporter
         $stored = [];
 
         foreach ($parsed->photos as $index => $photo) {
-            $decoded = $photo['data'] !== null
-                ? $this->decodePhoto($photo['data'])
-                : $this->downloader->download((string) $photo['url']);
+            try {
+                $decoded = $photo['data'] !== null
+                    ? $this->photos->decode($photo['data'])
+                    : $this->downloader->download((string) $photo['url']);
+            } catch (InvalidArgumentException) {
+                $decoded = null;
+            }
 
             if ($decoded === null) {
                 continue;
@@ -335,41 +342,6 @@ class RecipeImporter
             $recipe->photos = $stored;
             $recipe->save();
         }
-    }
-
-    /**
-     * Decodes a base64 data URI, rejecting anything that is not an allowed image.
-     *
-     * @return array{0: string, 1: string}|null
-     */
-    private function decodePhoto(string $data): ?array
-    {
-        if (! preg_match('#^data:([a-z/+.-]+);base64,#i', $data, $matches)) {
-            return null;
-        }
-
-        if (! in_array(strtolower($matches[1]), RecipeJsonSchema::ALLOWED_PHOTO_MIMES, true)) {
-            return null;
-        }
-
-        $binary = base64_decode(substr($data, strlen($matches[0])), true);
-
-        if ($binary === false || strlen($binary) > RecipeJsonSchema::MAX_PHOTO_BYTES) {
-            return null;
-        }
-
-        $mime = (new \finfo(FILEINFO_MIME_TYPE))->buffer($binary);
-
-        if (! is_string($mime) || ! in_array($mime, RecipeJsonSchema::ALLOWED_PHOTO_MIMES, true)) {
-            return null;
-        }
-
-        return [$binary, match ($mime) {
-            'image/jpeg' => 'jpg',
-            'image/png' => 'png',
-            'image/webp' => 'webp',
-            'image/gif' => 'gif',
-        }];
     }
 
     private function requiredId(LookupType $type, string $value): int

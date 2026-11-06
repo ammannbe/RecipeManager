@@ -106,4 +106,15 @@ class ImportPromptTest extends TestCase
 
         $this->assertStringContainsString('Code-Block', $prompt);
     }
+
+    public function test_it_asks_for_swiss_spelling_unless_disabled(): void
+    {
+        $prompt = app(ImportPromptBuilder::class)->build(User::factory()->admin()->create());
+
+        $this->assertStringContainsString('9. Schreibe in Schweizer Rechtschreibung: immer «ss» statt «ß»', $prompt);
+
+        config(['app.recipe_spelling' => 'de_DE']);
+
+        $this->assertStringNotContainsString('Schweizer Rechtschreibung', app(ImportPromptBuilder::class)->build(User::factory()->admin()->create()));
+    }
 }

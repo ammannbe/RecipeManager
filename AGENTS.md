@@ -144,7 +144,8 @@ ddev artisan passport:client --name=Shoppinglist --redirect_uri=https://<shoppin
 ## AI features (OpenAI)
 
 * `config/services.php` `openai` (`OPENAI_API_KEY`, `OPENAI_MODEL`, `OPENAI_REASONING_EFFORT`,
-  `OPENAI_IMAGE_MODEL`, `OPENAI_IMAGE_QUALITY`, `OPENAI_IMAGE_SOURCE`, `OPENAI_HOURLY_LIMIT` default 20). Without a key the
+  `OPENAI_IMAGE_MODEL`, `OPENAI_IMAGE_QUALITY`, `OPENAI_IMAGE_INPUT_FIDELITY` (edits, empty = not sent),
+  `OPENAI_IMAGE_SOURCE`, `OPENAI_HOURLY_LIMIT` default 20). Without a key the
   AI features are hidden. One global key; `App\Ai\OpenAiClient` (Responses API with strict JSON schema
   + Images API via `Http`, no SDK, same as Shoppinglist) logs the token usage per request.
 * Access: `App\Ai\RecipeAssistant::allows()`: verified users with `users.ai_enabled` (default on,
@@ -160,11 +161,37 @@ ddev artisan passport:client --name=Shoppinglist --redirect_uri=https://<shoppin
   (prompt for an external AI chat) is gone. After the import the photo toggle calls `RecipeAssistant::image()`
   (a failure only warns); the recipe edit page has "Create photo with AI". Generated photos are stored like
   uploads with `is_ai_generated` and the source `OPENAI_IMAGE_SOURCE` (default "ChatGPT (OpenAI)").
-* Usage: `RecipeAssistant` records every request in `ai_usages` (user, feature `recipe`/`image`, model,
-  input/output tokens, images) from the API's `usage`: basis for billing by usage (later through the
-  AccountManager) and the dashboard.
+* "Enhance with AI" (item action of the photo repeater on the edit page, only with `allows()` + update rights, not for
+  trashed recipes): `RecipeAssistant::enhance()` sends the stored photo (JPEG/PNG/WebP) to `/images/edits` (multipart,
+  `OPENAI_IMAGE_MODEL`, `size=auto`, JPEG `b64_json` answer) with the optional instruction, default
+  `DEFAULT_ENHANCE_INSTRUCTION` (light, colors, sharpness, dish and composition unchanged). The result is an additional
+  photo (`is_ai_generated`, `OPENAI_IMAGE_SOURCE`), the original stays; feature `image_edit`.
+* Photos: `App\Services\RecipePhotos` (content-based MIME check JPEG/PNG/WebP/GIF via finfo, base64 data URIs,
+  appending to `photos` under a row lock, the file is removed if saving fails) is shared by the JSON import, MCP and
+  AI photos. MCP and AI photos (`add-recipe-photo`, `generate-recipe-photo`, "Create photo with AI", "Enhance with AI")
+  stop at `RecipeJsonSchema::MAX_PHOTOS` (10, like the JSON import; checked before downloading or the AI request).
+  Downloads go through `App\Services\PublicHttp` (also `RecipePage` and `ImageDownloader`): public http(s) hosts only
+  (`isPublicIp()`: no private/reserved/CGNAT/benchmark/6to4/NAT64 ranges, IPv4-mapped IPv6 judged by its IPv4), no
+  port/user, redirects checked again, cURL pinned to all checked IPs (CURLOPT_RESOLVE, IPv4 first), total timeout,
+  `Accept-Encoding: identity` without decoding (no gzip bombs), transfer aborted above the size limit (Content-Length
+  via `on_headers`, received bytes via `progress`); every transport error becomes `PublicUrlException`. Never add
+  `stream` (Guzzle's stream handler rejects the `curl` option). Limits: base64 5 MB
+  (`RecipeJsonSchema::MAX_PHOTO_BYTES`, travels inside the JSON payload), MCP URL downloads 10 MB
+  (`RecipePhotos::MAX_DOWNLOAD_BYTES`, like the wizard upload), JSON import URLs 5 MB.
+* Swiss spelling: `RECIPE_SPELLING` (`config/app.php` `recipe_spelling`, default `de_CH`, any other value such as
+  `de_DE` disables it). `App\Services\SwissSpelling`: rule 9 of the import prompt, the MCP server instructions and
+  the create/update tool descriptions ask for "ss" instead of "ß"; as safety net "ß" becomes "ss" in the AI import
+  result (`RecipeAssistant::recipe()`), in pasted JSON and drafts (`ImportRecipe::parse()`, the textarea keeps its
+  text) and in `create-recipe` (recipe texts except photos, author and web addresses, `create`/`map`/`conversions`
+  names) and `update-recipe` (name, serving type, steps, tags). Independent of the setting, `RelationResolver` compares
+  names with "ß" folded into "ss" (case-insensitive), so "Weißwein" matches "Weisswein" exactly.
+* Usage: `RecipeAssistant` records every request in `ai_usages` (user, feature `recipe`/`image`/`image_edit`/
+  `conversion`, model, input/output tokens, images) from the API's `usage`: basis for billing by usage (later through the
+  AccountManager) and the dashboard (`AiUsageWidget` lists the requests per feature, `AiUsage::featureLabel()`).
 * Tests: `phpunit.xml` forces an empty `OPENAI_API_KEY`; tests set a fake key and `Http::fake()`
-  (`tests/Feature/AiRecipeTest.php`).
+  (`tests/Feature/AiRecipeTest.php`); `fakeDns()` in `TestCase` replaces DNS for `PublicHttp`. `PublicHttpTest` also runs
+  the real cURL handler against `tests/fixtures/public-http-server.php` (`php -S` on loopback, a test subclass overrides
+  `allows()`/`allowsPort()`/`addresses()`; production has no switch for it).
 
 ## MCP server (AI clients)
 
@@ -180,13 +207,20 @@ ddev artisan passport:client --name=Shoppinglist --redirect_uri=https://<shoppin
   `EnsureMcpGrant` refuses tokens without `mcp:use` or without grant; `DenyMcpTokens` keeps AI client tokens
   off the JSON API. Tools extend `App\Mcp\Tools\RecipeTool` (`shouldRegister()` = grant has the permission);
   the user's own rights still apply (`visibleTo()`, `RecipePolicy`).
-* Tools: `search-recipes`, `get-recipe`, `list-vocabulary` (read), `get-recipe-format`, `create-recipe`
-  (create: import JSON without photos; unknown values, also tags/attributes, stop with a draft link to the
-  import wizard unless `create_missing`, which creates them as requests for non-admins and mails the
-  admins; `on_duplicate`: `rename` (default, saves "Name (2)" …, answers `renamed` + `original_name`) or
+* Tools: `search-recipes`, `get-recipe`, `list-vocabulary`, `find-similar` (read: type + names → exact match,
+  similar entries visible to the user or none, `RelationResolver::existing()`/`suggest()`), `get-recipe-format`,
+  `create-recipe` (create: import JSON without photos; unknown values, also tags/attributes, stop with a draft
+  link to the import wizard and their `suggestions` unless listed in `create` (agreed new names, requests for
+  non-admins, admins are mailed) or `map` (`{"Rüebli": "Karotte"}`, existing entry by name); the deprecated
+  `create_missing` only creates values without suggestions; optional `conversions` (`{"Food": {measure,
+  density, piece_weights: {"Stück": 60}, season_months: [5, 6], storage_months: [1]}}`, all optional,
+  `FoodConversions::validate()`, explained in `get-recipe-format` too) only for foods it creates; `on_duplicate`: `rename` (default, saves "Name (2)" …, answers `renamed` + `original_name`) or
   `error` (names the conflict, also when it is in the trash); never force deletes), `update-recipe`
-  (update: fields, Markdown steps, existing tags; ingredients only in the app), `delete-recipe` (delete:
-  soft delete).
+  (update: fields, Markdown steps, existing tags; ingredients only in the app), `add-recipe-photo` (update +
+  `RecipePolicy` update: `url` (public, max. 10 MB) or `data` (base64 data URI, max. 5 MB), optional `source`,
+  `is_ai_generated`; appended to the photos), `generate-recipe-photo` (update, only listed with
+  `RecipeAssistant::allows()`: `RecipeAssistant::image()`, hourly limit, returns the stored photo), `delete-recipe`
+  (delete: soft delete).
 * Page "Connected AI clients" (`App\Filament\Pages\ConnectedAiClients`, every user): connection guide
   per client, own grants with permissions (editable), last use, revoke (revokes the client's access and
   refresh tokens of the user and deletes the grant).
@@ -206,7 +240,17 @@ ddev artisan passport:client --name=Shoppinglist --redirect_uri=https://<shoppin
 
 * Foods, units, ingredient attributes and tags use `Requestable` (`requested_by`, `requested_at`):
   non-admins create them in the import wizard as requests (`LookupType::createsRequest()`), usable
-  in their recipe right away. Option lists, the import prompt, the API and the admin resources use
+  in their recipe right away. Choosing "create" in the wizard shows the name (prefilled, editable; a name
+  that already exists selects that entry instead) and for foods collapsible conversion fields (measure,
+  density, piece weights) and season fields (`season_months`, `storage_months`, like `FoodForm`; state under
+  `conversion`, `App\Services\FoodConversions`, months 1–12 distinct, checked again on import) with "Estimate
+  conversions and season with AI" (`RecipeAssistant::conversions()`, one request for all new foods, strict
+  schema incl. Swiss fresh/storage months, empty without Swiss season; months the user ticked are kept). The name is
+  checked again on "Next"; a name given twice is created once (the first one's data wins), and data for an entry that
+  already exists (also trashed or another user's request) is not stored: the wizard warns after the import, MCP lists
+  it in `conversions_ignored`, the summary lists such names under "Existing entries used". Too long names stay creatable
+  and show the error until shortened;
+  admins see them in the Food resource when approving. Option lists, the import prompt, the API and the admin resources use
   `visibleTo($user)` (approved + own requests, admins all); recipes using a request show it to
   everyone. Requesting a name someone else requested reuses that entry (unique name index).
 * Admins approve requests or merge them into an existing entry (`LookupRequests` table actions,

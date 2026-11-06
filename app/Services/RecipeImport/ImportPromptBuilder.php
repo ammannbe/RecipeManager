@@ -8,6 +8,7 @@ use App\Models\IngredientAttribute;
 use App\Models\Tag;
 use App\Models\Unit;
 use App\Models\User;
+use App\Services\SwissSpelling;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
@@ -47,6 +48,8 @@ class ImportPromptBuilder
 
     private function rules(): string
     {
+        $spelling = SwissSpelling::promptRule();
+
         return <<<'TXT'
         ## Regeln
 
@@ -69,7 +72,7 @@ class ImportPromptBuilder
            Ganzes und zerlege ihn niemals an einem Komma.
         8. Für "food" gibt es bewusst keine Liste. Schreibe die Bezeichnung so, wie sie in
            der Quelle steht, im Singular und ohne Zusätze.
-        TXT;
+        TXT.($spelling !== '' ? "\n9. ".$spelling : '');
     }
 
     private function knownValues(?User $user): string

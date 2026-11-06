@@ -26,6 +26,20 @@ class AiUsage extends Model
     ];
 
     /**
+     * Readable name of a feature (recipe, image, image_edit, conversion).
+     */
+    public static function featureLabel(string $feature): string
+    {
+        return match ($feature) {
+            'recipe' => __('Recipe'),
+            'image' => __('Photo'),
+            'image_edit' => __('Photo enhancement'),
+            'conversion' => __('Conversions'),
+            default => $feature,
+        };
+    }
+
+    /**
      * @return BelongsTo<User, $this>
      */
     public function user(): BelongsTo

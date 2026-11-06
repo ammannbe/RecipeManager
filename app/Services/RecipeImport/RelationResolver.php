@@ -28,6 +28,13 @@ class RelationResolver
      */
     private array $cache = [];
 
+    /**
+     * Ids of the entries create() saved, by type.
+     *
+     * @var array<string, array<int, true>>
+     */
+    private array $created = [];
+
     public function resolve(ParsedRecipe $recipe, ?User $user): ResolutionReport
     {
         $resolved = [];
@@ -108,6 +115,30 @@ class RelationResolver
 
     private function match(LookupType $type, string $value, ?User $user): ?int
     {
+        $row = $this->matchingRow($type, $value, $user);
+
+        if ($row === null) {
+            return null;
+        }
+
+        $this->restore($row);
+
+        return (int) $row->getKey();
+    }
+
+    /**
+     * The entry (visible to the user, not in the trash) a value matches like on import, without
+     * changing anything: "Karotten" finds "Karotte".
+     */
+    public function existing(LookupType $type, string $value, ?User $user): ?Model
+    {
+        $row = $this->matchingRow($type, $value, $user);
+
+        return $row !== null && ! $this->isTrashed($row) ? $row : null;
+    }
+
+    private function matchingRow(LookupType $type, string $value, ?User $user): ?Model
+    {
         $needle = $this->normalise($value);
         $needleForms = $this->numberForms($needle);
 
@@ -119,9 +150,7 @@ class RelationResolver
                 $candidate = $this->normalise($name);
 
                 if ($candidate === $needle) {
-                    $this->restore($row);
-
-                    return (int) $row->getKey();
+                    return $row;
                 }
 
                 if (array_intersect($needleForms, $this->numberForms($candidate)) !== []) {
@@ -132,14 +161,15 @@ class RelationResolver
 
         // "Ei" vs "Eier" is safe to fold together, but only when exactly one row matches:
         // "Ei" would otherwise just as happily match "Eis".
-        if (count($plural) === 1) {
-            $row = reset($plural);
-            $this->restore($row);
+        return count($plural) === 1 ? reset($plural) : null;
+    }
 
-            return (int) $row->getKey();
-        }
-
-        return null;
+    /**
+     * Whether create() saved this entry in this request (and did not reuse an existing one).
+     */
+    public function wasCreated(LookupType $type, int $id): bool
+    {
+        return isset($this->created[$type->value][$id]);
     }
 
     /**
@@ -166,9 +196,11 @@ class RelationResolver
     }
 
     /**
+     * Similar entries visible to the user, best first.
+     *
      * @return array<int, array{id: int, name: string, score: int}>
      */
-    private function suggest(LookupType $type, string $value, ?User $user): array
+    public function suggest(LookupType $type, string $value, ?User $user): array
     {
         $needle = $this->normalise($value);
         $needleForms = $this->numberForms($needle);
@@ -266,13 +298,13 @@ class RelationResolver
 
     /**
      * Also drops a trailing parenthetical, so an AI echoing a listed "Gramm (g)" back
-     * still resolves to "Gramm".
+     * still resolves to "Gramm", and folds "ß" into "ss", so "Weißwein" is "Weisswein".
      */
     private function normalise(string $value): string
     {
         $value = (string) preg_replace('/\s*\([^)]*\)\s*$/u', '', trim($value));
 
-        return mb_strtolower(trim($value));
+        return str_replace('ß', 'ss', mb_strtolower(trim($value)));
     }
 
     /**
@@ -347,6 +379,8 @@ class RelationResolver
         if (isset($this->cache[$type->value])) {
             $this->cache[$type->value]->push($row);
         }
+
+        $this->created[$type->value][(int) $row->getKey()] = true;
 
         return (int) $row->getKey();
     }

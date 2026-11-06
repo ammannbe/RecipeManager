@@ -272,6 +272,34 @@ class RecipeJsonImportTest extends TestCase
         $this->assertContains('Apfel', array_column($unresolved->suggestions, 'name'));
     }
 
+    public function test_sharp_s_and_ss_match_the_same_entry(): void
+    {
+        // Without Swiss spelling the JSON keeps its "ß"; the comparison folds it anyway.
+        config(['app.recipe_spelling' => 'de_DE']);
+        $this->seedLookups();
+        $weisswein = Food::factory()->create(['name' => 'Weisswein']);
+        $user = User::factory()->admin()->create();
+
+        $parsed = app(RecipeJsonValidator::class)->validate($this->payload([
+            'cookbook' => null,
+            'ingredient_groups' => [[
+                'name' => 'Sauce',
+                'ingredients' => [['amount' => 1, 'unit' => 'g', 'food' => 'Weißwein']],
+            ]],
+            'ingredients' => [],
+        ]));
+
+        $report = (new RelationResolver)->resolve($parsed, $user);
+
+        $this->assertNull(collect($report->unresolved)->firstWhere('value', 'Weißwein'));
+        $this->assertContains($weisswein->id, $report->resolved);
+        $this->assertSame($weisswein->id, (new RelationResolver)->existing(LookupType::Food, 'WEIẞWEIN', $user)?->getKey());
+
+        $weisswurst = Food::factory()->create(['name' => 'Weißwurst']);
+
+        $this->assertSame($weisswurst->id, (new RelationResolver)->existing(LookupType::Food, 'Weisswurst', $user)?->getKey());
+    }
+
     public function test_it_matches_a_plural_food_to_its_singular(): void
     {
         $this->seedLookups();
@@ -444,6 +472,7 @@ class RecipeJsonImportTest extends TestCase
 
     public function test_it_downloads_a_photo_from_a_url(): void
     {
+        $this->fakeDns();
         Http::fake([
             'example.com/*' => Http::response(
                 base64_decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII='),

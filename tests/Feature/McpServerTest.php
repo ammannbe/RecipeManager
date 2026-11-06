@@ -2,17 +2,23 @@
 
 namespace Tests\Feature;
 
+use App\Enums\Measure;
 use App\Filament\Pages\ConnectedAiClients;
 use App\Mail\LookupRequestedMail;
 use App\Mcp\McpPermission;
 use App\Mcp\Servers\RecipesServer;
+use App\Mcp\Tools\AddRecipePhotoTool;
 use App\Mcp\Tools\CreateRecipeTool;
 use App\Mcp\Tools\DeleteRecipeTool;
+use App\Mcp\Tools\FindSimilarTool;
+use App\Mcp\Tools\GenerateRecipePhotoTool;
+use App\Mcp\Tools\GetRecipeFormatTool;
 use App\Mcp\Tools\GetRecipeTool;
 use App\Mcp\Tools\SearchRecipesTool;
 use App\Mcp\Tools\UpdateRecipeTool;
 use App\Models\Category;
 use App\Models\Food;
+use App\Models\IngredientAttribute;
 use App\Models\McpGrant;
 use App\Models\Recipe;
 use App\Models\RecipeDraft;
@@ -20,6 +26,9 @@ use App\Models\Tag;
 use App\Models\Unit;
 use App\Models\User;
 use App\Services\RecipeImport\RecipeJsonSchema;
+use App\Services\RecipePhotos;
+use Illuminate\Http\Client\Request;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Laravel\Mcp\Server\Registrar;
@@ -32,6 +41,9 @@ use Tests\TestCase;
 class McpServerTest extends TestCase
 {
     private const REDIRECT_URI = 'http://localhost:33418/callback';
+
+    /** A 1×1 PNG. */
+    private const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==';
 
     protected function setUp(): void
     {
@@ -292,5 +304,458 @@ class McpServerTest extends TestCase
         $this->assertNull($grant->fresh());
         $this->assertTrue((bool) $token->fresh()?->revoked);
         $this->assertNotNull($foreign->fresh());
+    }
+
+    /**
+     * Everything of the example recipe is known except the top-level ingredients:
+     * "Rohzucker" (similar to "Zucker"), "Yuzu" (nothing similar) and "Rüebli" (means "Karotte").
+     *
+     * @return array<string, mixed>
+     */
+    private function recipeWithNewFoods(): array
+    {
+        Category::factory()->create(['name' => 'Dessert']);
+        Unit::factory()->create(['name' => 'g', 'name_shortcut' => 'g', 'name_plural' => null, 'name_plural_shortcut' => null, 'measure' => Measure::Mass, 'base_amount' => 1]);
+        Unit::factory()->create(['name' => 'Stück', 'name_shortcut' => null, 'name_plural' => null, 'name_plural_shortcut' => null]);
+
+        foreach (['Mehl', 'Butter', 'Margarine', 'Apfel', 'Zucker', 'Karotte'] as $food) {
+            Food::factory()->create(['name' => $food]);
+        }
+
+        foreach (['gesiebt', 'weich', 'säuerlich', 'geschält'] as $attribute) {
+            IngredientAttribute::factory()->create(['name' => $attribute]);
+        }
+
+        Tag::factory()->create(['name' => 'Kuchen']);
+        Tag::factory()->create(['name' => 'Herbst']);
+
+        $ingredient = fn (string $food, ?string $unit): array => ['amount' => 1, 'amount_max' => null, 'unit' => $unit, 'food' => $food, 'attributes' => [], 'alternatives' => []];
+
+        return [
+            ...RecipeJsonSchema::example(),
+            'cookbook' => null,
+            'ingredients' => [$ingredient('Rohzucker', 'g'), $ingredient('Yuzu', 'Stück'), $ingredient('Rüebli', 'g')],
+        ];
+    }
+
+    public function test_similar_entries_stop_the_creation_until_the_user_decides(): void
+    {
+        Mail::fake();
+        $admin = User::factory()->admin()->create();
+        $user = User::factory()->create();
+        $this->connect($user, [McpPermission::Create]);
+        $recipe = $this->recipeWithNewFoods();
+
+        // create_missing only creates values without suggestions: "Rohzucker" stops everything.
+        RecipesServer::tool(CreateRecipeTool::class, ['recipe' => $recipe, 'create_missing' => true])
+            ->assertOk()
+            ->assertSee('"saved":false')
+            ->assertSee('"value":"Rohzucker","suggestions":["Zucker"]')
+            ->assertSee('Ask the user');
+        $this->assertSame(0, Recipe::query()->count());
+        $this->assertDatabaseMissing('foods', ['name' => 'Yuzu']);
+        $this->assertDatabaseMissing('foods', ['name' => 'Rüebli']);
+
+        // A map to an entry that does not exist is reported.
+        RecipesServer::tool(CreateRecipeTool::class, ['recipe' => $recipe, 'create' => ['Rohzucker', 'Yuzu'], 'map' => ['Rüebli' => 'Pastinake']])
+            ->assertOk()
+            ->assertSee('"saved":false')
+            ->assertSee('No existing food named \"Pastinake\" for map.');
+        $this->assertSame(0, Recipe::query()->count());
+
+        // The user agreed: "Rohzucker" and "Yuzu" are new, "Rüebli" is "Karotte".
+        RecipesServer::tool(CreateRecipeTool::class, ['recipe' => $recipe, 'create' => ['rohzucker', 'Yuzu'], 'map' => ['Rüebli' => 'Karotten']])
+            ->assertOk()
+            ->assertSee('"saved":true');
+
+        $created = Recipe::query()->sole();
+        $karotte = Food::query()->where('name', 'Karotte')->sole();
+        $this->assertSame(1, $created->ingredients()->where('food_id', $karotte->id)->count());
+        $this->assertDatabaseMissing('foods', ['name' => 'Rüebli']);
+        $this->assertSame($user->id, Food::query()->where('name', 'Rohzucker')->sole()->requested_by);
+        $this->assertSame($user->id, Food::query()->where('name', 'Yuzu')->sole()->requested_by);
+        Mail::assertSent(LookupRequestedMail::class, fn (LookupRequestedMail $mail): bool => $mail->hasTo($admin->email)
+            && $mail->requests === [['type' => 'food', 'value' => 'Rohzucker'], ['type' => 'food', 'value' => 'Yuzu']]);
+    }
+
+    public function test_create_missing_still_creates_values_without_suggestions(): void
+    {
+        $user = User::factory()->create();
+        $this->connect($user, [McpPermission::Create]);
+        $recipe = $this->recipeWithNewFoods();
+        $recipe['ingredients'] = [$recipe['ingredients'][1]];
+
+        RecipesServer::tool(CreateRecipeTool::class, ['recipe' => $recipe, 'create_missing' => true])
+            ->assertOk()
+            ->assertSee('"saved":true');
+
+        $this->assertSame($user->id, Food::query()->where('name', 'Yuzu')->sole()->requested_by);
+    }
+
+    public function test_conversions_are_stored_on_created_foods_only(): void
+    {
+        $user = User::factory()->create();
+        $this->connect($user, [McpPermission::Create]);
+        $recipe = $this->recipeWithNewFoods();
+        $recipe['ingredients'] = [$recipe['ingredients'][1]];
+        $piece = Unit::query()->where('name', 'Stück')->sole();
+        $grams = Unit::query()->where('name', 'g')->sole();
+
+        // Out of range, not a piece unit, impossible weight: nothing saved.
+        foreach ([
+            ['Yuzu' => ['density' => 50]],
+            ['Yuzu' => ['measure' => 'weight']],
+            ['Yuzu' => ['piece_weights' => ['g' => 10]]],
+            ['Yuzu' => ['piece_weights' => ['Stück' => 0]]],
+            // Months 1–12, each once, as a list.
+            ['Yuzu' => ['season_months' => [0, 5]]],
+            ['Yuzu' => ['season_months' => [13]]],
+            ['Yuzu' => ['storage_months' => [3, 3]]],
+            ['Yuzu' => ['storage_months' => ['März']]],
+            ['Yuzu' => ['season_months' => 5]],
+        ] as $conversions) {
+            RecipesServer::tool(CreateRecipeTool::class, ['recipe' => $recipe, 'create' => ['Yuzu'], 'conversions' => $conversions])
+                ->assertHasErrors();
+        }
+
+        $this->assertSame(0, Recipe::query()->count());
+        $this->assertDatabaseMissing('foods', ['name' => 'Yuzu']);
+
+        RecipesServer::tool(CreateRecipeTool::class, ['recipe' => $recipe, 'create' => ['Yuzu'], 'conversions' => [
+            'yuzu' => ['measure' => 'mass', 'density' => 0.9, 'piece_weights' => ['Stück' => 80], 'season_months' => [11, 10, 12], 'storage_months' => [1]],
+            'Mehl' => ['measure' => 'volume', 'density' => 0.5, 'season_months' => [6]],
+        ]])
+            ->assertOk()
+            ->assertSee('"saved":true')
+            ->assertSee('"conversions_ignored":["Mehl"]');
+
+        $yuzu = Food::query()->where('name', 'Yuzu')->sole();
+        $this->assertSame($user->id, $yuzu->requested_by);
+        $this->assertSame(Measure::Mass, $yuzu->measure);
+        $this->assertSame(0.9, $yuzu->density);
+        $this->assertSame([10, 11, 12], $yuzu->season_months);
+        $this->assertSame([1], $yuzu->storage_months);
+        $this->assertSame([$piece->id => 80.0], $yuzu->unitWeights()->pluck('grams', 'unit_id')->all());
+        $this->assertNotSame($grams->id, $yuzu->unitWeights()->value('unit_id'));
+
+        // Existing foods are maintained by admins.
+        $flour = Food::query()->where('name', 'Mehl')->sole();
+        $this->assertNull($flour->measure);
+        $this->assertNull($flour->season_months);
+    }
+
+    public function test_an_admin_stores_season_data_on_a_created_food(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $this->connect($admin, [McpPermission::Create]);
+        $recipe = $this->recipeWithNewFoods();
+        $recipe['ingredients'] = [$recipe['ingredients'][1]];
+
+        RecipesServer::tool(CreateRecipeTool::class, ['recipe' => $recipe, 'create' => ['Yuzu'], 'conversions' => [
+            'Yuzu' => ['season_months' => ['11', 12]],
+        ]])
+            ->assertOk()
+            ->assertSee('"saved":true');
+
+        $yuzu = Food::query()->where('name', 'Yuzu')->sole();
+        $this->assertNull($yuzu->requested_at);
+        $this->assertSame([11, 12], $yuzu->season_months);
+        $this->assertNull($yuzu->storage_months);
+        $this->assertNull($yuzu->measure);
+    }
+
+    public function test_the_format_and_tool_description_explain_season_data(): void
+    {
+        $this->connect(User::factory()->create(), [McpPermission::Create]);
+
+        RecipesServer::tool(GetRecipeFormatTool::class)
+            ->assertOk()
+            ->assertSee('season_months')
+            ->assertSee('storage_months');
+
+        /** @var list<array<string, mixed>> $tools */
+        $tools = $this->postJson('/mcp', ['jsonrpc' => '2.0', 'id' => 1, 'method' => 'tools/list'], ['MCP-Protocol-Version' => '2025-11-25'])
+            ->assertOk()
+            ->json('result.tools');
+        $tool = collect($tools)->firstWhere('name', 'create-recipe');
+        $description = (string) data_get($tool, 'inputSchema.properties.conversions.description');
+
+        $this->assertStringContainsString('"season_months": [5, 6, 7]', $description);
+        $this->assertStringContainsString('storage_months', $description);
+    }
+
+    public function test_find_similar_lists_exact_and_similar_entries_the_user_may_see(): void
+    {
+        $user = User::factory()->create();
+        $this->connect($user, [McpPermission::Read]);
+        $this->recipeWithNewFoods();
+        Food::query()->forceCreate(['name' => 'Yuzu', 'requested_by' => User::factory()->create()->id, 'requested_at' => now()]);
+
+        $this->assertContains('find-similar', $this->listedTools());
+
+        RecipesServer::tool(FindSimilarTool::class, ['type' => 'food', 'names' => ['Karotten', 'Rohzucker', 'Yuzu']])
+            ->assertOk()
+            ->assertSee('"name":"Karotten","status":"exact","match":{"id":'.Food::query()->where('name', 'Karotte')->value('id').',"name":"Karotte"}')
+            ->assertSee('"name":"Rohzucker","status":"similar","similar":[{"id":'.Food::query()->where('name', 'Zucker')->value('id').',"name":"Zucker"')
+            // Another user's pending request is not offered.
+            ->assertSee('"name":"Yuzu","status":"none","similar":[]');
+
+        RecipesServer::tool(FindSimilarTool::class, ['type' => 'unit', 'names' => ['Stk', 'Stück']])
+            ->assertOk()
+            ->assertSee('"name":"Stück","status":"exact"');
+
+        RecipesServer::tool(FindSimilarTool::class, ['type' => 'author', 'names' => ['Anna']])->assertHasErrors();
+        RecipesServer::tool(FindSimilarTool::class, ['type' => 'food', 'names' => []])->assertHasErrors();
+    }
+
+    public function test_photos_are_added_from_a_public_url_or_base64(): void
+    {
+        Storage::fake('recipes');
+        $this->fakeDns();
+        Http::fake(['bilder.test/roesti.png' => Http::response((string) base64_decode(self::PNG))]);
+        $user = User::factory()->create();
+        $this->connect($user, [McpPermission::Read, McpPermission::Update]);
+        $recipe = Recipe::factory()->create(['author_id' => $user->author_id, 'cookbook_id' => null, 'name' => 'Rösti', 'photos' => [
+            ['path' => 'alt.jpg', 'source' => null, 'is_ai_generated' => false],
+        ]]);
+
+        $this->assertContains('add-recipe-photo', $this->listedTools());
+
+        RecipesServer::tool(AddRecipePhotoTool::class, ['recipe_id' => $recipe->id, 'url' => 'https://bilder.test/roesti.png', 'source' => 'bilder.test'])
+            ->assertOk()
+            ->assertSee('"saved":true')
+            ->assertSee('"photos":2');
+
+        RecipesServer::tool(AddRecipePhotoTool::class, ['recipe_id' => $recipe->id, 'data' => 'data:image/png;base64,'.self::PNG, 'is_ai_generated' => true])
+            ->assertOk()
+            ->assertSee('"photos":3');
+
+        $photos = $recipe->fresh()->photos->values();
+        $this->assertSame('alt.jpg', $photos[0]->name());
+        $this->assertSame('bilder.test', $photos[1]->source());
+        $this->assertFalse($photos[1]->isAiGenerated());
+        $this->assertTrue($photos[2]->isAiGenerated());
+        $this->assertStringEndsWith('.png', $photos[2]->name());
+        Storage::disk('recipes')->assertExists($recipe->id.'/'.$photos[1]->name());
+        Storage::disk('recipes')->assertExists($recipe->id.'/'.$photos[2]->name());
+    }
+
+    public function test_invalid_too_large_or_internal_photos_are_refused(): void
+    {
+        Storage::fake('recipes');
+        $this->fakeDns(['intern.test' => ['192.168.1.10']]);
+        Http::fake([
+            'bilder.test/text.png' => Http::response('<html>no image</html>'),
+            'bilder.test/gross.png' => Http::response(str_repeat('a', RecipePhotos::MAX_DOWNLOAD_BYTES + 1)),
+            'bilder.test/umleitung' => Http::response('', 302, ['Location' => 'http://intern.test/bild.png']),
+        ]);
+        $user = User::factory()->create();
+        $this->connect($user, [McpPermission::Update]);
+        $recipe = Recipe::factory()->create(['author_id' => $user->author_id, 'cookbook_id' => null, 'photos' => []]);
+        $add = fn (array $arguments) => RecipesServer::tool(AddRecipePhotoTool::class, ['recipe_id' => $recipe->id, ...$arguments]);
+
+        // Content decides, not the declared type.
+        $add(['data' => 'data:image/png;base64,'.base64_encode('<?php echo 1;')])->assertHasErrors(['not a supported image']);
+        $add(['data' => 'data:text/plain;base64,'.base64_encode('text')])->assertHasErrors(['not a supported image']);
+        $add(['url' => 'https://bilder.test/text.png'])->assertHasErrors(['not a supported image']);
+        $add(['data' => 'data:image/png;base64,'.str_repeat('A', (int) ceil(RecipeJsonSchema::MAX_PHOTO_BYTES / 3 * 4) + 200)])->assertHasErrors(['too large']);
+        $add(['url' => 'https://bilder.test/gross.png'])->assertHasErrors(['too large']);
+        $add(['url' => 'http://127.0.0.1/bild.png'])->assertHasErrors(['Only public web addresses']);
+        $add(['url' => 'https://bilder.test/umleitung'])->assertHasErrors(['Only public web addresses']);
+        $add(['url' => 'https://bilder.test/text.png', 'data' => 'data:image/png;base64,'.self::PNG])->assertHasErrors();
+
+        Http::assertNotSent(fn (Request $request): bool => str_contains($request->url(), 'intern.test') || str_contains($request->url(), '127.0.0.1'));
+        $this->assertCount(0, $recipe->fresh()->photos);
+    }
+
+    public function test_adding_photos_needs_the_permission_and_the_user_s_rights(): void
+    {
+        Storage::fake('recipes');
+        $user = User::factory()->create();
+        $foreign = Recipe::factory()->create(['is_public' => true, 'cookbook_id' => null, 'photos' => []]);
+        $own = Recipe::factory()->create(['author_id' => $user->author_id, 'cookbook_id' => null, 'photos' => []]);
+        $png = 'data:image/png;base64,'.self::PNG;
+
+        $this->connect($user, [McpPermission::Update]);
+        RecipesServer::tool(AddRecipePhotoTool::class, ['recipe_id' => $foreign->id, 'data' => $png])->assertHasErrors(['No recipe with this id that you may edit.']);
+
+        McpGrant::query()->where('user_id', $user->id)->update(['permissions' => ['read', 'create']]);
+        $this->assertNotContains('add-recipe-photo', $this->listedTools());
+        RecipesServer::tool(AddRecipePhotoTool::class, ['recipe_id' => $own->id, 'data' => $png])->assertHasErrors();
+
+        $this->assertCount(0, $own->fresh()->photos);
+        $this->assertCount(0, $foreign->fresh()->photos);
+    }
+
+    public function test_the_app_s_ai_generates_a_photo_within_the_limit(): void
+    {
+        Storage::fake('recipes');
+        config(['services.openai.key' => 'test-key', 'services.openai.url' => 'https://openai.test/v1', 'services.openai.hourly_limit' => 1]);
+        Http::fake(['openai.test/v1/images/generations' => Http::response(['data' => [['b64_json' => base64_encode('jpeg-bytes')]]])]);
+        $user = User::factory()->create();
+        $this->connect($user, [McpPermission::Update]);
+        $recipe = Recipe::factory()->create(['author_id' => $user->author_id, 'cookbook_id' => null, 'name' => 'Rösti', 'photos' => []]);
+
+        $this->assertContains('generate-recipe-photo', $this->listedTools());
+
+        RecipesServer::tool(GenerateRecipePhotoTool::class, ['recipe_id' => $recipe->id])
+            ->assertOk()
+            ->assertSee('"saved":true')
+            ->assertSee('"is_ai_generated":true');
+
+        $photo = $recipe->fresh()->photos->sole();
+        $this->assertTrue($photo->isAiGenerated());
+        $this->assertSame('ChatGPT (OpenAI)', $photo->source());
+        Storage::disk('recipes')->assertExists($recipe->id.'/'.$photo->name());
+        $this->assertDatabaseHas('ai_usages', ['user_id' => $user->id, 'feature' => 'image', 'images' => 1]);
+
+        RecipesServer::tool(GenerateRecipePhotoTool::class, ['recipe_id' => $recipe->id])->assertHasErrors(['Too many AI requests']);
+        Http::assertSentCount(1);
+    }
+
+    public function test_photos_stop_at_the_import_limit(): void
+    {
+        Storage::fake('recipes');
+        config(['services.openai.key' => 'test-key', 'services.openai.url' => 'https://openai.test/v1']);
+        Http::fake();
+        $user = User::factory()->create();
+        $this->connect($user, [McpPermission::Update]);
+        $photos = array_map(fn (int $i): array => ['path' => "foto-{$i}.jpg", 'source' => null, 'is_ai_generated' => false], range(1, RecipeJsonSchema::MAX_PHOTOS - 1));
+        $recipe = Recipe::factory()->create(['author_id' => $user->author_id, 'cookbook_id' => null, 'photos' => $photos]);
+        $png = 'data:image/png;base64,'.self::PNG;
+
+        RecipesServer::tool(AddRecipePhotoTool::class, ['recipe_id' => $recipe->id, 'data' => $png])
+            ->assertOk()
+            ->assertSee('"photos":'.RecipeJsonSchema::MAX_PHOTOS);
+
+        RecipesServer::tool(AddRecipePhotoTool::class, ['recipe_id' => $recipe->id, 'data' => $png])->assertHasErrors([RecipePhotos::FULL]);
+        RecipesServer::tool(AddRecipePhotoTool::class, ['recipe_id' => $recipe->id, 'url' => 'https://bilder.test/bild.png'])->assertHasErrors([RecipePhotos::FULL]);
+        RecipesServer::tool(GenerateRecipePhotoTool::class, ['recipe_id' => $recipe->id])->assertHasErrors([RecipePhotos::FULL]);
+
+        // No download, no AI request, no extra file.
+        Http::assertNothingSent();
+        $this->assertCount(RecipeJsonSchema::MAX_PHOTOS, $recipe->fresh()->photos);
+        $this->assertCount(1, Storage::disk('recipes')->allFiles((string) $recipe->id));
+    }
+
+    public function test_photos_added_meanwhile_are_kept_and_a_failed_save_leaves_no_file(): void
+    {
+        Storage::fake('recipes');
+        $recipe = Recipe::factory()->create(['cookbook_id' => null, 'photos' => []]);
+        $stale = Recipe::query()->findOrFail($recipe->id);
+        $photos = app(RecipePhotos::class);
+
+        $photos->add($recipe, 'eins', 'jpg', null, false);
+        // A copy loaded before the first photo was added does not drop it.
+        $photos->add($stale, 'zwei', 'jpg', null, false);
+
+        $this->assertCount(2, $recipe->fresh()->photos);
+        $this->assertCount(2, $stale->photos);
+
+        Recipe::query()->whereKey($recipe->id)->update(['photos' => json_encode(array_fill(0, RecipeJsonSchema::MAX_PHOTOS, ['path' => 'x.jpg', 'source' => null, 'is_ai_generated' => false]))]);
+
+        try {
+            $photos->add($recipe, 'drei', 'jpg', null, false);
+            $this->fail('Expected the photo limit.');
+        } catch (\InvalidArgumentException $exception) {
+            $this->assertSame(RecipePhotos::FULL, $exception->getMessage());
+        }
+
+        $this->assertCount(2, Storage::disk('recipes')->allFiles((string) $recipe->id));
+    }
+
+    public function test_conversions_of_reused_foods_are_reported_as_ignored(): void
+    {
+        Mail::fake();
+        User::factory()->admin()->create();
+        $user = User::factory()->create();
+        $this->connect($user, [McpPermission::Create]);
+        $recipe = $this->recipeWithNewFoods();
+        $recipe['ingredients'] = [$recipe['ingredients'][1]];
+        // Another user's pending request with that name is not visible, create() reuses it.
+        $requested = Food::factory()->create(['name' => 'Yuzu', 'requested_by' => User::factory()->create()->id, 'requested_at' => now()]);
+
+        RecipesServer::tool(CreateRecipeTool::class, ['recipe' => $recipe, 'create' => ['Yuzu'], 'conversions' => ['Yuzu' => ['density' => 0.9]]])
+            ->assertOk()
+            ->assertSee('"saved":true')
+            ->assertSee('"conversions_ignored":["Yuzu"]');
+
+        $this->assertNull($requested->fresh()->density);
+        $this->assertSame(1, Food::query()->where('name', 'Yuzu')->count());
+        Mail::assertNothingSent();
+    }
+
+    public function test_generating_photos_needs_ai_access(): void
+    {
+        $user = User::factory()->create();
+        $this->connect($user, [McpPermission::Update]);
+        $recipe = Recipe::factory()->create(['author_id' => $user->author_id, 'cookbook_id' => null, 'photos' => []]);
+
+        // Without an OpenAI key the tool is not offered.
+        $this->assertNotContains('generate-recipe-photo', $this->listedTools());
+        RecipesServer::tool(GenerateRecipePhotoTool::class, ['recipe_id' => $recipe->id])->assertHasErrors();
+
+        config(['services.openai.key' => 'test-key', 'services.openai.url' => 'https://openai.test/v1']);
+        $user->update(['ai_enabled' => false]);
+        $this->assertNotContains('generate-recipe-photo', $this->listedTools());
+        RecipesServer::tool(GenerateRecipePhotoTool::class, ['recipe_id' => $recipe->id])->assertHasErrors();
+
+        Http::assertNothingSent();
+        $this->assertCount(0, $recipe->fresh()->photos);
+    }
+
+    public function test_created_and_updated_recipes_use_swiss_spelling(): void
+    {
+        $user = User::factory()->create();
+        $this->connect($user, [McpPermission::Create, McpPermission::Update]);
+        Category::factory()->create(['name' => 'Dessert']);
+        Tag::factory()->create(['name' => 'Süsses']);
+        $recipe = [
+            'name' => 'Süßkartoffel-Kuchen',
+            'category' => 'Dessert',
+            'complexity' => RecipeJsonSchema::complexities()[0],
+            'instructions' => '1. Große Süßkartoffeln reiben.',
+            'tags' => ['Süßes'],
+            'ingredients' => [['amount' => 2, 'unit' => null, 'food' => 'Süßkartoffel', 'attributes' => ['groß']]],
+        ];
+
+        RecipesServer::tool(CreateRecipeTool::class, ['recipe' => $recipe, 'create' => ['Süßkartoffel', 'groß']])
+            ->assertOk()
+            ->assertSee('"saved":true');
+
+        $created = Recipe::query()->sole();
+        $this->assertSame('Süsskartoffel-Kuchen', $created->name);
+        $this->assertStringContainsString('Grosse Süsskartoffeln', (string) $created->instructions);
+        $this->assertTrue(Food::query()->where('name', 'Süsskartoffel')->exists());
+        $this->assertTrue(IngredientAttribute::query()->where('name', 'gross')->exists());
+        $this->assertSame(['Süsses'], $created->tags()->pluck('name')->all());
+
+        RecipesServer::tool(UpdateRecipeTool::class, ['id' => $created->id, 'name' => 'Süßkartoffel-Torte', 'serving_type' => 'Stück', 'instructions' => '1. Weißen Zucker beigeben.', 'tags' => ['Süßes']])
+            ->assertOk();
+
+        $created->refresh();
+        $this->assertSame('Süsskartoffel-Torte', $created->name);
+        $this->assertStringContainsString('Weissen Zucker', (string) $created->instructions);
+
+        // The instructions tell AI clients, too.
+        $initialize = $this->postJson('/mcp', ['jsonrpc' => '2.0', 'id' => 1, 'method' => 'initialize', 'params' => [
+            'protocolVersion' => '2025-11-25', 'capabilities' => [], 'clientInfo' => ['name' => 'Test', 'version' => '1.0'],
+        ]])->assertOk();
+        $this->assertStringContainsString('"ss" instead of "ß"', (string) $initialize->json('result.instructions'));
+        $this->assertStringContainsString('find-similar', (string) $initialize->json('result.instructions'));
+        $this->assertStringContainsString('"ss" instead of "ß"', app(CreateRecipeTool::class)->description());
+    }
+
+    public function test_spelling_stays_as_sent_when_disabled(): void
+    {
+        config(['app.recipe_spelling' => 'de_DE']);
+        $user = User::factory()->create();
+        $this->connect($user, [McpPermission::Update]);
+        $own = Recipe::factory()->create(['author_id' => $user->author_id, 'cookbook_id' => null]);
+
+        RecipesServer::tool(UpdateRecipeTool::class, ['id' => $own->id, 'name' => 'Weißwurst'])->assertOk();
+
+        $this->assertSame('Weißwurst', $own->fresh()->name);
+        $this->assertStringNotContainsString('instead of "ß"', app(UpdateRecipeTool::class)->description());
     }
 }

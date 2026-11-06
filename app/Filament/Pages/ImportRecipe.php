@@ -4,13 +4,16 @@ namespace App\Filament\Pages;
 
 use App\Ai\AiException;
 use App\Ai\RecipeAssistant;
+use App\Enums\Measure;
 use App\Filament\Resources\Recipes\RecipeResource;
 use App\Filament\Resources\Recipes\RecipeTrashActions;
 use App\Mail\LookupRequestedMail;
 use App\Models\Cookbook;
+use App\Models\Food;
 use App\Models\Recipe;
 use App\Models\RecipeDraft;
 use App\Models\User;
+use App\Services\FoodConversions;
 use App\Services\RecipeImport\LookupType;
 use App\Services\RecipeImport\ParsedRecipe;
 use App\Services\RecipeImport\RecipeImporter;
@@ -19,17 +22,22 @@ use App\Services\RecipeImport\RelationResolver;
 use App\Services\RecipeImport\ResolutionReport;
 use App\Services\RecipeImport\UnresolvedValue;
 use App\Services\RecipeNames;
+use App\Services\Season;
+use App\Services\SwissSpelling;
 use BackedEnum;
 use Closure;
 use Filament\Actions\Action;
+use Filament\Forms\Components\CheckboxList;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Repeater;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
+use Filament\Schemas\Components\Actions;
 use Filament\Schemas\Components\Callout;
 use Filament\Schemas\Components\Component;
 use Filament\Schemas\Components\EmbeddedSchema;
@@ -46,6 +54,7 @@ use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\HtmlString;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 /**
@@ -331,6 +340,7 @@ class ImportRecipe extends Page
                 ...$this->resolutionFields(),
             ])
             ->afterValidation(function (): void {
+                $this->selectExistingNames();
                 $this->parse();
             });
     }
@@ -574,6 +584,8 @@ class ImportRecipe extends Page
             $components = [$select];
 
             if ($item['canCreate']) {
+                $created = fn (callable $get): bool => $get($statePath.'.create') === true;
+
                 $components[] = Toggle::make($statePath.'.create')
                     ->label($item['createsRequest']
                         ? __('Request ":value"', ['value' => $item['value']])
@@ -581,7 +593,26 @@ class ImportRecipe extends Page
                     ->helperText($item['createsRequest'] ? (string) __('Usable in your recipe right away; an administrator checks it before others see it.') : null)
                     ->live()
                     ->disabled(fn (callable $get): bool => $get($statePath.'.omit') === true)
+                    ->afterStateUpdated(fn () => $this->checkNewName($type, $statePath))
                     ->default(false);
+
+                $components[] = TextInput::make($statePath.'.name')
+                    ->label(__('Name of the new entry'))
+                    ->helperText(__('If an entry with this name exists, it is selected instead.'))
+                    ->visible($created)
+                    ->required($created)
+                    ->maxLength($type->maxLength())
+                    ->live(onBlur: true)
+                    ->afterStateUpdated(function (?string $state) use ($type, $statePath): void {
+                        $this->selectExisting($type, (string) $state, $statePath);
+                        $this->checkNewName($type, $statePath);
+                    })
+                    ->columnSpanFull();
+
+                if ($type === LookupType::Food) {
+                    $components[] = $this->conversionSection($statePath.'.conversion', $created);
+                    $components[] = $this->seasonSection($statePath.'.conversion', $created);
+                }
             }
 
             if ($item['canOmit']) {
@@ -601,7 +632,262 @@ class ImportRecipe extends Page
                 ->hidden(fn (callable $get): bool => $this->isObsolete($item, fn (string $path): mixed => $get($path)));
         }
 
+        $fields[] = Actions::make([$this->estimateConversionsAction()])
+            ->key('conversionActions')
+            ->visible(fn (callable $get): bool => RecipeAssistant::allows(user())
+                && $this->newFoods(fn (string $path): mixed => $get($path)) !== []);
+
         return $fields;
+    }
+
+    /**
+     * An existing entry with the name typed for a new one is chosen instead of a duplicate.
+     *
+     * @param  string  $statePath  relative to "data"
+     */
+    private function selectExisting(LookupType $type, string $name, string $statePath): void
+    {
+        $existing = trim($name) !== '' ? app(RelationResolver::class)->existing($type, trim($name), user()) : null;
+
+        if ($existing === null) {
+            return;
+        }
+
+        data_set($this->data, $statePath.'.create', false);
+        data_set($this->data, $statePath.'.id', $existing->getKey());
+
+        Notification::make()
+            ->info()
+            ->title(__('":name" already exists and was selected instead.', ['name' => (string) $existing->getAttribute('name')]))
+            ->send();
+    }
+
+    /**
+     * The same check on "Next" as when leaving the name field: names of existing entries select them.
+     */
+    private function selectExistingNames(): void
+    {
+        foreach ($this->unresolved as $item) {
+            $statePath = 'decisions.'.$this->stateKey($item['key']);
+            $state = (array) data_get($this->data, $statePath, []);
+
+            if ($item['canCreate'] && ($state['create'] ?? false) === true) {
+                $this->selectExisting(LookupType::from($item['type']), $this->newName($item, $state), $statePath);
+            }
+        }
+    }
+
+    /**
+     * Shows at once that a new name is too long (e.g. a long value taken from the recipe), so the
+     * user shortens it; the step and the import refuse it as well.
+     *
+     * @param  string  $statePath  relative to "data"
+     */
+    private function checkNewName(LookupType $type, string $statePath): void
+    {
+        $field = 'data.'.$statePath.'.name';
+        $this->resetErrorBag($field);
+
+        if (data_get($this->data, $statePath.'.create') === true && mb_strlen(trim((string) data_get($this->data, $statePath.'.name'))) > $type->maxLength()) {
+            $this->addError($field, __('The name may not be longer than :max characters.', ['max' => $type->maxLength()]));
+        }
+    }
+
+    /**
+     * Conversion data of a new food, the same fields as in the Food resource.
+     */
+    private function conversionSection(string $path, Closure $created): Section
+    {
+        return Section::make(__('Unit conversion'))
+            ->description(__('Optional: used by "Convert" on the recipe page. Values are averages.'))
+            ->collapsible()
+            ->collapsed(fn (callable $get): bool => blank($get($path.'.measure')) && blank($get($path.'.density')) && blank($get($path.'.weights')))
+            ->visible($created)
+            ->columns(2)
+            ->columnSpanFull()
+            ->schema([
+                Select::make($path.'.measure')
+                    ->label(__('Convert to'))
+                    ->helperText(__('Empty: amounts keep their measure (EL becomes ml).'))
+                    ->options(Measure::options()),
+                TextInput::make($path.'.density')
+                    ->label(__('Density (g per ml)'))
+                    ->helperText(__('Needed between weight and volume, e.g. oil 0.92, flour 0.55.'))
+                    ->numeric()
+                    ->minValue(FoodConversions::MIN_DENSITY)
+                    ->maxValue(FoodConversions::MAX_DENSITY),
+                Repeater::make($path.'.weights')
+                    ->label(__('Weight per piece'))
+                    ->schema([
+                        Select::make('unit_id')
+                            ->label(__('Unit'))
+                            ->options(fn (): array => app(FoodConversions::class)->pieceUnits(user()))
+                            ->required()
+                            ->distinct(),
+                        TextInput::make('grams')
+                            ->label(__('Grams'))
+                            ->numeric()
+                            ->minValue(0.01)
+                            ->maxValue(FoodConversions::MAX_GRAMS)
+                            ->required(),
+                    ])
+                    ->columns(2)
+                    ->defaultItems(0)
+                    ->addActionLabel(__('Add weight'))
+                    ->columnSpanFull(),
+            ]);
+    }
+
+    /**
+     * Season months of a new food, the same fields as in the Food resource (stored next to the
+     * conversion data, checked together by FoodConversions).
+     */
+    private function seasonSection(string $path, Closure $created): Section
+    {
+        $months = fn (string $name, string $label, string $help): CheckboxList => CheckboxList::make($path.'.'.$name)
+            ->label($label)
+            ->helperText($help)
+            ->options(Season::monthNames())
+            ->columns(['default' => 3, 'sm' => 4, 'lg' => 6])
+            ->gridDirection('row')
+            ->bulkToggleable()
+            ->columnSpanFull();
+
+        return Section::make(__('Season'))
+            ->description(__('Optional: used for the season calendar and seasonal recipes.'))
+            ->collapsible()
+            ->collapsed(fn (callable $get): bool => blank($get($path.'.season_months')) && blank($get($path.'.storage_months')))
+            ->visible($created)
+            ->columnSpanFull()
+            ->schema([
+                $months('season_months', __('Fresh season'), __('Months of fresh Swiss harvest (open field or unheated greenhouse).')),
+                $months('storage_months', __('From storage'), __('Months available from Swiss storage only; not counted as in season.')),
+            ]);
+    }
+
+    /**
+     * One AI request for all foods set to "create": fills their conversion and season fields, which stay editable.
+     */
+    private function estimateConversionsAction(): Action
+    {
+        return Action::make('estimateConversions')
+            ->label(__('Estimate conversions and season with AI'))
+            ->tooltip(__('Measure, density, piece weights and season of all new foods'))
+            ->icon(Heroicon::OutlinedSparkles)
+            ->color('gray')
+            ->action(function (): void {
+                $foods = $this->newFoods(fn (string $path): mixed => data_get($this->data, $path));
+
+                if ($foods === [] || ! RecipeAssistant::allows(user())) {
+                    return;
+                }
+
+                $units = [];
+
+                foreach ($this->parse()->allIngredients() as $ingredient) {
+                    if ($ingredient->unit !== null) {
+                        $units[mb_strtolower($ingredient->food)][$ingredient->unit] = $ingredient->unit;
+                    }
+                }
+
+                $input = [];
+
+                foreach ($foods as $food) {
+                    $input[$food['name']] = array_values($units[mb_strtolower($food['value'])] ?? []);
+                }
+
+                try {
+                    $estimates = app(RecipeAssistant::class)->conversions(user(), $input);
+                } catch (AiException $exception) {
+                    Notification::make()->warning()->title(__('The conversions could not be estimated.'))->body(__($exception->getMessage()))->send();
+
+                    return;
+                }
+
+                foreach ($foods as $key => $food) {
+                    if (isset($estimates[$food['name']])) {
+                        $this->fillConversion($key, $estimates[$food['name']]);
+                    }
+                }
+
+                Notification::make()->success()->title(__('Conversions estimated. Please check them.'))->send();
+            });
+    }
+
+    /**
+     * @param  array{measure: string|null, density: float|null, weights: array<int, float>, season_months: list<int>, storage_months: list<int>}  $estimate
+     */
+    private function fillConversion(string $key, array $estimate): void
+    {
+        $conversion = (array) ($this->data['decisions'][$key]['conversion'] ?? []);
+
+        if ($estimate['measure'] !== null) {
+            $conversion['measure'] = $estimate['measure'];
+        }
+
+        if ($estimate['density'] !== null) {
+            $conversion['density'] = $estimate['density'];
+        }
+
+        // Months the user already ticked stay; an empty estimate (no Swiss season) changes nothing.
+        foreach (['season_months', 'storage_months'] as $field) {
+            if ($estimate[$field] !== [] && blank($conversion[$field] ?? null)) {
+                $conversion[$field] = $estimate[$field];
+            }
+        }
+
+        $weights = array_filter((array) ($conversion['weights'] ?? []), 'is_array');
+
+        foreach ($estimate['weights'] as $unitId => $grams) {
+            $itemKey = null;
+
+            foreach ($weights as $existingKey => $weight) {
+                if ((int) ($weight['unit_id'] ?? 0) === $unitId) {
+                    $itemKey = $existingKey;
+                }
+            }
+
+            $weights[$itemKey ?? (string) Str::uuid()] = ['unit_id' => $unitId, 'grams' => $grams];
+        }
+
+        $conversion['weights'] = $weights;
+        $this->data['decisions'][$key]['conversion'] = $conversion;
+    }
+
+    /**
+     * Foods set to "create", by state key, with the parsed value and the name to create.
+     *
+     * @param  callable(string): mixed  $get  form state by path (relative to "data")
+     * @return array<string, array{value: string, name: string}>
+     */
+    private function newFoods(callable $get): array
+    {
+        $foods = [];
+
+        foreach ($this->unresolved as $item) {
+            $key = $this->stateKey($item['key']);
+
+            if ($item['type'] !== LookupType::Food->value || ! $item['canCreate'] || $get('decisions.'.$key.'.create') !== true) {
+                continue;
+            }
+
+            $foods[$key] = ['value' => $item['value'], 'name' => $this->newName($item, (array) $get('decisions.'.$key))];
+        }
+
+        return $foods;
+    }
+
+    /**
+     * The name a new entry is created with: as typed on "Resolve", else the parsed value.
+     *
+     * @param  array{value: string}  $item
+     * @param  array<string, mixed>  $state
+     */
+    private function newName(array $item, array $state): string
+    {
+        $name = trim((string) ($state['name'] ?? ''));
+
+        return $name !== '' ? $name : $item['value'];
     }
 
     /**
@@ -689,6 +975,8 @@ class ImportRecipe extends Page
     {
         $omitted = [];
         $requested = [];
+        $existing = [];
+        $resolver = app(RelationResolver::class);
 
         foreach ($this->unresolved as $item) {
             $type = LookupType::from($item['type']);
@@ -704,14 +992,22 @@ class ImportRecipe extends Page
                 $omitted[] = $label.($item['context'] !== [] && $type !== LookupType::Food
                     ? ' ('.__('on: :ingredients', ['ingredients' => implode(', ', $item['context'])]).')'
                     : '');
-            } elseif (($state['create'] ?? false) === true && $item['createsRequest']) {
-                $requested[] = $label;
+            } elseif (($state['create'] ?? false) === true && $item['canCreate']) {
+                $name = $this->newName($item, $state);
+                $match = $resolver->existing($type, $name, user());
+
+                if ($match !== null) {
+                    $existing[] = $type->label().' "'.$match->getAttribute('name').'"';
+                } elseif ($item['createsRequest']) {
+                    $requested[] = $type->label().' "'.$name.'"';
+                }
             }
         }
 
         return array_filter([
             __('Omitted') => implode('; ', $omitted),
-            __('Requested') => implode('; ', $requested),
+            __('Requested') => implode('; ', array_unique($requested)),
+            __('Existing entries used') => implode('; ', array_unique($existing)),
         ]);
     }
 
@@ -748,6 +1044,13 @@ class ImportRecipe extends Page
         // AI models routinely wrap the answer in a markdown code fence.
         $json = (string) preg_replace('/^```[a-z]*\s*|\s*```$/i', '', $json);
 
+        // Swiss spelling (RECIPE_SPELLING) also for pasted JSON and drafts, like the AI import.
+        $decoded = SwissSpelling::enabled() ? json_decode($json, true) : null;
+
+        if (is_array($decoded)) {
+            $json = (string) json_encode(SwissSpelling::recipe($decoded), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        }
+
         try {
             $this->parsed = app(RecipeJsonValidator::class)->validate($json);
         } catch (ValidationException $exception) {
@@ -763,8 +1066,9 @@ class ImportRecipe extends Page
                 'key' => $value->key(),
                 'type' => $value->type->value,
                 'value' => $value->value,
-                'canCreate' => $value->canCreate,
-                'createsRequest' => $value->canCreate && $value->type->createsRequest(user()),
+                // The name is editable here: a value longer than allowed can be shortened before creating it.
+                'canCreate' => $value->type->canBeCreatedBy(user()),
+                'createsRequest' => $value->type->canBeCreatedBy(user()) && $value->type->createsRequest(user()),
                 'canOmit' => $value->type->isOmittable(),
                 'suggestions' => $value->suggestions,
                 'context' => $value->context,
@@ -810,6 +1114,11 @@ class ImportRecipe extends Page
             $decision['id'] ??= $item['preselectedId'];
             $decision['create'] ??= false;
             $decision['omit'] ??= false;
+            $decision['name'] ??= $item['value'];
+
+            if ($item['type'] === LookupType::Food->value) {
+                $decision['conversion'] ??= ['measure' => null, 'density' => null, 'weights' => [], 'season_months' => [], 'storage_months' => []];
+            }
 
             $this->data['decisions'][$key] = $decision;
         }
@@ -824,10 +1133,11 @@ class ImportRecipe extends Page
 
         $parsed = $parsed->withName((string) $this->data['name']);
         $requested = [];
+        $ignored = [];
 
         // New lookups and the recipe are saved together: a failed import leaves no requests behind.
-        $recipe = DB::transaction(function () use ($parsed, &$requested): Recipe {
-            [$decisions, $requested] = $this->decisions();
+        $recipe = DB::transaction(function () use ($parsed, &$requested, &$ignored): Recipe {
+            [$decisions, $requested, $ignored] = $this->decisions();
 
             return $this->importRecipe($parsed, $decisions);
         });
@@ -837,6 +1147,15 @@ class ImportRecipe extends Page
         }
 
         LookupRequestedMail::notifyAdmins(user(), $requested, $recipe->name);
+
+        if ($ignored !== []) {
+            Notification::make()
+                ->warning()
+                ->title(__('Conversion and season data not saved'))
+                ->body(__('These foods already exist, their data stays as it is: :foods', ['foods' => implode(', ', array_unique($ignored))]))
+                ->persistent()
+                ->send();
+        }
 
         if (($this->data['ai_image'] ?? false) === true && RecipeAssistant::allows(user())) {
             set_time_limit(300);
@@ -861,7 +1180,7 @@ class ImportRecipe extends Page
     /**
      * The chosen id per lookup key (null to omit), creating the values the user asked for.
      *
-     * @return array{0: array<string, int|null>, 1: array<int, array{type: string, value: string}>} decisions and requested values
+     * @return array{0: array<string, int|null>, 1: array<int, array{type: string, value: string}>, 2: list<string>} decisions, requested values and foods whose conversion data was not stored
      *
      * @throws ValidationException
      */
@@ -870,6 +1189,8 @@ class ImportRecipe extends Page
         $resolver = app(RelationResolver::class);
         $decisions = [];
         $requested = [];
+        $ignored = [];
+        $handled = [];
 
         foreach ($this->unresolved as $item) {
             $type = LookupType::from($item['type']);
@@ -889,10 +1210,37 @@ class ImportRecipe extends Page
                     abort(403);
                 }
 
-                $decisions[$item['key']] = $resolver->create($type, $item['value'], user());
+                $name = $this->newName($item, $state);
+
+                if (mb_strlen($name) > $type->maxLength()) {
+                    throw ValidationException::withMessages([
+                        'data.decisions.'.$this->stateKey($item['key']).'.name' => __('The name may not be longer than :max characters.', ['max' => $type->maxLength()]),
+                    ]);
+                }
+
+                $conversion = $type === LookupType::Food ? $this->validatedConversion($state, $name) : null;
+
+                // An existing entry with that name is used instead (create() matches first, also in the
+                // trash and other users' requests); a name given twice is created once, the first one's data wins.
+                $id = $resolver->create($type, $name, user());
+                $decisions[$item['key']] = $id;
+
+                if (! $resolver->wasCreated($type, $id) || isset($handled[$type->value][$id])) {
+                    if ($conversion !== null && ! FoodConversions::isEmpty($conversion)) {
+                        $ignored[] = $name;
+                    }
+
+                    continue;
+                }
+
+                $handled[$type->value][$id] = true;
+
+                if ($conversion !== null) {
+                    app(FoodConversions::class)->apply(Food::query()->findOrFail($id), $conversion);
+                }
 
                 if ($type->createsRequest(user())) {
-                    $requested[] = ['type' => $type->value, 'value' => $item['value']];
+                    $requested[] = ['type' => $type->value, 'value' => $name];
                 }
 
                 continue;
@@ -918,7 +1266,28 @@ class ImportRecipe extends Page
             $decisions[$item['key']] = (int) $id;
         }
 
-        return [$decisions, $requested];
+        return [$decisions, $requested, $ignored];
+    }
+
+    /**
+     * The conversion and season fields of a new food checked again on the server (the form checks them first).
+     *
+     * @param  array<string, mixed>  $state
+     * @return array{measure: Measure|null, density: float|null, weights: array<int, float>, season_months: list<int>, storage_months: list<int>}
+     *
+     * @throws ValidationException
+     */
+    private function validatedConversion(array $state, string $name): array
+    {
+        try {
+            return app(FoodConversions::class)->validate((array) ($state['conversion'] ?? []), user(), $name);
+        } catch (ValidationException $exception) {
+            $messages = $exception->validator->errors()->all();
+
+            Notification::make()->danger()->title(__('Recipe could not be imported'))->body(implode(' ', $messages))->persistent()->send();
+
+            throw ValidationException::withMessages(['data.decisions' => $messages]);
+        }
     }
 
     /**
