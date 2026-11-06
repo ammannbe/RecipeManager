@@ -5,6 +5,7 @@ namespace App\Providers\Filament;
 use App\Filament\Auth\EditProfile;
 use App\Filament\Auth\Login;
 use App\Filament\Auth\Register;
+use App\Filament\Resources\Recipes\Pages\EditRecipe;
 use App\Http\Middleware\SetLocale;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
@@ -41,6 +42,8 @@ class AppPanelProvider extends PanelProvider
             ->passwordReset()
             ->emailVerification()
             ->profile(EditProfile::class, isSimple: false)
+            // Leaving a form with unsaved changes asks first.
+            ->unsavedChangesAlerts()
             ->colors([
                 'primary' => Color::Violet,
             ])
@@ -68,6 +71,11 @@ class AppPanelProvider extends PanelProvider
             ->renderHook(
                 PanelsRenderHook::USER_MENU_BEFORE,
                 fn (): View => view('filament.frontend-link'),
+            )
+            ->renderHook(
+                PanelsRenderHook::PAGE_HEADER_WIDGETS_AFTER,
+                fn (): View => view('filament.unsaved-changes'),
+                scopes: EditRecipe::class,
             )
             ->renderHook(
                 PanelsRenderHook::USER_MENU_BEFORE,

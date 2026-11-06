@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\OidcController;
 use App\Http\Controllers\CookbookInvitationController;
+use App\Http\Controllers\ImportPhotoController;
 use App\Http\Controllers\McpAuthorizationController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\RecipeController;
@@ -12,6 +13,11 @@ Route::get('/season', [RecipeController::class, 'season'])->name('recipes.season
 Route::get('/recipes/{recipe}', [RecipeController::class, 'show'])->name('recipes.show');
 Route::get('/recipes/{recipe}/photos/{filename}', [RecipeController::class, 'photo'])
     ->name('recipes.photo');
+
+// The AI photo of the import wizard, before the recipe exists.
+Route::get('/import-photos/{filename}', ImportPhotoController::class)
+    ->middleware('auth')
+    ->name('import-photos.show');
 
 Route::get('/cookbook-invitations/{token}', [CookbookInvitationController::class, 'show'])
     ->middleware('throttle:10,1')

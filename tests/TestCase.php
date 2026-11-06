@@ -5,10 +5,19 @@ namespace Tests;
 use App\Services\PublicHttp;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Illuminate\Support\Facades\Storage;
 
 abstract class TestCase extends BaseTestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        // Never write to the real private disk (e.g. AI photos of the import wizard).
+        Storage::fake('local');
+    }
 
     /**
      * Resolves hosts for PublicHttp without DNS: the given ones to their addresses, all others to a

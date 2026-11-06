@@ -25,6 +25,8 @@ class RecipePhotos
 
     public const FULL = 'The recipe already has the maximum of '.RecipeJsonSchema::MAX_PHOTOS.' photos.';
 
+    public const IMPORT_DIRECTORY = 'import-photos';
+
     private const EXTENSIONS = [
         'image/jpeg' => 'jpg',
         'image/png' => 'png',
@@ -76,6 +78,46 @@ class RecipePhotos
         }
 
         return [$binary, $this->extension($binary, $maxBytes)];
+    }
+
+    /**
+     * Stores a photo for a recipe that is still being imported (the wizard's AI photo) in the user's
+     * import directory on the private "local" disk; pruned daily by recipe-drafts:prune.
+     *
+     * @return string the file name
+     */
+    public function storeImportPhoto(int $userId, string $binary, string $extension): string
+    {
+        $filename = Str::lower(Str::random(40)).'.'.$extension;
+
+        Storage::disk('local')->put(self::importPath($userId, $filename), $binary);
+
+        return $filename;
+    }
+
+    /**
+     * The photo's contents, null when it is missing or the name is not one we create.
+     */
+    public function importPhoto(int $userId, string $filename): ?string
+    {
+        $path = self::importPath($userId, $filename);
+
+        return $path !== null ? Storage::disk('local')->get($path) : null;
+    }
+
+    public function deleteImportPhoto(int $userId, string $filename): void
+    {
+        if (($path = self::importPath($userId, $filename)) !== null) {
+            Storage::disk('local')->delete($path);
+        }
+    }
+
+    /**
+     * Path on the "local" disk, only for names storeImportPhoto() creates (no traversal).
+     */
+    public static function importPath(int $userId, string $filename): ?string
+    {
+        return preg_match('/^[a-z0-9]{40}\.(jpg|png|webp|gif)$/', $filename) === 1 ? self::IMPORT_DIRECTORY.'/'.$userId.'/'.$filename : null;
     }
 
     /**

@@ -3,10 +3,13 @@
 namespace Tests\Feature;
 
 use App\Enums\Measure;
+use App\Filament\Resources\Foods\FoodResource;
 use App\Filament\Resources\Foods\Pages\EditFood;
 use App\Filament\Resources\Foods\Pages\ListFoods;
 use App\Filament\Resources\Units\Pages\EditUnit;
 use App\Filament\Resources\Units\Pages\ListUnits;
+use App\Http\Middleware\SetLocale;
+use App\Models\Category;
 use App\Models\Food;
 use App\Models\FoodUnitWeight;
 use App\Models\Ingredient;
@@ -14,7 +17,11 @@ use App\Models\Recipe;
 use App\Models\Unit;
 use App\Models\User;
 use App\Services\Lookup\LookupMerger;
+use App\Services\RecipeImport\RecipeImporter;
+use App\Services\RecipeImport\RecipeJsonSchema;
+use App\Services\RecipeImport\RecipeJsonValidator;
 use App\Services\UnitConverter;
+use Illuminate\Http\Request;
 use Illuminate\Testing\PendingCommand;
 use Laravel\Passport\Passport;
 use Livewire\Livewire;
@@ -87,6 +94,55 @@ class UnitConversionTest extends TestCase
         $this->assertSame(['amount' => 45.0, 'amount_max' => null, 'unit' => 'ml'], UnitConverter::display(Measure::Volume, 45, null));
         $this->assertSame(['amount' => 2.5, 'amount_max' => null, 'unit' => 'dl'], UnitConverter::display(Measure::Volume, 250, null));
         $this->assertSame(['amount' => 1.25, 'amount_max' => null, 'unit' => 'l'], UnitConverter::display(Measure::Volume, 1250, null));
+    }
+
+    public function test_amounts_needing_more_than_two_decimals_move_to_a_smaller_unit(): void
+    {
+        $liter = $this->unit('Liter', Measure::Volume, 1000, 'l');
+        $deciliter = $this->unit('Deziliter', Measure::Volume, 100, 'dl');
+        $milliliter = $this->unit('Milliliter', Measure::Volume, 1, 'ml');
+        $kilo = $this->unit('Kilogramm', Measure::Mass, 1000, 'kg');
+        $gram = $this->unit('Gramm', Measure::Mass, 1, 'g');
+        $spoon = $this->unit('Esslöffel', Measure::Volume, 15, 'EL');
+        $converter = app(UnitConverter::class);
+
+        $result = $converter->precise($liter, 0.125, null);
+        $this->assertTrue($result['unit']->is($deciliter));
+        $this->assertSame(1.25, $result['amount']);
+
+        $result = $converter->precise($liter, 0.0625, 0.125);
+        $this->assertTrue($result['unit']->is($milliliter));
+        $this->assertSame([62.5, 125.0], [$result['amount'], $result['amount_max']]);
+
+        $result = $converter->precise($kilo, 0.125, null);
+        $this->assertTrue($result['unit']->is($gram));
+        $this->assertSame(125.0, $result['amount']);
+
+        // Two decimals, other units and the smallest unit stay as they are.
+        $this->assertTrue($converter->precise($liter, 0.25, null)['unit']->is($liter));
+        $this->assertSame(0.125, $converter->precise($spoon, 0.125, null)['amount']);
+        $this->assertSame(0.125, $converter->precise($milliliter, 0.125, null)['amount']);
+    }
+
+    public function test_the_import_keeps_the_precision_of_fractions(): void
+    {
+        $this->unit('Liter', Measure::Volume, 1000, 'l');
+        $deciliter = $this->unit('Deziliter', Measure::Volume, 100, 'dl');
+        Category::factory()->create(['name' => 'Dessert']);
+        Food::factory()->create(['name' => 'Wasser']);
+        $user = User::factory()->admin()->create();
+
+        $recipe = app(RecipeImporter::class)->import(app(RecipeJsonValidator::class)->validate((string) json_encode([
+            ...RecipeJsonSchema::example(),
+            'cookbook' => null,
+            'tags' => [],
+            'ingredient_groups' => [],
+            'ingredients' => [['amount' => 0.125, 'amount_max' => null, 'unit' => 'l', 'food' => 'Wasser', 'attributes' => []]],
+        ])), $user);
+
+        $ingredient = $recipe->ingredients()->sole();
+        $this->assertSame($deciliter->id, $ingredient->unit_id);
+        $this->assertEquals(1.25, $ingredient->amount);
     }
 
     public function test_the_recipe_page_offers_convert_only_when_it_changes_something(): void
@@ -184,6 +240,30 @@ class UnitConversionTest extends TestCase
 
         Livewire::test(ListUnits::class)
             ->assertTableColumnStateSet('base_amount', '1 EL = 15 ml', $spoon);
+    }
+
+    public function test_the_lists_write_decimals_like_the_browser(): void
+    {
+        $this->actingAs(User::factory()->admin()->create(['locale' => 'de']));
+        Food::factory()->create(['measure' => Measure::Volume, 'density' => 0.92]);
+
+        // German from Switzerland writes a decimal point, from Germany a comma.
+        $this->withHeader('Accept-Language', 'de-CH,de;q=0.9')->get(FoodResource::getUrl('index'))
+            ->assertSuccessful()
+            ->assertSee('Volumen · 0.92 g/ml');
+        $this->withHeader('Accept-Language', 'de-DE,de;q=0.9')->get(FoodResource::getUrl('index'))
+            ->assertSuccessful()
+            ->assertSee('Volumen · 0,92 g/ml');
+    }
+
+    public function test_the_number_locale_follows_the_browser_within_the_app_language(): void
+    {
+        app()->setLocale('de');
+
+        foreach (['de-CH,de;q=0.9' => 'de_CH', 'de-DE' => 'de_DE', 'en-US,de-AT;q=0.5' => 'de_AT', 'fr-CH' => 'de'] as $header => $locale) {
+            $this->app->instance('request', Request::create('/', server: ['HTTP_ACCEPT_LANGUAGE' => $header]));
+            $this->assertSame($locale, SetLocale::numberLocale(), $header);
+        }
     }
 
     public function test_merging_keeps_the_piece_weights(): void

@@ -94,14 +94,27 @@ class RecipeAssistant
         $this->ensureRoom($recipe);
         $recipe->loadMissing('ingredients.food');
 
-        $foods = $recipe->ingredients->pluck('food.name')->filter()->unique()->take(15)->implode(', ');
-        $prompt = "Appetizing, realistic food photograph of the finished dish \"{$recipe->name}\""
+        $binary = $this->dishPhoto($user, $recipe->name, $recipe->ingredients->pluck('food.name')->all());
+
+        return $this->store($recipe, $binary);
+    }
+
+    /**
+     * Generates a photo of a dish by its name and foods, e.g. for a recipe that is still being imported.
+     *
+     * @param  array<int, mixed>  $foods
+     * @return string the image (JPEG)
+     *
+     * @throws AiException
+     */
+    public function dishPhoto(?User $user, string $name, array $foods): string
+    {
+        $foods = collect($foods)->filter(fn (mixed $food): bool => is_string($food) && $food !== '')->unique()->take(15)->implode(', ');
+        $prompt = "Appetizing, realistic food photograph of the finished dish \"{$name}\""
             .($foods !== '' ? " (made with {$foods})" : '')
             .', served on a plate, natural daylight, shallow depth of field, no text, no people, no hands.';
 
-        $binary = $this->limited($user, 'image', fn (): string => $this->client->image($prompt));
-
-        return $this->store($recipe, $binary);
+        return $this->limited($user, 'image', fn (): string => $this->client->image($prompt));
     }
 
     /**

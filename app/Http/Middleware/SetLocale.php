@@ -42,6 +42,24 @@ class SetLocale
         return null;
     }
 
+    /**
+     * The locale numbers are formatted in: the browser's regional variant of the app language
+     * (de_CH writes 1.5, de_DE 1,5), otherwise the app language. Mirrored by numberLocale() in app.js.
+     */
+    public static function numberLocale(): string
+    {
+        $locale = app()->getLocale();
+        $language = strtolower(substr($locale, 0, 2));
+
+        foreach (request()->getLanguages() as $preferred) {
+            if (strtolower(substr($preferred, 0, 2)) === $language) {
+                return $preferred;
+            }
+        }
+
+        return $locale;
+    }
+
     public static function isAvailable(string $locale): bool
     {
         return array_key_exists($locale, self::available());

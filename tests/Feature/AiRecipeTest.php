@@ -15,6 +15,7 @@ use Illuminate\Http\Client\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Testing\PendingCommand;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -90,6 +91,161 @@ class AiRecipeTest extends TestCase
             && $request['text']['format']['strict'] === true
             && $request['input'][0]['content'][0]['type'] === 'input_image'
             && $request['input'][0]['content'][1]['text'] === 'Omas Apfelkuchen');
+    }
+
+    public function test_the_import_wizard_generates_a_photo_that_is_stored_as_ai_photo(): void
+    {
+        Storage::fake('recipes');
+        Storage::fake('local');
+        Http::fake(['openai.test/v1/images/generations' => Http::response(['data' => [['b64_json' => self::PNG]]])]);
+        $user = User::factory()->admin()->create();
+        $this->actingAs($user);
+
+        $recipe = RecipeJsonSchema::example();
+        $recipe['cookbook'] = null;
+
+        $component = Livewire::test(ImportRecipe::class)
+            ->fillForm(['json' => (string) json_encode($recipe)])
+            ->goToNextWizardStep()
+            ->fillForm(['name' => 'Omas Apfelkuchen'])
+            ->callAction(TestAction::make('generatePhoto')->schemaComponent('photoActions'))
+            ->assertNotified(__('Photo created'));
+
+        $this->assertDatabaseHas('ai_usages', ['feature' => 'image', 'images' => 1]);
+        Http::assertSent(fn (Request $request): bool => str_contains($request['prompt'], 'Omas Apfelkuchen') && str_contains($request['prompt'], 'Mehl'));
+
+        // A plain preview of the generated photo, apart from the upload field, only for its user.
+        $filename = (string) $component->get('aiPhoto');
+        $this->assertNotSame('', $filename);
+        Storage::disk('local')->assertExists(RecipePhotos::importPath($user->id, $filename));
+        $component->call('$refresh')->assertSee(route('import-photos.show', ['filename' => $filename]), false);
+        $this->get(route('import-photos.show', ['filename' => $filename]))->assertSuccessful();
+        $this->actingAs(User::factory()->create())->get(route('import-photos.show', ['filename' => $filename]))->assertNotFound();
+        $this->get(route('import-photos.show', ['filename' => '../../.env']))->assertNotFound();
+        $this->actingAs($user);
+
+        // An uploaded photo is added too.
+        $component->fillForm(['photo' => [UploadedFile::fake()->image('kuchen.jpg')]]);
+
+        // Creates every unknown value, so the import goes through.
+        foreach ((array) $component->get('unresolved') as $item) {
+            $component->set('data.decisions.'.md5($item['key']).'.create', true);
+        }
+
+        $component->call('import')->assertHasNoErrors();
+
+        $photos = Recipe::query()->where('name', 'Omas Apfelkuchen')->sole()->photos;
+        $this->assertCount(2, $photos);
+        $this->assertFalse($photos->first()->isAiGenerated());
+        $this->assertTrue($photos->last()->isAiGenerated());
+        $this->assertSame('ChatGPT (OpenAI)', $photos->last()->source());
+        // The waiting photo is gone after the import.
+        Storage::disk('local')->assertMissing(RecipePhotos::importPath($user->id, $filename));
+    }
+
+    public function test_the_ai_photo_button_works_after_reading_a_file_like_in_the_browser(): void
+    {
+        Storage::fake('local');
+        Http::fake([
+            'openai.test/v1/responses' => Http::response($this->answer($this->recipe())),
+            'openai.test/v1/images/generations' => Http::response(['data' => [['b64_json' => self::PNG]]]),
+        ]);
+        $user = User::factory()->create();
+        $this->actingAs($user);
+
+        // Upload, AI read and "Next" like the UI, then the click exactly as the button sends it.
+        $component = Livewire::test(ImportRecipe::class)
+            ->set('data.ai_file', [UploadedFile::fake()->image('rezept.jpg')])
+            ->goToNextWizardStep()
+            ->assertHasNoFormErrors()
+            ->assertWizardCurrentStep(2)
+            ->assertSeeHtml("mountAction('generatePhoto', {}, JSON.parse('{\\u0022schemaComponent\\u0022:\\u0022form.photoActions\\u0022}'))")
+            ->call('mountAction', 'generatePhoto', [], ['schemaComponent' => 'form.photoActions'])
+            ->assertNotified(__('Photo created'));
+
+        Http::assertSent(fn (Request $request): bool => $request->url() === 'https://openai.test/v1/images/generations');
+        $filename = (string) $component->get('aiPhoto');
+        $url = route('import-photos.show', ['filename' => $filename]);
+
+        // The preview is in the re-rendered page and its route serves the stored image.
+        $component->assertSeeHtml('<img src="'.e($url).'"');
+        $response = $this->get($url)->assertSuccessful()->assertHeader('Content-Type', 'image/png');
+        $this->assertSame(base64_decode(self::PNG), $response->streamedContent());
+    }
+
+    public function test_a_generated_photo_of_the_import_wizard_can_be_removed(): void
+    {
+        Storage::fake('local');
+        Http::fake(['openai.test/v1/images/generations' => Http::response(['data' => [['b64_json' => self::PNG]]])]);
+        $user = User::factory()->admin()->create();
+        $this->actingAs($user);
+
+        $component = Livewire::test(ImportRecipe::class)
+            ->fillForm(['json' => (string) json_encode([...RecipeJsonSchema::example(), 'cookbook' => null])])
+            ->goToNextWizardStep()
+            ->callAction(TestAction::make('generatePhoto')->schemaComponent('photoActions'));
+
+        $filename = (string) $component->get('aiPhoto');
+
+        $component->callAction(TestAction::make('removeAiPhoto')->schemaComponent('photoActions'))
+            ->assertSet('aiPhoto', null);
+
+        Storage::disk('local')->assertMissing(RecipePhotos::importPath($user->id, $filename));
+    }
+
+    public function test_old_import_photos_are_pruned(): void
+    {
+        Storage::fake('local');
+        $photos = app(RecipePhotos::class);
+        $old = $photos->storeImportPhoto(1, 'old', 'png');
+        $new = $photos->storeImportPhoto(1, 'new', 'png');
+        touch(Storage::disk('local')->path((string) RecipePhotos::importPath(1, $old)), now()->subDays(2)->getTimestamp());
+
+        $command = $this->artisan('recipe-drafts:prune');
+        $this->assertInstanceOf(PendingCommand::class, $command);
+        $command->assertSuccessful()->run();
+
+        Storage::disk('local')->assertMissing((string) RecipePhotos::importPath(1, $old));
+        Storage::disk('local')->assertExists((string) RecipePhotos::importPath(1, $new));
+    }
+
+    public function test_the_photo_button_of_the_import_wizard_needs_ai_access(): void
+    {
+        Http::fake();
+        $this->actingAs(User::factory()->create(['ai_enabled' => false]));
+
+        Livewire::test(ImportRecipe::class)
+            ->fillForm(['json' => (string) json_encode([...RecipeJsonSchema::example(), 'cookbook' => null])])
+            ->goToNextWizardStep()
+            ->assertFormFieldVisible('photo')
+            ->assertDontSee(__('Generate photo with AI'));
+
+        Http::assertNothingSent();
+    }
+
+    public function test_the_first_step_has_no_photo_toggle_and_the_import_creates_no_photo(): void
+    {
+        Storage::fake('recipes');
+        Http::fake(['openai.test/*' => Http::response($this->answer($this->recipe()))]);
+        $this->actingAs(User::factory()->admin()->create());
+
+        $component = Livewire::test(ImportRecipe::class)
+            ->assertFormFieldDoesNotExist('ai_image')
+            ->assertDontSee('Also create a photo with AI')
+            ->fillForm(['ai_text' => 'Omas Apfelkuchen'])
+            ->goToNextWizardStep()
+            ->assertHasNoFormErrors();
+
+        foreach ((array) $component->get('unresolved') as $item) {
+            $component->set('data.decisions.'.md5($item['key']).'.create', true);
+        }
+
+        $component->call('import')->assertHasNoErrors();
+
+        // Only the recipe was read; photos come from the mapping step only.
+        Http::assertSentCount(1);
+        Http::assertNotSent(fn (Request $request): bool => str_contains($request->url(), '/images/'));
+        $this->assertCount(0, Recipe::query()->where('name', 'Apfelkuchen')->sole()->photos);
     }
 
     public function test_a_web_address_is_read_and_sent_as_page_text(): void

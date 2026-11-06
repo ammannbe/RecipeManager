@@ -548,6 +548,7 @@ class RecipeForm
                     ->columnSpanFull(),
                 RichEditor::make('instructions')
                     ->label(__('Instructions'))
+                    ->stateCast(new ListItemParagraphs)
                     ->required()
                     ->columnSpanFull(),
                 Repeater::make('photos')
