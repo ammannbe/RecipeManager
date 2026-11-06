@@ -179,6 +179,17 @@ Alpine.data('recipeFilters', ({ expanded }) => ({
     },
 }));
 
+// The browser's regional variant of the page language (de-CH writes 1.5, de-DE 1,5), otherwise
+// the page language. Mirrors SetLocale::numberLocale().
+function numberLocale() {
+    const lang = document.documentElement.lang || 'en';
+    const language = lang.slice(0, 2).toLowerCase();
+    const preferred = (navigator.languages?.length ? navigator.languages : [navigator.language])
+        .find((candidate) => candidate && candidate.slice(0, 2).toLowerCase() === language);
+
+    return preferred || lang;
+}
+
 Alpine.data('recipeServings', ({ initial }) => ({
     baseServings: initial,
     servings: initial,
@@ -221,7 +232,7 @@ Alpine.data('recipeServings', ({ initial }) => ({
             return '';
         }
 
-        return new Intl.NumberFormat(document.documentElement.lang || undefined, {
+        return new Intl.NumberFormat(numberLocale(), {
             maximumFractionDigits: 2,
         }).format(value);
     },

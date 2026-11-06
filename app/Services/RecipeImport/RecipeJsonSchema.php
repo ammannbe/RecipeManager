@@ -85,7 +85,9 @@ class RecipeJsonSchema
         Ingredient object:
 
         - "amount" (number or null) - the quantity. Convert fractions to decimals
-          (1/2 becomes 0.5). Use null when the source gives no quantity.
+          (1/2 becomes 0.5). Use at most two decimals: take a smaller unit instead
+          (1/8 l becomes 1.25 dl, 1/8 kg becomes 125 g). Use null when the source gives
+          no quantity.
         - "amount_max" (number or null) - only for ranges like "200-300 g": amount is 200,
           amount_max is 300.
         - "unit" (string or null, max 20) - the measurement unit. Pick one from the known

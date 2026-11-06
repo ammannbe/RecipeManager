@@ -3,10 +3,12 @@
 use App\Models\CookbookInvitation;
 use App\Models\RecipeDraft;
 use App\Models\User;
+use App\Services\RecipePhotos;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schedule;
+use Illuminate\Support\Facades\Storage;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -25,8 +27,14 @@ Schedule::command('cookbook-invitations:prune')->daily();
 Artisan::command('recipe-drafts:prune', function () {
     $pruned = RecipeDraft::query()->where('expires_at', '<=', now())->delete();
 
-    $this->info("Pruned {$pruned} recipe draft(s).");
-})->purpose('Delete expired recipe drafts of companion apps');
+    // AI photos of import wizards that were left before importing.
+    $disk = Storage::disk('local');
+    $photos = collect($disk->allFiles(RecipePhotos::IMPORT_DIRECTORY))
+        ->filter(fn (string $path): bool => $disk->lastModified($path) < now()->subDay()->getTimestamp());
+    $disk->delete($photos->all());
+
+    $this->info("Pruned {$pruned} recipe draft(s) and {$photos->count()} import photo(s).");
+})->purpose('Delete expired recipe drafts of companion apps and old import photos');
 
 Schedule::command('recipe-drafts:prune')->daily();
 

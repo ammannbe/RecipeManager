@@ -78,9 +78,65 @@ class UnitConverter
             return true;
         }
 
-        $metric = $factor['measure'] === Measure::Mass ? [1.0, 1000.0] : [1.0, 100.0, 1000.0];
+        return ! in_array($unit->base_amount, self::metric($factor['measure']), true);
+    }
 
-        return ! in_array($unit->base_amount, $metric, true);
+    /**
+     * Base amounts of g/kg or ml/dl/l.
+     *
+     * @return list<float>
+     */
+    private static function metric(Measure $measure): array
+    {
+        return $measure === Measure::Mass ? [1.0, 1000.0] : [1.0, 100.0, 1000.0];
+    }
+
+    /**
+     * Amounts of a metric unit (kg, l, dl) that need more than two decimals move to the next smaller
+     * metric unit where they do not (1/8 l = 0.125 l becomes 1.25 dl, 0.0625 l becomes 62.5 ml), so
+     * nothing is rounded away. Other units and amounts are kept.
+     *
+     * @return array{unit: Unit, amount: float|null, amount_max: float|null}
+     */
+    public function precise(Unit $unit, ?float $amount, ?float $amountMax): array
+    {
+        $result = ['unit' => $unit, 'amount' => $amount, 'amount_max' => $amountMax];
+
+        if ($unit->measure === null || $unit->base_amount === null
+            || ! in_array($unit->base_amount, self::metric($unit->measure), true)
+            || (self::hasTwoDecimals($amount) && self::hasTwoDecimals($amountMax))) {
+            return $result;
+        }
+
+        $smaller = Unit::query()
+            ->where('measure', $unit->measure)
+            ->whereNull('requested_by')
+            ->whereIn('base_amount', self::metric($unit->measure))
+            ->where('base_amount', '<', $unit->base_amount)
+            ->orderByDesc('base_amount')
+            ->orderBy('id')
+            ->get()
+            ->unique(fn (Unit $candidate): float => (float) $candidate->base_amount);
+
+        foreach ($smaller as $candidate) {
+            $factor = $unit->base_amount / (float) $candidate->base_amount;
+            $result = [
+                'unit' => $candidate,
+                'amount' => $amount !== null ? round($amount * $factor, 6) : null,
+                'amount_max' => $amountMax !== null ? round($amountMax * $factor, 6) : null,
+            ];
+
+            if (self::hasTwoDecimals($result['amount']) && self::hasTwoDecimals($result['amount_max'])) {
+                break;
+            }
+        }
+
+        return $result;
+    }
+
+    private static function hasTwoDecimals(?float $value): bool
+    {
+        return $value === null || abs(round($value, 2) - $value) < 0.000001;
     }
 
     /**

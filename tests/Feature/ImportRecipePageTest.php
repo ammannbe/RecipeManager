@@ -19,6 +19,7 @@ use App\Services\RecipeImport\RecipeJsonSchema;
 use App\Services\RecipeImport\ResolutionReport;
 use Filament\Actions\Testing\TestAction;
 use Filament\Notifications\Notification;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Livewire\Features\SupportTesting\Testable;
@@ -254,6 +255,43 @@ class ImportRecipePageTest extends TestCase
         $this->assertDatabaseMissing(Recipe::class, ['name' => 'Apfelkuchen']);
     }
 
+    public function test_a_photo_uploaded_on_the_resolve_step_is_added_to_the_recipe(): void
+    {
+        Storage::fake('recipes');
+        $this->seedLookups();
+        $this->actingAs(User::factory()->admin()->create());
+
+        Livewire::test(ImportRecipe::class)
+            ->fillForm(['json' => $this->payload()])
+            ->goToNextWizardStep()
+            ->assertFormFieldVisible('photo')
+            ->fillForm(['photo' => [UploadedFile::fake()->image('kuchen.jpg')]])
+            ->goToWizardStep(3)
+            ->assertHasNoFormErrors()
+            ->call('import')
+            ->assertHasNoErrors();
+
+        $recipe = Recipe::query()->where('name', 'Apfelkuchen')->sole();
+        $photo = $recipe->photos->sole();
+        $this->assertFalse($photo->isAiGenerated());
+        $this->assertNull($photo->source());
+        Storage::disk('recipes')->assertExists($recipe->getKey().'/'.$photo->name());
+    }
+
+    public function test_no_photo_is_offered_when_the_json_has_the_maximum(): void
+    {
+        $this->seedLookups();
+        $this->actingAs(User::factory()->admin()->create());
+
+        $photos = array_fill(0, RecipeJsonSchema::MAX_PHOTOS, ['filename' => 'a.png', 'data' => 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==']);
+
+        Livewire::test(ImportRecipe::class)
+            ->fillForm(['json' => $this->payload(['photos' => $photos])])
+            ->goToNextWizardStep()
+            ->assertHasNoFormErrors()
+            ->assertFormFieldHidden('photo');
+    }
+
     public function test_the_name_is_checked_again_when_the_cookbook_changes(): void
     {
         $this->seedLookups();
@@ -423,8 +461,7 @@ class ImportRecipePageTest extends TestCase
 
         $component = Livewire::test(ImportRecipe::class)
             ->fillForm(['json' => $this->payload()])
-            ->call('import')
-            ->assertHasErrors();
+            ->goToNextWizardStep();
 
         $this->assertSame('Mehl', $this->unresolvedValue($component, 'Mehl')['value']);
         $this->assertDatabaseCount('recipes', 0);
@@ -486,8 +523,7 @@ class ImportRecipePageTest extends TestCase
 
         $component = Livewire::test(ImportRecipe::class)
             ->fillForm(['json' => $this->payload()])
-            ->call('import')
-            ->assertHasErrors();
+            ->goToNextWizardStep();
 
         $item = $this->unresolvedValue($component, 'Mehl');
 
@@ -645,7 +681,7 @@ class ImportRecipePageTest extends TestCase
         $this->assertDatabaseMissing('tags', ['name' => 'Unbekannt']);
     }
 
-    public function test_an_unresolved_food_still_blocks_the_import(): void
+    public function test_a_recipe_whose_only_food_stays_unresolved_is_refused(): void
     {
         $this->seedLookups();
         Food::query()->where('name', 'Salz')->forceDelete();
@@ -677,8 +713,7 @@ class ImportRecipePageTest extends TestCase
 
         $component = Livewire::test(ImportRecipe::class)
             ->fillForm(['json' => $this->payload()])
-            ->call('import')
-            ->assertHasErrors();
+            ->goToNextWizardStep();
 
         $item = $this->unresolvedValue($component, 'Mehl');
 
@@ -701,8 +736,7 @@ class ImportRecipePageTest extends TestCase
 
         $component = Livewire::test(ImportRecipe::class)
             ->fillForm(['json' => $this->payload()])
-            ->call('import')
-            ->assertHasErrors();
+            ->goToNextWizardStep();
 
         $item = $this->unresolvedValue($component, 'Mehl');
 
@@ -730,8 +764,7 @@ class ImportRecipePageTest extends TestCase
 
         $component = Livewire::test(ImportRecipe::class)
             ->fillForm(['json' => $this->payload()])
-            ->call('import')
-            ->assertHasErrors();
+            ->goToNextWizardStep();
 
         $item = $this->unresolvedValue($component, 'Mehl');
         $this->assertTrue($item['canCreate']);
@@ -771,7 +804,7 @@ class ImportRecipePageTest extends TestCase
 
         $component = Livewire::test(ImportRecipe::class)
             ->fillForm(['json' => $this->payload()])
-            ->call('import');
+            ->goToNextWizardStep();
 
         // Not offered, but requesting the same name takes the pending entry.
         $item = $this->unresolvedValue($component, 'Mehl');
@@ -798,14 +831,14 @@ class ImportRecipePageTest extends TestCase
                     'ingredients' => [['amount' => 1, 'unit' => null, 'food' => 'Zitronenmelisse', 'attributes' => []]],
                 ]],
             ])])
-            ->call('import')
-            ->assertHasErrors();
+            ->goToNextWizardStep();
 
         $food = $this->unresolvedValue($component, 'Zitronenmelisse');
         $this->assertTrue($food['canOmit']);
 
+        // Nothing chosen: the food is not imported.
         $component
-            ->set('data.decisions.'.md5($food['key']).'.omit', true)
+            ->assertSet('data.decisions.'.md5($food['key']).'.id', null)
             ->call('import')
             ->assertHasNoErrors();
 
@@ -815,6 +848,39 @@ class ImportRecipePageTest extends TestCase
         $this->assertSame(0, $recipe->ingredientGroups()->count());
         $this->assertDatabaseMissing('foods', ['name' => 'Zitronenmelisse']);
         $this->assertDatabaseMissing('units', ['name' => 'Handvoll']);
+    }
+
+    public function test_an_empty_selection_is_not_imported_without_a_validation_error(): void
+    {
+        $this->seedLookups();
+        $this->actingAs(User::factory()->admin()->create());
+
+        $component = Livewire::test(ImportRecipe::class)
+            ->fillForm(['json' => $this->payload([
+                'ingredients' => [
+                    ['amount' => 1, 'unit' => 'Handvoll', 'food' => 'Zitronenmelisse', 'attributes' => []],
+                    ['amount' => 200, 'unit' => 'g', 'food' => 'Mehl', 'attributes' => []],
+                ],
+                'ingredient_groups' => [],
+            ])])
+            ->goToNextWizardStep()
+            ->call('$refresh');
+
+        $food = md5($this->unresolvedValue($component, 'Zitronenmelisse')['key']);
+
+        $component
+            // No "Omit" toggle any more: the empty selection says it, "create" stays.
+            ->assertFormFieldDoesNotExist('decisions.'.$food.'.omit')
+            ->assertFormFieldExists('decisions.'.$food.'.create')
+            ->goToWizardStep(3)
+            ->assertHasNoFormErrors()
+            ->assertWizardCurrentStep(3)
+            ->assertSee(__('Omitted'))
+            ->call('import')
+            ->assertHasNoErrors();
+
+        $this->assertSame(['Mehl'], Recipe::query()->sole()->ingredients()->with('food')->get()->pluck('food.name')->all());
+        $this->assertDatabaseMissing('foods', ['name' => 'Zitronenmelisse']);
     }
 
     public function test_omitting_every_ingredient_is_refused(): void
@@ -829,8 +895,8 @@ class ImportRecipePageTest extends TestCase
             ])])
             ->call('import');
 
-        $item = $this->unresolvedValue($component, 'Zitronenmelisse');
-        $component->set('data.decisions.'.md5($item['key']).'.omit', true)->call('import')->assertHasErrors();
+        $this->unresolvedValue($component, 'Zitronenmelisse');
+        $component->call('import')->assertHasErrors();
 
         $this->assertDatabaseCount('recipes', 0);
     }
@@ -846,7 +912,8 @@ class ImportRecipePageTest extends TestCase
 
         $item = $this->unresolvedValue($component, 'Unbekannt');
         $this->assertFalse($item['canOmit']);
-        $component->set('data.decisions.'.md5($item['key']).'.omit', true)->call('import')->assertHasErrors();
+        // An empty category is required, not skipped.
+        $component->assertSet('data.decisions.'.md5($item['key']).'.id', null)->call('import')->assertHasErrors();
 
         $this->assertDatabaseCount('recipes', 0);
     }

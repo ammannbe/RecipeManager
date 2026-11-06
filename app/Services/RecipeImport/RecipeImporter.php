@@ -6,9 +6,11 @@ use App\Models\Cookbook;
 use App\Models\Ingredient;
 use App\Models\IngredientGroup;
 use App\Models\Recipe;
+use App\Models\Unit;
 use App\Models\User;
 use App\Services\RecipeNames;
 use App\Services\RecipePhotos;
+use App\Services\UnitConverter;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -25,6 +27,7 @@ class RecipeImporter
         private readonly ImageDownloader $downloader,
         private readonly RecipeNames $names,
         private readonly RecipePhotos $photos,
+        private readonly UnitConverter $converter,
     ) {}
 
     /**
@@ -260,9 +263,7 @@ class RecipeImporter
     ): void {
         /** @var Ingredient $ingredient */
         $ingredient = $recipe->ingredients()->create([
-            'amount' => $parsed->amount,
-            'amount_max' => $parsed->amountMax,
-            'unit_id' => $parsed->unit !== null ? $this->id(LookupType::Unit, $parsed->unit) : null,
+            ...$this->amounts($parsed),
             'food_id' => $this->requiredId(LookupType::Food, $parsed->food),
             'ingredient_group_id' => $group?->getKey(),
             'position' => $position,
@@ -277,15 +278,33 @@ class RecipeImporter
         foreach ($this->kept($parsed->alternatives) as $alternative) {
             /** @var Ingredient $child */
             $child = $ingredient->ingredients()->create([
-                'amount' => $alternative->amount,
-                'amount_max' => $alternative->amountMax,
-                'unit_id' => $alternative->unit !== null ? $this->id(LookupType::Unit, $alternative->unit) : null,
+                ...$this->amounts($alternative),
                 'food_id' => $this->requiredId(LookupType::Food, $alternative->food),
                 'position' => $alternativePosition++,
             ]);
 
             $this->syncAttributes($child, $alternative);
         }
+    }
+
+    /**
+     * Amount and unit, moved to a smaller metric unit when the amount needs more than two decimals
+     * (1/8 l becomes 1.25 dl).
+     *
+     * @return array{amount: float|null, amount_max: float|null, unit_id: int|null}
+     */
+    private function amounts(ParsedIngredient $parsed): array
+    {
+        $unitId = $parsed->unit !== null ? $this->id(LookupType::Unit, $parsed->unit) : null;
+        $unit = $unitId !== null ? Unit::query()->find($unitId) : null;
+
+        if ($unit === null) {
+            return ['amount' => $parsed->amount, 'amount_max' => $parsed->amountMax, 'unit_id' => $unitId];
+        }
+
+        $precise = $this->converter->precise($unit, $parsed->amount, $parsed->amountMax);
+
+        return ['amount' => $precise['amount'], 'amount_max' => $precise['amount_max'], 'unit_id' => $precise['unit']->id];
     }
 
     private function syncAttributes(Ingredient $ingredient, ParsedIngredient $parsed): void

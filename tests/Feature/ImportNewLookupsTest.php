@@ -60,8 +60,10 @@ class ImportNewLookupsTest extends TestCase
     {
         return Livewire::test(ImportRecipe::class)
             ->fillForm(['json' => (string) json_encode([...RecipeJsonSchema::example(), 'cookbook' => null])])
-            ->call('import')
-            ->assertHasErrors();
+            ->goToNextWizardStep()
+            ->assertHasNoFormErrors()
+            // A new request builds the resolve fields for the values just parsed.
+            ->call('$refresh');
     }
 
     private function path(LookupType $type, string $value): string
@@ -105,6 +107,54 @@ class ImportNewLookupsTest extends TestCase
             'services.openai.url' => 'https://openai.test/v1',
             'services.openai.hourly_limit' => $limit,
         ]);
+    }
+
+    public function test_the_name_of_an_entry_to_create_is_editable(): void
+    {
+        $this->actingAs(User::factory()->admin()->create());
+
+        $this->createAll($this->resolveStep())
+            ->assertFormFieldVisible($this->formPath(LookupType::Food, 'Mehl').'.name')
+            ->assertFormFieldEnabled($this->formPath(LookupType::Food, 'Mehl').'.name')
+            ->assertSet($this->path(LookupType::Food, 'Mehl').'.name', 'Mehl');
+    }
+
+    public function test_the_attributes_of_a_new_food_can_be_corrected_in_the_wizard(): void
+    {
+        $this->actingAs(User::factory()->admin()->create());
+        $attributes = $this->formPath(LookupType::Food, 'Mehl').'.attributes';
+
+        $component = $this->resolveStep()
+            ->assertFormFieldHidden($attributes)
+            ->set($this->path(LookupType::Food, 'Mehl').'.create', true)
+            ->assertFormFieldVisible($attributes)
+            ->assertSet($this->path(LookupType::Food, 'Mehl').'.attributes', ['gesiebt'])
+            ->set($this->path(LookupType::Food, 'Mehl').'.attributes', ['weich', 'fein'])
+            ->assertHasNoErrors([$this->path(LookupType::Food, 'Mehl').'.attributes']);
+
+        // The JSON carries the new attributes; the unknown one is matched like any other value.
+        $this->assertStringContainsString('"fein"', (string) $component->get('data.json'));
+        $this->assertContains('fein', array_column((array) $component->get('unresolved'), 'value'));
+
+        $this->createAll($component)
+            ->set($this->path(LookupType::Attribute, 'fein').'.create', true)
+            ->call('import')
+            ->assertHasNoErrors();
+
+        $flour = Recipe::query()->sole()->ingredients()->whereHas('food', fn ($query) => $query->where('name', 'Mehl'))->sole();
+        $this->assertEqualsCanonicalizing(['weich', 'fein'], $flour->ingredientAttributes->pluck('name')->all());
+    }
+
+    public function test_too_long_attributes_of_a_new_food_are_refused(): void
+    {
+        $this->actingAs(User::factory()->admin()->create());
+
+        $component = $this->resolveStep()
+            ->set($this->path(LookupType::Food, 'Mehl').'.create', true)
+            ->set($this->path(LookupType::Food, 'Mehl').'.attributes', [str_repeat('x', RecipeJsonSchema::MAX_ATTRIBUTE_NAME + 1)])
+            ->assertHasErrors([$this->path(LookupType::Food, 'Mehl').'.attributes']);
+
+        $this->assertStringNotContainsString('xxxxx', (string) $component->get('data.json'));
     }
 
     public function test_an_admin_stores_conversions_on_a_created_food(): void

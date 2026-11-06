@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Foods\Tables;
 
 use App\Filament\Resources\Concerns\LookupRequests;
 use App\Filament\Resources\Foods\FoodResource;
+use App\Http\Middleware\SetLocale;
 use App\Models\Food;
 use App\Models\FoodUnitWeight;
 use App\Services\Season;
@@ -43,8 +44,8 @@ class FoodsTable
                     ->label(__('Unit conversion'))
                     ->state(fn (Food $record): ?string => $record->measure === null && $record->unitWeights->isEmpty() ? null : implode(' · ', array_filter([
                         $record->measure?->label(),
-                        $record->density !== null ? Number::format($record->density, maxPrecision: 3).' g/ml' : null,
-                        $record->unitWeights->map(fn (FoodUnitWeight $weight): string => '1 '.$weight->unit->name.' = '.Number::format($weight->grams, maxPrecision: 2).' g')->implode(', ') ?: null,
+                        $record->density !== null ? Number::format($record->density, maxPrecision: 3, locale: SetLocale::numberLocale()).' g/ml' : null,
+                        $record->unitWeights->map(fn (FoodUnitWeight $weight): string => '1 '.$weight->unit->name.' = '.Number::format($weight->grams, maxPrecision: 2, locale: SetLocale::numberLocale()).' g')->implode(', ') ?: null,
                     ])))
                     ->wrap()
                     ->placeholder('-'),

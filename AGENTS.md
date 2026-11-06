@@ -151,15 +151,20 @@ ddev artisan passport:client --name=Shoppinglist --redirect_uri=https://<shoppin
 * Access: `App\Ai\RecipeAssistant::allows()`: verified users with `users.ai_enabled` (default on,
   admins switch it off in the Author resource's user section). Every request (recipe or photo) counts
   against `ai:<user id>` per hour.
-* Import wizard (`ImportRecipe`): 1. "Read recipe": photo/PDF (max. 10 MB) and/or text or web address, toggle
-  "Also create a photo", collapsible "Paste recipe JSON" (exports; the only input without AI rights), cookbook
+* Import wizard (`ImportRecipe`): 1. "Read recipe": photo/PDF (max. 10 MB) and/or text or web address,
+  collapsible "Paste recipe JSON" (exports; the only input without AI rights), cookbook
   and visibility. "Next" lets `RecipeAssistant::recipe()` (prompt of `ImportPromptBuilder` +
   `RecipeJsonSchema::aiSchema()`) write the JSON, only when the inputs changed (`aiInput` hash), and parses it;
   errors appear at the text field. A web address is read by `App\Ai\RecipePage` (schema.org Recipe JSON-LD +
   visible text, public hosts only, redirects checked again against private/reserved IPs, max. 3 MB).
-  2. "Resolve", 3. "Confirm". Drafts start at "Resolve" with cookbook and visibility there. The manual way
-  (prompt for an external AI chat) is gone. After the import the photo toggle calls `RecipeAssistant::image()`
-  (a failure only warns); the recipe edit page has "Create photo with AI". Generated photos are stored like
+  2. "Resolve" (also optional photos, offered while the JSON has fewer than `MAX_PHOTOS`: an upload and/or "Generate
+  photo with AI" (`RecipeAssistant::dishPhoto()`, waits in `import-photos/{user id}/` on the private `local` disk, shown
+  as a plain preview through `/import-photos/{filename}` (auth, own files only, `RecipePhotos::importPath()`) with
+  "Remove AI photo", pruned after a day by `recipe-drafts:prune`), both added after the import through `RecipePhotos`
+  (AI photo marked like below, a failure only warns)), 3. "Confirm". Drafts start at
+  "Resolve" with cookbook and visibility there. The manual way
+  (prompt for an external AI chat) is gone. The recipe edit page has "Create photo with AI" (`RecipeAssistant::image()`,
+  also MCP `generate-recipe-photo`). Generated photos are stored like
   uploads with `is_ai_generated` and the source `OPENAI_IMAGE_SOURCE` (default "ChatGPT (OpenAI)").
 * "Enhance with AI" (item action of the photo repeater on the edit page, only with `allows()` + update rights, not for
   trashed recipes): `RecipeAssistant::enhance()` sends the stored photo (JPEG/PNG/WebP) to `/images/edits` (multipart,
@@ -241,7 +246,8 @@ ddev artisan passport:client --name=Shoppinglist --redirect_uri=https://<shoppin
 * Foods, units, ingredient attributes and tags use `Requestable` (`requested_by`, `requested_at`):
   non-admins create them in the import wizard as requests (`LookupType::createsRequest()`), usable
   in their recipe right away. Choosing "create" in the wizard shows the name (prefilled, editable; a name
-  that already exists selects that entry instead) and for foods collapsible conversion fields (measure,
+  that already exists selects that entry instead) and for foods the ingredient attributes (tags, written into the JSON
+  of every ingredient with that food; unknown ones then need a decision like other values), collapsible conversion fields (measure,
   density, piece weights) and season fields (`season_months`, `storage_months`, like `FoodForm`; state under
   `conversion`, `App\Services\FoodConversions`, months 1–12 distinct, checked again on import) with "Estimate
   conversions and season with AI" (`RecipeAssistant::conversions()`, one request for all new foods, strict
@@ -258,7 +264,8 @@ ddev artisan passport:client --name=Shoppinglist --redirect_uri=https://<shoppin
   the number of open requests as navigation badge. Every admin gets a mail (`LookupRequestedMail`,
   in their locale) when an import created requests. The wizard and `create-recipe` create new lookups
   and the recipe in one transaction and mail only after it: a failed import leaves no requests.
-* "Omit" in the resolve step: units, attributes and tags are dropped; an omitted food drops its
+* An empty selection in the resolve step means "do not import" (no "Omit" toggle, no validation error; "Create … instead"
+  sits below the selection): units, attributes and tags are dropped; an omitted food drops its
   ingredient (with alternatives) and a group left empty. Units and attributes only used on omitted
   ingredients need no decision (`isObsolete()` in the wizard, `isUsed()` in `RecipeImporter`).
   Categories, cookbooks and authors cannot be omitted; at least one ingredient must remain.
@@ -312,11 +319,32 @@ ddev artisan passport:client --name=Shoppinglist --redirect_uri=https://<shoppin
   `app.js` mirrors `display()`); the "Convert" button (`data-convert-units`) only shows when an
   ingredient changes, converted rows show the original amount in brackets and a warning like the
   servings one.
+* Import (`RecipeImporter`, so wizard, MCP and drafts): amounts of kg, l or dl needing more than two decimals move to
+  the next smaller approved metric unit where they fit (`UnitConverter::precise()`: 1/8 l = 0.125 l becomes 1.25 dl);
+  the import prompt asks for the same.
 * Data: `database/data/food-conversions.php` (units by name, foods by name: measure, density, piece
   weights). `ddev artisan foods:conversions {--dry-run} {--force}` assigns it to exactly matching names,
   values set by hand are kept without `--force`, and lists data names without a match. A data migration
   ran it once. Foods whose units mean different things (Kaffee, Gemüsebouillon: liquid or powder) are
   left out on purpose.
+
+## Number format
+
+* Decimals follow the browser's regional variant of the app language (`de-CH` 1.5, `de-DE` 1,5, otherwise the app
+  locale): `SetLocale::numberLocale()` (Accept-Language) for PHP (`Number::format(..., locale:)` in the Food and Unit
+  lists), `numberLocale()` (`navigator.languages`) in `app.js` for the recipe page. The API keeps the user's locale.
+
+## Filament panel
+
+* `unsavedChangesAlerts()`: leaving a form with unsaved changes asks first. The recipe edit page shows an info box
+  above the form and a blue bar beside every changed field (`filament/unsaved-changes.blade.php`, render hook
+  `PAGE_HEADER_WIDGETS_AFTER` scoped to `EditRecipe`; Alpine compares `$wire.data` with a snapshot taken after the
+  fields initialised and after each save).
+* The rich editor's JavaScript wraps inline content of list items in a paragraph on load; tight Markdown lists (the
+  import) would therefore look changed right away. `RecipeForm` gives `instructions` the state cast
+  `ListItemParagraphs`, which does the same on the server, so a freshly loaded form is clean.
+* "Add to …" buttons quote the name (`lang/vendor/filament-forms/*/components.php`: de `Zu «…» hinzufügen`, en
+  `Add to "…"`).
 
 ## Public Frontend
 
@@ -343,6 +371,7 @@ ddev artisan passport:client --name=Shoppinglist --redirect_uri=https://<shoppin
 ## Testing Rules
 
 Add or update tests for every functional change.
+Tests never write to the real storage: `TestCase` fakes the `local` disk, tests using the `recipes` disk fake it.
 
 Important test areas:
 
