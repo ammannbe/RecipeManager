@@ -169,6 +169,17 @@ class FoodConversions
     }
 
     /**
+     * Whether checked values contain nothing to store.
+     *
+     * @param  Conversion  $conversion
+     */
+    public static function isEmpty(array $conversion): bool
+    {
+        return $conversion['measure'] === null && $conversion['density'] === null && $conversion['weights'] === []
+            && $conversion['season_months'] === [] && $conversion['storage_months'] === [];
+    }
+
+    /**
      * Stores checked values on a food (only set values; existing piece weights of other units stay).
      *
      * @param  Conversion  $conversion

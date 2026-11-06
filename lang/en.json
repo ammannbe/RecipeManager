@@ -353,5 +353,9 @@
     "Empty: improve light, colors and sharpness without changing the dish or the composition.": "Empty: improve light, colors and sharpness without changing the dish or the composition.",
     "Enhanced photo added": "Enhanced photo added",
     "The photo was not found.": "The photo was not found.",
-    "Only JPEG, PNG and WebP photos can be enhanced.": "Only JPEG, PNG and WebP photos can be enhanced."
+    "Only JPEG, PNG and WebP photos can be enhanced.": "Only JPEG, PNG and WebP photos can be enhanced.",
+    "The recipe already has the maximum of 10 photos.": "The recipe already has the maximum of 10 photos.",
+    "Conversion and season data not saved": "Conversion and season data not saved",
+    "These foods already exist, their data stays as it is: :foods": "These foods already exist, their data stays as it is: :foods",
+    "Existing entries used": "Existing entries used"
 }

@@ -353,5 +353,9 @@
     "Empty: improve light, colors and sharpness without changing the dish or the composition.": "Leer: Licht, Farben und Schärfe verbessern, ohne das Gericht oder den Bildaufbau zu verändern.",
     "Enhanced photo added": "Verbessertes Foto hinzugefügt",
     "The photo was not found.": "Das Foto wurde nicht gefunden.",
-    "Only JPEG, PNG and WebP photos can be enhanced.": "Nur JPEG-, PNG- und WebP-Fotos können verbessert werden."
+    "Only JPEG, PNG and WebP photos can be enhanced.": "Nur JPEG-, PNG- und WebP-Fotos können verbessert werden.",
+    "The recipe already has the maximum of 10 photos.": "Das Rezept hat bereits die maximale Anzahl von 10 Fotos.",
+    "Conversion and season data not saved": "Umrechnungs- und Saisondaten nicht gespeichert",
+    "These foods already exist, their data stays as it is: :foods": "Diese Lebensmittel gibt es bereits, ihre Daten bleiben unverändert: :foods",
+    "Existing entries used": "Bestehende Einträge verwendet"
 }

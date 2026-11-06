@@ -10,6 +10,7 @@ use App\Models\Category;
 use App\Models\Food;
 use App\Models\IngredientAttribute;
 use App\Models\Recipe;
+use App\Models\RecipeDraft;
 use App\Models\Tag;
 use App\Models\Unit;
 use App\Models\User;
@@ -263,6 +264,90 @@ class ImportNewLookupsTest extends TestCase
 
         $this->assertSame(0, Recipe::query()->count());
         $this->assertSame(0, Food::query()->where('name', 'like', 'xxx%')->count());
+    }
+
+    public function test_a_too_long_name_shows_the_error_until_it_is_shortened(): void
+    {
+        $this->actingAs(User::factory()->admin()->create());
+        $name = $this->path(LookupType::Food, 'Mehl').'.name';
+
+        $component = $this->createAll($this->resolveStep())
+            ->set($name, str_repeat('x', LookupType::Food->maxLength() + 1))
+            ->assertHasErrors([$name]);
+
+        $component->set($name, 'Weissmehl')
+            ->assertHasNoErrors([$name])
+            ->call('import')
+            ->assertHasNoErrors();
+
+        $this->assertDatabaseHas('foods', ['name' => 'Weissmehl']);
+    }
+
+    public function test_the_same_new_name_twice_is_created_and_requested_once(): void
+    {
+        Mail::fake();
+        $admin = User::factory()->admin()->create();
+        $this->actingAs(User::factory()->create(['admin' => false]));
+
+        $this->createAll($this->resolveStep())
+            ->set($this->path(LookupType::Food, 'Mehl').'.name', 'Apfelmehl')
+            ->set($this->path(LookupType::Food, 'Apfel').'.name', 'Apfelmehl')
+            ->set($this->path(LookupType::Food, 'Mehl').'.conversion.density', '0.5')
+            ->set($this->path(LookupType::Food, 'Apfel').'.conversion.density', '0.9')
+            ->call('import')
+            ->assertHasNoErrors()
+            ->assertNotified(__('Conversion and season data not saved'));
+
+        // The first one wins, the second one's data is reported as not saved.
+        $food = Food::query()->where('name', 'Apfelmehl')->sole();
+        $this->assertSame(0.5, $food->density);
+        $this->assertSame(2, Recipe::query()->sole()->ingredients()->where('food_id', $food->id)->count());
+        Mail::assertSent(LookupRequestedMail::class, fn (LookupRequestedMail $mail): bool => $mail->hasTo($admin->email)
+            && $mail->requests === [['type' => 'tag', 'value' => 'Herbst'], ['type' => 'food', 'value' => 'Apfelmehl']]);
+    }
+
+    public function test_conversions_of_a_reused_entry_are_reported_and_the_summary_names_existing_entries(): void
+    {
+        Mail::fake();
+        User::factory()->admin()->create();
+        $this->actingAs(User::factory()->create(['admin' => false]));
+        // Another user's request: not visible, so the name check cannot select it, create() reuses it.
+        $foreign = Food::factory()->create(['name' => 'Urmehl', 'requested_by' => User::factory()->create()->id, 'requested_at' => now()]);
+
+        $this->createAll($this->resolveStep())
+            ->set($this->path(LookupType::Food, 'Mehl').'.name', 'Urmehl')
+            ->set($this->path(LookupType::Food, 'Mehl').'.conversion.density', '0.5')
+            ->call('import')
+            ->assertHasNoErrors()
+            ->assertNotified(__('Conversion and season data not saved'));
+
+        $this->assertNull($foreign->fresh()?->density);
+        Mail::assertSent(LookupRequestedMail::class, fn (LookupRequestedMail $mail): bool => ! in_array('Urmehl', array_column($mail->requests, 'value'), true));
+
+        // "Next" checks the names like leaving the field; the summary does not call an existing entry requested.
+        // A draft starts on "Resolve", so the test's "Next" leaves that step.
+        $draft = RecipeDraft::query()->create([
+            'user_id' => user()?->id,
+            'data' => [...RecipeJsonSchema::example(), 'name' => 'Zweiter Kuchen', 'cookbook' => null],
+            'expires_at' => now()->addHour(),
+        ]);
+
+        $component = Livewire::withQueryParams(['draft' => $draft->id])
+            ->test(ImportRecipe::class)
+            ->assertWizardCurrentStep(2)
+            // "create" switched on after the name: only the check on "Next" can switch it off again.
+            ->set($this->path(LookupType::Food, 'Mehl').'.name', 'Margarine')
+            ->set($this->path(LookupType::Food, 'Mehl').'.create', true)
+            ->goToNextWizardStep()
+            ->assertHasNoErrors()
+            ->assertWizardCurrentStep(3)
+            ->assertNotified(__('":name" already exists and was selected instead.', ['name' => 'Margarine']))
+            ->assertSet($this->path(LookupType::Food, 'Mehl').'.create', false);
+
+        // Switched on again on "Confirm": listed as existing, not as requested.
+        $component->set($this->path(LookupType::Food, 'Mehl').'.create', true)
+            ->assertSee(__('Existing entries used').': '.__('Food').' &quot;Margarine&quot;', false)
+            ->assertDontSee(__('Requested').': ', false);
     }
 
     public function test_the_ai_estimates_conversions_of_all_new_foods(): void

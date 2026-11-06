@@ -126,6 +126,48 @@ class ImportRecipePageTest extends TestCase
         ]);
     }
 
+    public function test_pasted_json_is_written_in_swiss_spelling(): void
+    {
+        $this->seedLookups();
+        $weisswein = Food::factory()->create(['name' => 'Weisswein']);
+        $this->actingAs(User::factory()->admin()->create());
+
+        $payload = RecipeJsonSchema::example();
+        $payload['ingredients'][0]['food'] = 'Weißwein';
+
+        Livewire::test(ImportRecipe::class)
+            ->fillForm(['json' => $this->payload([
+                'name' => 'Süßer Apfelkuchen',
+                'instructions' => '1. Große Äpfel schälen.',
+                'ingredients' => $payload['ingredients'],
+            ])])
+            ->goToNextWizardStep()
+            ->assertHasNoFormErrors()
+            ->assertSet('data.name', 'Süsser Apfelkuchen')
+            ->assertSet('unresolved', [])
+            ->call('import')
+            ->assertHasNoErrors();
+
+        $recipe = Recipe::query()->firstOrFail();
+        $this->assertSame('Süsser Apfelkuchen', $recipe->name);
+        $this->assertStringContainsString('Grosse Äpfel', (string) $recipe->instructions);
+        $this->assertSame(1, $recipe->ingredients()->where('food_id', $weisswein->id)->count());
+    }
+
+    public function test_pasted_json_keeps_its_spelling_without_swiss_spelling(): void
+    {
+        config(['app.recipe_spelling' => 'de_DE']);
+        $this->seedLookups();
+        $this->actingAs(User::factory()->admin()->create());
+
+        Livewire::test(ImportRecipe::class)
+            ->fillForm(['json' => $this->payload(['name' => 'Süßer Apfelkuchen'])])
+            ->call('import')
+            ->assertHasNoErrors();
+
+        $this->assertSame('Süßer Apfelkuchen', Recipe::query()->firstOrFail()->name);
+    }
+
     public function test_the_confirmation_action_imports_the_recipe(): void
     {
         $this->seedLookups();

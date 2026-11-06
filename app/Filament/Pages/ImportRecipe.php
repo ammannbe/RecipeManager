@@ -23,6 +23,7 @@ use App\Services\RecipeImport\ResolutionReport;
 use App\Services\RecipeImport\UnresolvedValue;
 use App\Services\RecipeNames;
 use App\Services\Season;
+use App\Services\SwissSpelling;
 use BackedEnum;
 use Closure;
 use Filament\Actions\Action;
@@ -339,6 +340,7 @@ class ImportRecipe extends Page
                 ...$this->resolutionFields(),
             ])
             ->afterValidation(function (): void {
+                $this->selectExistingNames();
                 $this->parse();
             });
     }
@@ -591,6 +593,7 @@ class ImportRecipe extends Page
                     ->helperText($item['createsRequest'] ? (string) __('Usable in your recipe right away; an administrator checks it before others see it.') : null)
                     ->live()
                     ->disabled(fn (callable $get): bool => $get($statePath.'.omit') === true)
+                    ->afterStateUpdated(fn () => $this->checkNewName($type, $statePath))
                     ->default(false);
 
                 $components[] = TextInput::make($statePath.'.name')
@@ -600,8 +603,9 @@ class ImportRecipe extends Page
                     ->required($created)
                     ->maxLength($type->maxLength())
                     ->live(onBlur: true)
-                    ->afterStateUpdated(function (Set $set, ?string $state) use ($type, $statePath): void {
-                        $this->selectExisting($type, (string) $state, $set, $statePath);
+                    ->afterStateUpdated(function (?string $state) use ($type, $statePath): void {
+                        $this->selectExisting($type, (string) $state, $statePath);
+                        $this->checkNewName($type, $statePath);
                     })
                     ->columnSpanFull();
 
@@ -638,8 +642,10 @@ class ImportRecipe extends Page
 
     /**
      * An existing entry with the name typed for a new one is chosen instead of a duplicate.
+     *
+     * @param  string  $statePath  relative to "data"
      */
-    private function selectExisting(LookupType $type, string $name, Set $set, string $statePath): void
+    private function selectExisting(LookupType $type, string $name, string $statePath): void
     {
         $existing = trim($name) !== '' ? app(RelationResolver::class)->existing($type, trim($name), user()) : null;
 
@@ -647,13 +653,44 @@ class ImportRecipe extends Page
             return;
         }
 
-        $set($statePath.'.create', false);
-        $set($statePath.'.id', $existing->getKey());
+        data_set($this->data, $statePath.'.create', false);
+        data_set($this->data, $statePath.'.id', $existing->getKey());
 
         Notification::make()
             ->info()
             ->title(__('":name" already exists and was selected instead.', ['name' => (string) $existing->getAttribute('name')]))
             ->send();
+    }
+
+    /**
+     * The same check on "Next" as when leaving the name field: names of existing entries select them.
+     */
+    private function selectExistingNames(): void
+    {
+        foreach ($this->unresolved as $item) {
+            $statePath = 'decisions.'.$this->stateKey($item['key']);
+            $state = (array) data_get($this->data, $statePath, []);
+
+            if ($item['canCreate'] && ($state['create'] ?? false) === true) {
+                $this->selectExisting(LookupType::from($item['type']), $this->newName($item, $state), $statePath);
+            }
+        }
+    }
+
+    /**
+     * Shows at once that a new name is too long (e.g. a long value taken from the recipe), so the
+     * user shortens it; the step and the import refuse it as well.
+     *
+     * @param  string  $statePath  relative to "data"
+     */
+    private function checkNewName(LookupType $type, string $statePath): void
+    {
+        $field = 'data.'.$statePath.'.name';
+        $this->resetErrorBag($field);
+
+        if (data_get($this->data, $statePath.'.create') === true && mb_strlen(trim((string) data_get($this->data, $statePath.'.name'))) > $type->maxLength()) {
+            $this->addError($field, __('The name may not be longer than :max characters.', ['max' => $type->maxLength()]));
+        }
     }
 
     /**
@@ -938,6 +975,8 @@ class ImportRecipe extends Page
     {
         $omitted = [];
         $requested = [];
+        $existing = [];
+        $resolver = app(RelationResolver::class);
 
         foreach ($this->unresolved as $item) {
             $type = LookupType::from($item['type']);
@@ -953,14 +992,22 @@ class ImportRecipe extends Page
                 $omitted[] = $label.($item['context'] !== [] && $type !== LookupType::Food
                     ? ' ('.__('on: :ingredients', ['ingredients' => implode(', ', $item['context'])]).')'
                     : '');
-            } elseif (($state['create'] ?? false) === true && $item['createsRequest']) {
-                $requested[] = $type->label().' "'.$this->newName($item, $state).'"';
+            } elseif (($state['create'] ?? false) === true && $item['canCreate']) {
+                $name = $this->newName($item, $state);
+                $match = $resolver->existing($type, $name, user());
+
+                if ($match !== null) {
+                    $existing[] = $type->label().' "'.$match->getAttribute('name').'"';
+                } elseif ($item['createsRequest']) {
+                    $requested[] = $type->label().' "'.$name.'"';
+                }
             }
         }
 
         return array_filter([
             __('Omitted') => implode('; ', $omitted),
-            __('Requested') => implode('; ', $requested),
+            __('Requested') => implode('; ', array_unique($requested)),
+            __('Existing entries used') => implode('; ', array_unique($existing)),
         ]);
     }
 
@@ -997,6 +1044,13 @@ class ImportRecipe extends Page
         // AI models routinely wrap the answer in a markdown code fence.
         $json = (string) preg_replace('/^```[a-z]*\s*|\s*```$/i', '', $json);
 
+        // Swiss spelling (RECIPE_SPELLING) also for pasted JSON and drafts, like the AI import.
+        $decoded = SwissSpelling::enabled() ? json_decode($json, true) : null;
+
+        if (is_array($decoded)) {
+            $json = (string) json_encode(SwissSpelling::recipe($decoded), JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        }
+
         try {
             $this->parsed = app(RecipeJsonValidator::class)->validate($json);
         } catch (ValidationException $exception) {
@@ -1012,8 +1066,9 @@ class ImportRecipe extends Page
                 'key' => $value->key(),
                 'type' => $value->type->value,
                 'value' => $value->value,
-                'canCreate' => $value->canCreate,
-                'createsRequest' => $value->canCreate && $value->type->createsRequest(user()),
+                // The name is editable here: a value longer than allowed can be shortened before creating it.
+                'canCreate' => $value->type->canBeCreatedBy(user()),
+                'createsRequest' => $value->type->canBeCreatedBy(user()) && $value->type->createsRequest(user()),
                 'canOmit' => $value->type->isOmittable(),
                 'suggestions' => $value->suggestions,
                 'context' => $value->context,
@@ -1078,10 +1133,11 @@ class ImportRecipe extends Page
 
         $parsed = $parsed->withName((string) $this->data['name']);
         $requested = [];
+        $ignored = [];
 
         // New lookups and the recipe are saved together: a failed import leaves no requests behind.
-        $recipe = DB::transaction(function () use ($parsed, &$requested): Recipe {
-            [$decisions, $requested] = $this->decisions();
+        $recipe = DB::transaction(function () use ($parsed, &$requested, &$ignored): Recipe {
+            [$decisions, $requested, $ignored] = $this->decisions();
 
             return $this->importRecipe($parsed, $decisions);
         });
@@ -1091,6 +1147,15 @@ class ImportRecipe extends Page
         }
 
         LookupRequestedMail::notifyAdmins(user(), $requested, $recipe->name);
+
+        if ($ignored !== []) {
+            Notification::make()
+                ->warning()
+                ->title(__('Conversion and season data not saved'))
+                ->body(__('These foods already exist, their data stays as it is: :foods', ['foods' => implode(', ', array_unique($ignored))]))
+                ->persistent()
+                ->send();
+        }
 
         if (($this->data['ai_image'] ?? false) === true && RecipeAssistant::allows(user())) {
             set_time_limit(300);
@@ -1115,7 +1180,7 @@ class ImportRecipe extends Page
     /**
      * The chosen id per lookup key (null to omit), creating the values the user asked for.
      *
-     * @return array{0: array<string, int|null>, 1: array<int, array{type: string, value: string}>} decisions and requested values
+     * @return array{0: array<string, int|null>, 1: array<int, array{type: string, value: string}>, 2: list<string>} decisions, requested values and foods whose conversion data was not stored
      *
      * @throws ValidationException
      */
@@ -1124,6 +1189,8 @@ class ImportRecipe extends Page
         $resolver = app(RelationResolver::class);
         $decisions = [];
         $requested = [];
+        $ignored = [];
+        $handled = [];
 
         foreach ($this->unresolved as $item) {
             $type = LookupType::from($item['type']);
@@ -1153,13 +1220,20 @@ class ImportRecipe extends Page
 
                 $conversion = $type === LookupType::Food ? $this->validatedConversion($state, $name) : null;
 
-                // An existing entry with that name is used instead (create() matches first).
+                // An existing entry with that name is used instead (create() matches first, also in the
+                // trash and other users' requests); a name given twice is created once, the first one's data wins.
                 $id = $resolver->create($type, $name, user());
                 $decisions[$item['key']] = $id;
 
-                if (! $resolver->wasCreated($type, $id)) {
+                if (! $resolver->wasCreated($type, $id) || isset($handled[$type->value][$id])) {
+                    if ($conversion !== null && ! FoodConversions::isEmpty($conversion)) {
+                        $ignored[] = $name;
+                    }
+
                     continue;
                 }
+
+                $handled[$type->value][$id] = true;
 
                 if ($conversion !== null) {
                     app(FoodConversions::class)->apply(Food::query()->findOrFail($id), $conversion);
@@ -1192,7 +1266,7 @@ class ImportRecipe extends Page
             $decisions[$item['key']] = (int) $id;
         }
 
-        return [$decisions, $requested];
+        return [$decisions, $requested, $ignored];
     }
 
     /**

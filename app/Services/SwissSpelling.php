@@ -8,8 +8,8 @@ namespace App\Services;
  */
 class SwissSpelling
 {
-    /** Keys whose values are never touched (photo addresses, data URIs, file names). */
-    private const SKIPPED_KEYS = ['photos', 'url', 'data', 'filename'];
+    /** Keys whose values are never touched (photo addresses, data URIs, file names, author names). */
+    private const SKIPPED_KEYS = ['photos', 'url', 'data', 'filename', 'author'];
 
     public static function enabled(): bool
     {
@@ -36,9 +36,24 @@ class SwissSpelling
             : '';
     }
 
+    /**
+     * "ß" becomes "ss", web addresses in the text stay as they are.
+     */
     public static function text(string $text): string
     {
-        return self::enabled() ? str_replace(['ß', 'ẞ'], ['ss', 'SS'], $text) : $text;
+        if (! self::enabled()) {
+            return $text;
+        }
+
+        return (string) preg_replace_callback(
+            '~(?:https?://|www\.)\S+|[ßẞ]~iu',
+            fn (array $match): string => match ($match[0]) {
+                'ß' => 'ss',
+                'ẞ' => 'SS',
+                default => $match[0],
+            },
+            $text,
+        );
     }
 
     /**

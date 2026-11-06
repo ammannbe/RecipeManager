@@ -298,13 +298,13 @@ class RelationResolver
 
     /**
      * Also drops a trailing parenthetical, so an AI echoing a listed "Gramm (g)" back
-     * still resolves to "Gramm".
+     * still resolves to "Gramm", and folds "ß" into "ss", so "Weißwein" is "Weisswein".
      */
     private function normalise(string $value): string
     {
         $value = (string) preg_replace('/\s*\([^)]*\)\s*$/u', '', trim($value));
 
-        return mb_strtolower(trim($value));
+        return str_replace('ß', 'ss', mb_strtolower(trim($value)));
     }
 
     /**

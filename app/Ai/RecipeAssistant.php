@@ -14,6 +14,7 @@ use App\Services\SwissSpelling;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Storage;
+use InvalidArgumentException;
 
 /**
  * AI features of the recipe app: turns a photo, PDF or text into the import JSON (the same
@@ -90,6 +91,7 @@ class RecipeAssistant
      */
     public function image(?User $user, Recipe $recipe): array
     {
+        $this->ensureRoom($recipe);
         $recipe->loadMissing('ingredients.food');
 
         $foods = $recipe->ingredients->pluck('food.name')->filter()->unique()->take(15)->implode(', ');
@@ -99,7 +101,7 @@ class RecipeAssistant
 
         $binary = $this->limited($user, 'image', fn (): string => $this->client->image($prompt));
 
-        return $this->photos->add($recipe, $binary, 'jpg', (string) config('services.openai.image_source'), true, 'ai');
+        return $this->store($recipe, $binary);
     }
 
     /**
@@ -112,6 +114,7 @@ class RecipeAssistant
      */
     public function enhance(?User $user, Recipe $recipe, string $filename, ?string $instruction = null): array
     {
+        $this->ensureRoom($recipe);
         $document = $recipe->photos->first(fn (Document $photo): bool => $photo->name() === basename($filename));
         $path = $recipe->getKey().'/'.basename($filename);
 
@@ -131,7 +134,33 @@ class RecipeAssistant
 
         $edited = $this->limited($user, 'image_edit', fn (): string => $this->client->editImage($binary, $mime, $prompt));
 
-        return $this->photos->add($recipe, $edited, 'jpg', (string) config('services.openai.image_source'), true, 'ai');
+        return $this->store($recipe, $edited);
+    }
+
+    /**
+     * Refused before the AI request when the recipe already has the maximum of photos.
+     *
+     * @throws AiException
+     */
+    private function ensureRoom(Recipe $recipe): void
+    {
+        if (! $this->photos->hasRoom($recipe)) {
+            throw new AiException(RecipePhotos::FULL);
+        }
+    }
+
+    /**
+     * @return array{path: string, source: string|null, is_ai_generated: bool}
+     *
+     * @throws AiException
+     */
+    private function store(Recipe $recipe, string $binary): array
+    {
+        try {
+            return $this->photos->add($recipe, $binary, 'jpg', (string) config('services.openai.image_source'), true, 'ai');
+        } catch (InvalidArgumentException $exception) {
+            throw new AiException($exception->getMessage());
+        }
     }
 
     /**

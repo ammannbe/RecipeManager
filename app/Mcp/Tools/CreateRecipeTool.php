@@ -170,17 +170,28 @@ class CreateRecipeTool extends RecipeTool
 
         try {
             // Missing values and the recipe are saved together: a failed import leaves no requests behind.
-            $recipe = DB::transaction(function () use ($parsed, $user, $decisions, $missing, $conversions, $cookbookId, $data, &$requested): Recipe {
+            $recipe = DB::transaction(function () use ($parsed, $user, $decisions, $missing, $conversions, $cookbookId, $data, &$requested, &$ignored): Recipe {
+                $handled = [];
+
                 foreach ($missing as $value) {
                     $id = $this->resolver->create($value->type, $value->value, $user);
                     $decisions[$value->key()] = $id;
+                    $conversion = $value->type === LookupType::Food ? ($conversions[mb_strtolower($value->value)] ?? null) : null;
 
-                    if (! $this->resolver->wasCreated($value->type, $id)) {
+                    // An existing entry (also in the trash or another user's request) was reused, or an
+                    // earlier value of this call created it already: its data stays as it is.
+                    if (! $this->resolver->wasCreated($value->type, $id) || isset($handled[$value->type->value][$id])) {
+                        if ($conversion !== null) {
+                            $ignored[] = $conversion['name'];
+                        }
+
                         continue;
                     }
 
-                    if ($value->type === LookupType::Food && isset($conversions[mb_strtolower($value->value)])) {
-                        $this->foodConversions->apply(Food::query()->findOrFail($id), $conversions[mb_strtolower($value->value)]['conversion']);
+                    $handled[$value->type->value][$id] = true;
+
+                    if ($conversion !== null) {
+                        $this->foodConversions->apply(Food::query()->findOrFail($id), $conversion['conversion']);
                     }
 
                     if ($value->type->createsRequest($user)) {

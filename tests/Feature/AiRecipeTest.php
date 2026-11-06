@@ -9,6 +9,7 @@ use App\Filament\Resources\Recipes\Pages\EditRecipe;
 use App\Models\Recipe;
 use App\Models\User;
 use App\Services\RecipeImport\RecipeJsonSchema;
+use App\Services\RecipePhotos;
 use Filament\Actions\Testing\TestAction;
 use Illuminate\Http\Client\Request;
 use Illuminate\Http\UploadedFile;
@@ -306,6 +307,24 @@ class AiRecipeTest extends TestCase
         Http::assertSent(fn (Request $request): bool => collect($request->data())->contains(
             fn (array $part): bool => $part['name'] === 'prompt' && str_contains((string) $part['contents'], RecipeAssistant::DEFAULT_ENHANCE_INSTRUCTION),
         ));
+    }
+
+    public function test_photos_are_neither_enhanced_nor_created_beyond_the_limit(): void
+    {
+        Http::fake();
+        $user = User::factory()->create();
+        $this->actingAs($user);
+        $recipe = $this->recipeWithPhoto($user);
+        $recipe->update(['photos' => array_fill(0, RecipeJsonSchema::MAX_PHOTOS, ['path' => 'roesti.png', 'source' => null, 'is_ai_generated' => false])]);
+
+        $component = Livewire::test(EditRecipe::class, ['record' => $recipe->getRouteKey()]);
+        $component->callAction($this->enhanceAction((string) array_key_first($component->get('data.photos'))))
+            ->assertNotified(RecipePhotos::FULL);
+        $component->callAction('aiPhoto')->assertNotified(RecipePhotos::FULL);
+
+        Http::assertNothingSent();
+        $this->assertCount(RecipeJsonSchema::MAX_PHOTOS, $recipe->fresh()->photos);
+        $this->assertDatabaseCount('ai_usages', 0);
     }
 
     public function test_enhancing_needs_ai_access_and_edit_rights(): void

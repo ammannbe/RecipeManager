@@ -17,6 +17,8 @@ use App\Models\Tag;
 use App\Models\User;
 use App\Services\Season;
 use Filament\Facades\Filament;
+use Illuminate\Database\Events\QueryExecuted;
+use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -87,12 +89,24 @@ class DashboardTest extends TestCase
 
         Livewire::test(AdminOverviewWidget::class)->assertSee('Open requests')->assertSee('Tags: 1');
 
+        $other = User::factory()->create();
+        AiUsage::query()->create(['user_id' => $other->id, 'feature' => 'image_edit', 'model' => 'm', 'images' => 1]);
+
+        // The requests per feature are loaded in one query for all users, not per row.
+        $featureQueries = 0;
+        DB::listen(function (QueryExecuted $query) use (&$featureQueries): void {
+            $featureQueries += str_contains($query->sql, 'ai_usages') && str_contains($query->sql, 'group by') ? 1 : 0;
+        });
+
         Livewire::test(AiUsageWidget::class)
-            ->assertCanSeeTableRecords([$user])
+            ->assertCanSeeTableRecords([$user, $other])
             ->assertTableColumnStateSet('requests', 3, $user)
             ->assertSee('Conversions: 1')
             ->assertSee('Photo: 1')
+            ->assertSee(AiUsage::featureLabel('image_edit').': 1')
             ->assertTableColumnStateSet('input_tokens', 1010, $user)
             ->assertTableColumnStateSet('images', 1, $user);
+
+        $this->assertSame(1, $featureQueries);
     }
 }

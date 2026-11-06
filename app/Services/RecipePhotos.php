@@ -4,9 +4,11 @@ namespace App\Services;
 
 use App\Models\Recipe;
 use App\Services\RecipeImport\RecipeJsonSchema;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
+use Throwable;
 
 /**
  * Checks and stores recipe photos (private disk "recipes", directory {recipe id}/): the same
@@ -20,6 +22,8 @@ class RecipePhotos
      * RecipeJsonSchema::MAX_PHOTO_BYTES.
      */
     public const MAX_DOWNLOAD_BYTES = 10 * 1024 * 1024;
+
+    public const FULL = 'The recipe already has the maximum of '.RecipeJsonSchema::MAX_PHOTOS.' photos.';
 
     private const EXTENSIONS = [
         'image/jpeg' => 'jpg',
@@ -75,22 +79,54 @@ class RecipePhotos
     }
 
     /**
-     * Stores the image and appends it to the recipe's photos.
+     * Whether the recipe has room for another photo (the JSON import's limit).
+     */
+    public function hasRoom(Recipe $recipe): bool
+    {
+        return $recipe->photos->count() < RecipeJsonSchema::MAX_PHOTOS;
+    }
+
+    /**
+     * Stores the image and appends it to the recipe's photos. The photos are re-read under a row
+     * lock, so photos added at the same time are not lost; the file is removed if saving fails.
      *
      * @return array{path: string, source: string|null, is_ai_generated: bool}
+     *
+     * @throws InvalidArgumentException when the recipe already has the maximum of photos
      */
     public function add(Recipe $recipe, string $binary, string $extension, ?string $source, bool $isAiGenerated, string $suffix = ''): array
     {
         $filename = (Str::slug($recipe->name) ?: 'photo').($suffix !== '' ? '-'.$suffix : '').'-'.Str::lower(Str::random(6)).'.'.$extension;
-        Storage::disk('recipes')->put($recipe->getKey().'/'.$filename, $binary);
-
+        $path = $recipe->getKey().'/'.$filename;
         $photo = ['path' => $filename, 'source' => $source, 'is_ai_generated' => $isAiGenerated];
 
-        $photos = array_map(fn (Document $document): array => $document->jsonSerialize(), array_values($recipe->photos->all()));
-        $photos[] = $photo;
+        Storage::disk('recipes')->put($path, $binary);
 
-        $recipe->photos = $photos;
-        $recipe->save();
+        try {
+            $fresh = DB::transaction(function () use ($recipe, $photo): Recipe {
+                /** @var Recipe $fresh */
+                $fresh = Recipe::withTrashed()->lockForUpdate()->findOrFail($recipe->getKey());
+
+                if (! $this->hasRoom($fresh)) {
+                    throw new InvalidArgumentException(self::FULL);
+                }
+
+                $photos = array_map(fn (Document $document): array => $document->jsonSerialize(), array_values($fresh->photos->all()));
+                $photos[] = $photo;
+
+                $fresh->photos = $photos;
+                $fresh->save();
+
+                return $fresh;
+            });
+        } catch (Throwable $exception) {
+            Storage::disk('recipes')->delete($path);
+
+            throw $exception;
+        }
+
+        // Synced only after setRawAttributes() dropped the cached photos, else they would be merged back.
+        $recipe->setRawAttributes($fresh->getAttributes())->syncOriginal();
 
         return $photo;
     }

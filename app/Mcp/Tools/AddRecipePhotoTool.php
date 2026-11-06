@@ -16,7 +16,7 @@ use Laravel\Mcp\Server\Attributes\Description;
 use Laravel\Mcp\Server\Attributes\Name;
 
 #[Name('add-recipe-photo')]
-#[Description('Adds a photo to a recipe the user may edit, after the existing photos: either url (a public, directly downloadable JPEG, PNG, WebP or GIF, max. 10 MB) or data (a base64 data URI like "data:image/jpeg;base64,...", max. 5 MB). Optionally source (e.g. website or photographer) and is_ai_generated.')]
+#[Description('Adds a photo to a recipe the user may edit, after the existing photos (max. '.RecipeJsonSchema::MAX_PHOTOS.' per recipe): either url (a public, directly downloadable JPEG, PNG, WebP or GIF, max. 10 MB) or data (a base64 data URI like "data:image/jpeg;base64,...", max. 5 MB). Optionally source (e.g. website or photographer) and is_ai_generated.')]
 class AddRecipePhotoTool extends RecipeTool
 {
     public function __construct(
@@ -50,15 +50,19 @@ class AddRecipePhotoTool extends RecipeTool
             return Response::error('No recipe with this id that you may edit.');
         }
 
+        if (! $this->photos->hasRoom($recipe)) {
+            return Response::error('The photo was not added: '.RecipePhotos::FULL);
+        }
+
         try {
             [$binary, $extension] = filled($data['url'] ?? null)
                 ? $this->downloader->fetch((string) $data['url'], RecipePhotos::MAX_DOWNLOAD_BYTES)
                 : $this->photos->decode((string) $data['data']);
+
+            $photo = $this->photos->add($recipe, $binary, $extension, $data['source'] ?? null, (bool) ($data['is_ai_generated'] ?? false));
         } catch (PublicUrlException|InvalidArgumentException $exception) {
             return Response::error('The photo was not added: '.$exception->getMessage());
         }
-
-        $photo = $this->photos->add($recipe, $binary, $extension, $data['source'] ?? null, (bool) ($data['is_ai_generated'] ?? false));
 
         return Response::json([
             'saved' => true,

@@ -613,6 +613,78 @@ class McpServerTest extends TestCase
         Http::assertSentCount(1);
     }
 
+    public function test_photos_stop_at_the_import_limit(): void
+    {
+        Storage::fake('recipes');
+        config(['services.openai.key' => 'test-key', 'services.openai.url' => 'https://openai.test/v1']);
+        Http::fake();
+        $user = User::factory()->create();
+        $this->connect($user, [McpPermission::Update]);
+        $photos = array_map(fn (int $i): array => ['path' => "foto-{$i}.jpg", 'source' => null, 'is_ai_generated' => false], range(1, RecipeJsonSchema::MAX_PHOTOS - 1));
+        $recipe = Recipe::factory()->create(['author_id' => $user->author_id, 'cookbook_id' => null, 'photos' => $photos]);
+        $png = 'data:image/png;base64,'.self::PNG;
+
+        RecipesServer::tool(AddRecipePhotoTool::class, ['recipe_id' => $recipe->id, 'data' => $png])
+            ->assertOk()
+            ->assertSee('"photos":'.RecipeJsonSchema::MAX_PHOTOS);
+
+        RecipesServer::tool(AddRecipePhotoTool::class, ['recipe_id' => $recipe->id, 'data' => $png])->assertHasErrors([RecipePhotos::FULL]);
+        RecipesServer::tool(AddRecipePhotoTool::class, ['recipe_id' => $recipe->id, 'url' => 'https://bilder.test/bild.png'])->assertHasErrors([RecipePhotos::FULL]);
+        RecipesServer::tool(GenerateRecipePhotoTool::class, ['recipe_id' => $recipe->id])->assertHasErrors([RecipePhotos::FULL]);
+
+        // No download, no AI request, no extra file.
+        Http::assertNothingSent();
+        $this->assertCount(RecipeJsonSchema::MAX_PHOTOS, $recipe->fresh()->photos);
+        $this->assertCount(1, Storage::disk('recipes')->allFiles((string) $recipe->id));
+    }
+
+    public function test_photos_added_meanwhile_are_kept_and_a_failed_save_leaves_no_file(): void
+    {
+        Storage::fake('recipes');
+        $recipe = Recipe::factory()->create(['cookbook_id' => null, 'photos' => []]);
+        $stale = Recipe::query()->findOrFail($recipe->id);
+        $photos = app(RecipePhotos::class);
+
+        $photos->add($recipe, 'eins', 'jpg', null, false);
+        // A copy loaded before the first photo was added does not drop it.
+        $photos->add($stale, 'zwei', 'jpg', null, false);
+
+        $this->assertCount(2, $recipe->fresh()->photos);
+        $this->assertCount(2, $stale->photos);
+
+        Recipe::query()->whereKey($recipe->id)->update(['photos' => json_encode(array_fill(0, RecipeJsonSchema::MAX_PHOTOS, ['path' => 'x.jpg', 'source' => null, 'is_ai_generated' => false]))]);
+
+        try {
+            $photos->add($recipe, 'drei', 'jpg', null, false);
+            $this->fail('Expected the photo limit.');
+        } catch (\InvalidArgumentException $exception) {
+            $this->assertSame(RecipePhotos::FULL, $exception->getMessage());
+        }
+
+        $this->assertCount(2, Storage::disk('recipes')->allFiles((string) $recipe->id));
+    }
+
+    public function test_conversions_of_reused_foods_are_reported_as_ignored(): void
+    {
+        Mail::fake();
+        User::factory()->admin()->create();
+        $user = User::factory()->create();
+        $this->connect($user, [McpPermission::Create]);
+        $recipe = $this->recipeWithNewFoods();
+        $recipe['ingredients'] = [$recipe['ingredients'][1]];
+        // Another user's pending request with that name is not visible, create() reuses it.
+        $requested = Food::factory()->create(['name' => 'Yuzu', 'requested_by' => User::factory()->create()->id, 'requested_at' => now()]);
+
+        RecipesServer::tool(CreateRecipeTool::class, ['recipe' => $recipe, 'create' => ['Yuzu'], 'conversions' => ['Yuzu' => ['density' => 0.9]]])
+            ->assertOk()
+            ->assertSee('"saved":true')
+            ->assertSee('"conversions_ignored":["Yuzu"]');
+
+        $this->assertNull($requested->fresh()->density);
+        $this->assertSame(1, Food::query()->where('name', 'Yuzu')->count());
+        Mail::assertNothingSent();
+    }
+
     public function test_generating_photos_needs_ai_access(): void
     {
         $user = User::factory()->create();

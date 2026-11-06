@@ -9,6 +9,7 @@ use Filament\Tables\Table;
 use Filament\Widgets\TableWidget;
 use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 
 /**
  * For admins: AI usage per user this month (basis for billing by usage).
@@ -18,6 +19,9 @@ class AiUsageWidget extends TableWidget
     protected static ?int $sort = 6;
 
     protected int|string|array $columnSpan = 'full';
+
+    /** @var array<int, string>|null user id => requests per feature, per render */
+    private ?array $featureCounts = null;
 
     public static function canView(): bool
     {
@@ -55,17 +59,22 @@ class AiUsageWidget extends TableWidget
     }
 
     /**
-     * Requests per feature this month, e.g. "Recipe: 3 · Conversions: 1".
+     * Requests per feature this month, e.g. "Recipe: 3 · Conversions: 1"; loaded once for all users.
      */
     private function features(User $user): string
     {
-        return $user->aiUsages()
+        $this->featureCounts ??= AiUsage::query()
             ->where('created_at', '>=', now()->startOfMonth())
-            ->selectRaw('feature, count(*) as total')
-            ->groupBy('feature')
+            ->selectRaw('user_id, feature, count(*) as total')
+            ->groupBy('user_id', 'feature')
             ->orderByDesc('total')
-            ->pluck('total', 'feature')
-            ->map(fn (mixed $total, string $feature): string => AiUsage::featureLabel($feature).': '.$total)
-            ->implode(' · ');
+            ->get()
+            ->groupBy('user_id')
+            ->map(fn (Collection $rows): string => $rows
+                ->map(fn (AiUsage $row): string => AiUsage::featureLabel((string) $row->feature).': '.$row->getAttribute('total'))
+                ->implode(' · '))
+            ->all();
+
+        return $this->featureCounts[$user->id] ?? '';
     }
 }
