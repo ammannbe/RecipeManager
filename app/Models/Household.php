@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\HouseholdRole;
+use App\Jobs\ReportKontoShares;
 use App\Services\Households;
 use Database\Factories\HouseholdFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -16,7 +17,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 /**
  * A group of users that cookbooks can be shared with. Access is resolved through the
  * membership at runtime, so new members need no shares of their own and removed members
- * lose access right away. Contents always stay with their owner.
+ * lose access right away; their own cookbooks are no longer shared with it. Contents always
+ * stay with their owner.
  */
 class Household extends Model
 {
@@ -119,6 +121,35 @@ class Household extends Model
             ->using(CookbookHouseholdShare::class)
             ->withPivot(CookbookHouseholdShare::GRANTS)
             ->withTimestamps();
+    }
+
+    /**
+     * Removes the users: they lose access to the cookbooks shared with the household, and their own
+     * cookbooks (also those in the trash) are no longer shared with it; the cookbooks stay with them.
+     * Returns the number of unshared cookbooks; for mirrored households the change is reported.
+     *
+     * @param  array<int, int|string>  $userIds
+     */
+    public function detachMembers(array $userIds): int
+    {
+        $this->users()->detach($userIds);
+
+        $authorIds = User::query()->whereKey($userIds)->whereNotNull('author_id')->pluck('author_id');
+
+        if ($authorIds->isEmpty()) {
+            return 0;
+        }
+
+        $unshared = CookbookHouseholdShare::query()
+            ->where('household_id', $this->getKey())
+            ->whereIn('cookbook_id', Cookbook::withTrashed()->withoutGlobalScope('author_name')->select('id')->whereIn('author_id', $authorIds))
+            ->delete();
+
+        if ($unshared > 0) {
+            ReportKontoShares::dispatchFor($this);
+        }
+
+        return $unshared;
     }
 
     public function roleOf(?User $user): ?HouseholdRole

@@ -41,7 +41,7 @@ class ViewHousehold extends ViewRecord
                 ->icon(Heroicon::OutlinedArrowRightStartOnRectangle)
                 ->color('gray')
                 ->requiresConfirmation()
-                ->modalDescription(__('You lose access to the cookbooks shared with the household. Your own cookbooks stay yours.'))
+                ->modalDescription(__('You lose access to everything shared with the household, and your own cookbooks are no longer shared with it. The cookbooks stay yours.'))
                 ->visible(fn (Household $record): bool => user()?->can('leave', $record) ?? false)
                 ->action(function (Household $record): void {
                     try {

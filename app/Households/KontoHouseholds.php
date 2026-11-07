@@ -203,7 +203,7 @@ class KontoHouseholds
 
     /**
      * The user unlinked the sign-in: they lose the mirrored households (kept as pending, in case
-     * the sign-in is linked again).
+     * the sign-in is linked again) and their own cookbooks are no longer shared with them.
      */
     public function detachUser(User $user): void
     {
@@ -219,7 +219,7 @@ class KontoHouseholds
                         );
                     }
 
-                    $household->users()->detach($user->getKey());
+                    $household->detachMembers([$user->getKey()]);
                 });
             });
     }
@@ -305,8 +305,8 @@ class KontoHouseholds
     }
 
     /**
-     * Members by oidc_sub: unknown subjects are kept as pending members. Removed members only lose
-     * access, their own cookbooks stay shared like after leaving a local household.
+     * Members by oidc_sub: unknown subjects are kept as pending members. Removed members lose access
+     * and their own cookbooks are no longer shared with the household, like after leaving a local one.
      *
      * @param  list<array{sub: string, role: string}>  $members
      */
@@ -335,7 +335,7 @@ class KontoHouseholds
         $removed = $current->keys()->diff($users->keys())->values()->all();
 
         if ($removed !== []) {
-            $household->users()->detach($removed);
+            $household->detachMembers($removed);
         }
 
         $pending = array_diff_key($roles, array_flip($users->pluck('oidc_sub')->all()));

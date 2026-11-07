@@ -150,6 +150,42 @@ class HouseholdSharingTest extends TestCase
         $this->assertTrue($this->owner->can('update', $this->recipe->refresh()));
     }
 
+    public function test_removing_or_leaving_unshares_only_the_members_own_cookbooks(): void
+    {
+        $this->share(['can_read' => true]);
+        $leaving = User::factory()->create(['admin' => false]);
+        $this->household->users()->attach($leaving->id, ['role' => HouseholdRole::Member->value, 'joined_at' => now()]);
+        $removedOwn = Cookbook::factory()->create(['author_id' => $this->member->author_id, 'is_public' => false]);
+        $leavingOwn = Cookbook::factory()->create(['author_id' => $leaving->author_id, 'is_public' => false]);
+        $trashed = Cookbook::factory()->create(['author_id' => $leaving->author_id, 'is_public' => false]);
+        $elsewhere = Household::factory()->administeredBy($this->member)->create();
+        $sharing = app(CookbookSharing::class);
+        $this->assertTrue($sharing->shareWithHousehold($removedOwn, $this->household, ['can_read' => true], $this->member));
+        $this->assertTrue($sharing->shareWithHousehold($removedOwn, $elsewhere, ['can_read' => true], $this->member));
+        $this->assertTrue($sharing->shareWithHousehold($leavingOwn, $this->household, ['can_read' => true], $leaving));
+        $this->assertTrue($sharing->shareWithHousehold($trashed, $this->household, ['can_read' => true], $leaving));
+        $trashed->delete();
+
+        app(Households::class)->removeMember($this->household, $this->member);
+
+        $this->assertFalse($removedOwn->households()->whereKey($this->household->id)->exists());
+        $this->assertFalse($this->owner->can('view', $removedOwn));
+        // Other households and the other members' shares stay.
+        $this->assertTrue($removedOwn->households()->whereKey($elsewhere->id)->exists());
+        $this->assertTrue($leavingOwn->households()->whereKey($this->household->id)->exists());
+        $this->assertTrue($this->cookbook->households()->whereKey($this->household->id)->exists());
+
+        app(Households::class)->leave($this->household, $leaving);
+
+        $this->assertDatabaseMissing('cookbook_household', ['household_id' => $this->household->id, 'cookbook_id' => $leavingOwn->id]);
+        $this->assertDatabaseMissing('cookbook_household', ['household_id' => $this->household->id, 'cookbook_id' => $trashed->id]);
+        $this->assertSame([$this->cookbook->id], $this->household->cookbooks()->pluck('cookbooks.id')->all());
+        // The cookbooks stay with their owners.
+        $this->assertTrue($this->member->can('update', $removedOwn));
+        $this->assertTrue($leaving->can('update', $leavingOwn));
+        $this->assertTrue($this->owner->can('view', $this->recipe));
+    }
+
     public function test_deleting_the_household_removes_access_but_keeps_the_content(): void
     {
         $this->share(['can_read' => true]);

@@ -109,7 +109,8 @@ If any command fails, repeat the process from the beginning.
   `household-invitations:prune` daily) and `cookbook_household` (same grants as `cookbook_user`).
 * `App\Services\Households` keeps the rules: the creator is admin; at least one admin stays (`LastHouseholdAdmin`
   on removing, demoting or leaving the last one, admin rows locked); deleting a household or removing a member only
-  removes access, contents stay with their owner; deleting a user (`UserObserver`) drops the memberships, hands an
+  removes access, contents stay with their owner; a removed or leaving member's own cookbooks are no longer shared
+  with the household (`Household::detachMembers()`, same in Shoppinglist/Chorelist); deleting a user (`UserObserver`) drops the memberships, hands an
   admin-less household to its longest member and deletes empty ones.
 * Invitations always need consent, also for existing users (unlike cookbooks): `/household-invitations/{token}`
   (`HouseholdInvitationController`) accepts only for a logged-in user with the invited, verified address; guests go
@@ -145,8 +146,8 @@ If any command fails, repeat the process from the beginning.
   household: memberships, pending members and `cookbook_household` go with it (FK cascades), cookbooks and recipes stay
   with their owners. Events of unknown households are confirmed with `GET /api/households/{uuid}` (404: nothing is
   created). Cookbook access needs no extra step: it is resolved through the membership (`Cookbook::grants()`), so
-  added/removed members gain/lose it right away. Removed members' own cookbooks stay shared with the household (like
-  leaving a local household; the owner unshares them on the cookbook).
+  added/removed members gain/lose it right away. Removed members' own cookbooks are no longer shared with the household
+  (`Household::detachMembers()`, like leaving a local household or unlinking the sign-in).
 * `households:sync` (daily 04:15): `GET /api/households?sub=` for every user with `oidc_sub`, mirrored households nobody
   listed are checked one by one (404 deletes), then the shares are reported. The OIDC callback (sign-in and linking,
   `KontoHouseholds::syncOnSignIn()`, total timeout 5 s) attaches pending memberships and syncs the user; unlinking in the

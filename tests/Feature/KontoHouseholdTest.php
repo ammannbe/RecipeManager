@@ -313,18 +313,32 @@ class KontoHouseholdTest extends TestCase
         $this->assertSame(3, $household->users()->count());
     }
 
-    public function test_removed_members_keep_their_own_cookbooks(): void
+    public function test_removed_members_own_cookbooks_are_no_longer_shared(): void
     {
+        config(['households.konto.report_shares' => true]);
         $household = $this->mirror($this->snapshot(1));
         $own = Cookbook::factory()->create(['author_id' => $this->member->author_id, 'is_public' => false]);
         $ownRecipe = Recipe::factory()->create(['cookbook_id' => $own->id, 'author_id' => $this->member->author_id, 'is_public' => false]);
+        $this->share($household);
         $this->share($household, $own, by: $this->member);
+        $this->assertTrue($this->canRead($this->owner, $ownRecipe));
+        $reported = [];
+        $this->konto['PUT households/'.self::UUID.'/shares'] = function (HttpRequest $request) use (&$reported) {
+            $reported[] = array_column($request->data()['shares'], 'resource_id');
+
+            return Http::response(['data' => ['shares' => $request->data()['shares']]]);
+        };
 
         $this->webhook('household.member_removed', $this->snapshot(2, ['sub-owner' => 'admin']))->assertNoContent();
 
-        // Like leaving a local household: the share stays until its owner removes it.
+        // Like leaving a local household: the own cookbook is unshared and stays with its owner.
+        $this->assertFalse($own->households()->whereKey($household->id)->exists());
+        $this->assertFalse($this->canRead($this->owner, $ownRecipe));
         $this->assertTrue($this->canRead($this->member, $ownRecipe));
-        $this->assertTrue($own->households()->whereKey($household->id)->exists());
+        $this->assertModelExists($own);
+        // The other members' shares stay, and the AccountManager gets the new list.
+        $this->assertTrue($this->cookbook->households()->whereKey($household->id)->exists());
+        $this->assertSame([[(string) $this->cookbook->id]], $reported);
     }
 
     public function test_a_deleted_household_removes_only_the_shares(): void
@@ -422,6 +436,7 @@ class KontoHouseholdTest extends TestCase
         $this->assertFalse($household->hasMember($this->member));
         $this->assertSame(['sub-member'], $household->pendingMembers()->pluck('oidc_sub')->all());
         $this->assertFalse($this->canRead($this->member));
+        $this->assertTrue($this->cookbook->households()->whereKey($household->id)->exists());
     }
 
     public function test_the_sync_command_mirrors_all_households(): void

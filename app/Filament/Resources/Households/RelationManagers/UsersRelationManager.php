@@ -127,7 +127,7 @@ class UsersRelationManager extends RelationManager
                     ->icon(Heroicon::OutlinedUserMinus)
                     ->color('danger')
                     ->requiresConfirmation()
-                    ->modalDescription(__('The member loses access to the cookbooks shared with the household. Their own cookbooks stay theirs.'))
+                    ->modalDescription(__('The member loses access to everything shared with the household, and their own cookbooks are no longer shared with it. The cookbooks stay theirs.'))
                     // Leaving yourself is the page's "Leave household".
                     ->visible(fn (User $record): bool => $this->canManage() && ! $record->is(user()))
                     ->action(function (User $record): void {

@@ -16,7 +16,7 @@ use Illuminate\Support\Facades\Mail;
  * Local household management (HOUSEHOLDS_DRIVER=local). Authorization lives in
  * HouseholdPolicy; this class keeps the invariants: every household keeps an admin,
  * invitations bind only to the invited, verified address, and leaving or deleting
- * only removes access (contents stay with their owner).
+ * only removes access and shares (contents stay with their owner).
  */
 class Households
 {
@@ -151,14 +151,15 @@ class Households
     }
 
     /**
-     * Removes the member's access to everything shared with the household.
+     * Removes the member's access to everything shared with the household; their own cookbooks
+     * are no longer shared with it (they stay with them).
      */
     public function removeMember(Household $household, User $member): void
     {
         DB::transaction(function () use ($household, $member): void {
             $this->ensureAnotherAdmin($household, $member);
 
-            $household->users()->detach($member->getKey());
+            $household->detachMembers([$member->getKey()]);
         });
     }
 
@@ -175,7 +176,7 @@ class Households
     {
         DB::transaction(function () use ($user): void {
             $user->households()->get()->each(function (Household $household) use ($user): void {
-                $household->users()->detach($user->getKey());
+                $household->detachMembers([$user->getKey()]);
 
                 if (! self::isLocal()) {
                     return;
