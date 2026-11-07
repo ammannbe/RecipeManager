@@ -222,8 +222,8 @@ If any command fails, repeat the process from the beginning.
   (`AUTH_ADMIN_SOURCE`, `local` default); uses the `ACCOUNT_MANAGER_*` values of `config/households.php`, the same client
   (`AccountManagerClient::entitlements()`, `GET /api/entitlements/{sub}`, 404 = no access) and the same webhook.
 * `App\Entitlements\Entitlements` (static): `has($user, 'key')`, `features()`, `isAdmin()`, `status()`, `allowsAccess()`.
-  Local driver: every user has access and `entitlements.local.features` (empty here; the AI features stay per user,
-  `users.ai_enabled`). Account-manager driver: linked users (`oidc_sub`) get the stored snapshot (features only while
+  Local driver: every user has access and `entitlements.local.features` (`ENTITLEMENTS_LOCAL_FEATURES`, comma separated,
+  empty here; the AI features stay per user, `users.ai_enabled`). Account-manager driver: linked users (`oidc_sub`) get the stored snapshot (features only while
   `active`); never synced = access but no features; users without a linked sign-in keep the local behaviour.
 * Admin rights: always `$user->isAdmin()` / `User::query()->admins()`, never `users.admin` directly (policies, resources,
   widgets, import, mails). `AUTH_ADMIN_SOURCE=account-manager`: linked users are admins only with `admin: true` in an

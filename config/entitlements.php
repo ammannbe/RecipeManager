@@ -40,13 +40,14 @@ return [
     |--------------------------------------------------------------------------
     |
     | Feature keys every user has with the local driver, and users without a
-    | linked sign-in with the account-manager driver. The AI features of this
-    | app are switched per user (users.ai_enabled) and need no key yet.
+    | linked sign-in with the account-manager driver (comma separated). The AI
+    | features of this app are switched per user (users.ai_enabled) and need
+    | no key yet.
     |
     */
 
     'local' => [
-        'features' => [],
+        'features' => array_values(array_filter(array_map('trim', explode(',', (string) env('ENTITLEMENTS_LOCAL_FEATURES', ''))))),
     ],
 
 ];

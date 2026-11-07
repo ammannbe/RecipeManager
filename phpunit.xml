@@ -25,6 +25,7 @@
         <!-- Local DDEV may mirror households from the AccountManager; tests switch the driver themselves. -->
         <env name="HOUSEHOLDS_DRIVER" value="local" force="true"/>
         <env name="ENTITLEMENTS_DRIVER" value="local" force="true"/>
+        <env name="ENTITLEMENTS_LOCAL_FEATURES" value="" force="true"/>
         <env name="AUTH_ADMIN_SOURCE" value="local" force="true"/>
         <server name="HOUSEHOLDS_DRIVER" value="local" force="true"/>
         <!-- Never call OpenAI with the real key; tests set a fake key and Http::fake(). -->
