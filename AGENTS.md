@@ -467,6 +467,10 @@ ddev artisan passport:client --name=Shoppinglist --redirect_uri=https://<shoppin
 * "Add to …" buttons quote the name (`lang/vendor/filament-forms/*/components.php`: de `Zu «…» hinzufügen`, en
   `Add to "…"`).
 
+## Mail footer
+
+- Easter egg: "All rights reserved." in the mail footer (published `resources/views/vendor/mail/{html,text}/message.blade.php`, nothing else of the mail views) links to `<ACCOUNT_MANAGER_URL>/easter-egg` (the page and the video live only in the AccountManager) via `App\Support\EasterEgg::url()`; without `ACCOUNT_MANAGER_URL` it stays plain text. Tests: `EasterEggMailTest`.
+
 ## Public Frontend
 
 * Blade + Tailwind v4 + Alpine.js (no Alpine plugins), dark mode via `dark:`, zinc/violet palette (violet = the logo color).
