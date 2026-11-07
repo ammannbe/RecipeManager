@@ -34,13 +34,18 @@ class AccountManagerHouseholds
     }
 
     /**
-     * Households page of the AccountManager's portal, null with the local driver.
+     * Households page of the AccountManager's portal (as its /api/info names it, otherwise ACCOUNT_MANAGER_URL/households),
+     * null with the local driver.
      */
     public static function portalUrl(): ?string
     {
         $url = config('households.account_manager.url');
 
-        return config('households.driver') === 'account-manager' && filled($url) ? rtrim((string) $url, '/').'/households' : null;
+        if (config('households.driver') !== 'account-manager' || blank($url)) {
+            return null;
+        }
+
+        return AccountManagerLabel::householdsUrl() ?? rtrim((string) $url, '/').'/households';
     }
 
     /**

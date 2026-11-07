@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Filament\Resources\Households\HouseholdResource;
+use App\Households\AccountManagerLabel;
 use App\Models\HouseholdInvitation;
 use App\Services\Households;
 use Filament\Notifications\Notification;
@@ -18,7 +19,7 @@ class HouseholdInvitationController extends Controller
         if (! Households::isLocal()) {
             return redirect()
                 ->route('recipes.index')
-                ->with('error', __('Households are managed in the central account and cannot be joined here.'));
+                ->with('error', __('Households are managed in “:name” and cannot be joined here.', ['name' => AccountManagerLabel::get()]));
         }
 
         $invitation = HouseholdInvitation::query()

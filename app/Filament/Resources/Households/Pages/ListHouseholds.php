@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Households\Pages;
 use App\Filament\Resources\Households\HouseholdResource;
 use App\Filament\Resources\Households\Widgets\PendingHouseholdInvitations;
 use App\Households\AccountManagerHouseholds;
+use App\Households\AccountManagerLabel;
 use App\Services\Households;
 use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
@@ -20,7 +21,7 @@ class ListHouseholds extends ListRecords
     {
         return [
             Action::make('manageInAccountManager')
-                ->label(__('Manage households in your account'))
+                ->label(__('Manage households in “:name”', ['name' => AccountManagerLabel::get()]))
                 ->icon(Heroicon::OutlinedArrowTopRightOnSquare)
                 ->url(fn (): ?string => AccountManagerHouseholds::portalUrl(), shouldOpenInNewTab: true)
                 ->visible(fn (): bool => AccountManagerHouseholds::portalUrl() !== null),
@@ -34,7 +35,7 @@ class ListHouseholds extends ListRecords
     {
         return Households::isLocal()
             ? null
-            : (string) __('Households are managed in the central account. Here they are read-only.');
+            : (string) __('Households are managed in “:name”. Here they are read-only.', ['name' => AccountManagerLabel::get()]);
     }
 
     protected function getHeaderWidgets(): array

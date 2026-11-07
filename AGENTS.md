@@ -155,10 +155,14 @@ If any command fails, repeat the process from the beginning.
 * Shares (optional, `ACCOUNT_MANAGER_REPORT_SHARES`): `ReportAccountManagerShares` sends the cookbooks shared with a mirrored household
   (`cookbook`, id, name; trashed ones left out) after sharing/unsharing (`CookbookHouseholdShare` created/deleted events),
   renaming, trashing or restoring a cookbook and in the daily sync; only changes (`account_manager_shares_hash`), failures ignored.
-* UI (account-manager): the households list has "Manage households in your account" (`ACCOUNT_MANAGER_URL/households`), the columns "Not
-  using the app yet" (pending members) and "Account" (`Household::accountManagerStatus()`: managed in the account / proposed /
-  not taken over / only in this app); the view page shows the same and "Manage in your account". No create, rename,
+* UI (account-manager): the households list has "Manage households in “:name”" (`AccountManagerHouseholds::portalUrl()`: the
+  `households_url` of the AccountManager's `/api/info`, otherwise `ACCOUNT_MANAGER_URL/households`), the columns "Not
+  using the app yet" (pending members) and the AccountManager's name (`Household::accountManagerStatus()`: managed in “:name” / proposed /
+  not taken over / only in this app); the view page shows the same and "Manage in “:name”". No create, rename,
   delete, invite, roles or leave.
+* Name in these texts: `App\Households\AccountManagerLabel::get()`: `ACCOUNT_MANAGER_LABEL`, otherwise the `name` (its `APP_NAME`) from the
+  public `ACCOUNT_MANAGER_URL/api/info` (only asked with the account-manager driver; cached a day, a failure 10 minutes), otherwise
+  "Account" («Konto»). Tests: `AccountManagerLabelTest`.
 * Switching from `local`: set the driver and the AccountManager values, run `households:import`: proposes the local households
   without `account_manager_household_uuid` (members with `oidc_sub` only; households without any stay local, the command warns
   about members without a linked sign-in). An admin of the AccountManager confirms; the hourly

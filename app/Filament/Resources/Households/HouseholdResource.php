@@ -8,6 +8,7 @@ use App\Filament\Resources\Households\Pages\ViewHousehold;
 use App\Filament\Resources\Households\RelationManagers\CookbooksRelationManager;
 use App\Filament\Resources\Households\RelationManagers\InvitationsRelationManager;
 use App\Filament\Resources\Households\RelationManagers\UsersRelationManager;
+use App\Households\AccountManagerLabel;
 use App\Models\Household;
 use App\Services\Households;
 use BackedEnum;
@@ -69,13 +70,13 @@ class HouseholdResource extends Resource
                 ->dateTime(),
             // HOUSEHOLDS_DRIVER=account-manager only.
             TextEntry::make('account_manager_status')
-                ->label(__('Account'))
+                ->label(AccountManagerLabel::get())
                 ->state(fn (Household $record): ?string => $record->accountManagerStatus())
                 ->visible(fn (): bool => ! Households::isLocal()),
             TextEntry::make('pending_members')
                 ->label(__('Not using the app yet'))
                 ->state(fn (Household $record): int => $record->pendingMembers()->count())
-                ->helperText(__('Members of the household in your account who have not signed in here yet. They get access on their first sign-in.'))
+                ->helperText(__('Members of the household in “:name” who have not signed in here yet. They get access on their first sign-in.', ['name' => AccountManagerLabel::get()]))
                 ->visible(fn (Household $record): bool => $record->isMirrored()),
         ]);
     }
@@ -107,7 +108,7 @@ class HouseholdResource extends Resource
                     ->counts('pendingMembers')
                     ->visible(fn (): bool => ! Households::isLocal()),
                 TextColumn::make('account_manager_status')
-                    ->label(__('Account'))
+                    ->label(AccountManagerLabel::get())
                     ->state(fn (Household $record): ?string => $record->accountManagerStatus())
                     ->badge()
                     ->color(fn (Household $record): string => $record->account_manager_household_uuid !== null ? 'success' : 'gray')

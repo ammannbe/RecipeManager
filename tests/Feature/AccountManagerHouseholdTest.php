@@ -6,6 +6,7 @@ use App\Enums\HouseholdRole;
 use App\Filament\Auth\EditProfile;
 use App\Filament\Resources\Households\Pages\ListHouseholds;
 use App\Filament\Resources\Households\Pages\ViewHousehold;
+use App\Households\AccountManagerLabel;
 use App\Jobs\ApplyAccountManagerEvent;
 use App\Models\AccountManagerWebhookEvent;
 use App\Models\Cookbook;
@@ -545,8 +546,8 @@ class AccountManagerHouseholdTest extends TestCase
 
         $this->actingAs($this->owner);
         Livewire::test(ListHouseholds::class)
-            ->assertSee(__('Proposed for your account, waiting for confirmation'))
-            ->assertSee(__('Managed in your account'));
+            ->assertSee(__('Proposed for “:name”, waiting for confirmation', ['name' => AccountManagerLabel::get()]))
+            ->assertSee(__('Managed in “:name”', ['name' => AccountManagerLabel::get()]));
 
         // The admin of the AccountManager confirmed both.
         $this->accountManager['GET households/import'] = [200, ['data' => [
@@ -597,7 +598,7 @@ class AccountManagerHouseholdTest extends TestCase
         $this->assertFalse($this->owner->can('update', $family));
 
         $this->actingAs($this->owner);
-        Livewire::test(ListHouseholds::class)->assertSee(__('Not taken over into your account'));
+        Livewire::test(ListHouseholds::class)->assertSee(__('Not taken over into “:name”', ['name' => AccountManagerLabel::get()]));
     }
 
     public function test_the_import_needs_the_account_manager_driver(): void
@@ -651,7 +652,7 @@ class AccountManagerHouseholdTest extends TestCase
             ->assertActionHasUrl('manageInAccountManager', 'https://account-manager.test/households')
             ->assertActionHidden('create')
             ->assertTableColumnStateSet('pending_members_count', 2, $household)
-            ->assertSee(__('Managed in your account'));
+            ->assertSee(__('Managed in “:name”', ['name' => AccountManagerLabel::get()]));
 
         Livewire::test(ViewHousehold::class, ['record' => $household->getRouteKey()])
             ->assertActionVisible('manageInAccountManager')

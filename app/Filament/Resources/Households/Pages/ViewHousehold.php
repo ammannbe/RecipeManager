@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Households\Pages;
 use App\Exceptions\LastHouseholdAdmin;
 use App\Filament\Resources\Households\HouseholdResource;
 use App\Households\AccountManagerHouseholds;
+use App\Households\AccountManagerLabel;
 use App\Models\Household;
 use App\Services\Households;
 use Filament\Actions\Action;
@@ -23,7 +24,7 @@ class ViewHousehold extends ViewRecord
     {
         return [
             Action::make('manageInAccountManager')
-                ->label(__('Manage in your account'))
+                ->label(__('Manage in “:name”', ['name' => AccountManagerLabel::get()]))
                 ->icon(Heroicon::OutlinedArrowTopRightOnSquare)
                 ->color('gray')
                 ->url(fn (): ?string => AccountManagerHouseholds::portalUrl(), shouldOpenInNewTab: true)

@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\HouseholdRole;
+use App\Households\AccountManagerLabel;
 use App\Jobs\ReportAccountManagerShares;
 use App\Services\Households;
 use Database\Factories\HouseholdFactory;
@@ -93,9 +94,9 @@ class Household extends Model
         }
 
         return match (true) {
-            $this->account_manager_household_uuid !== null => __('Managed in your account'),
-            $this->account_manager_import_status === 'pending' => __('Proposed for your account, waiting for confirmation'),
-            $this->account_manager_import_status === 'rejected' => __('Not taken over into your account'),
+            $this->account_manager_household_uuid !== null => __('Managed in “:name”', ['name' => AccountManagerLabel::get()]),
+            $this->account_manager_import_status === 'pending' => __('Proposed for “:name”, waiting for confirmation', ['name' => AccountManagerLabel::get()]),
+            $this->account_manager_import_status === 'rejected' => __('Not taken over into “:name”', ['name' => AccountManagerLabel::get()]),
             default => __('Only in this app'),
         };
     }

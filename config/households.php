@@ -26,6 +26,8 @@ return [
     | service signs the webhooks (POST /api/account-manager/webhook) and authenticates
     | the API calls (HTTP Basic with the service key). report_shares: tell the
     | AccountManager which cookbooks are shared with a household (overview).
+    | label: name of the AccountManager in the household texts; empty: the name it
+    | publishes at /api/info (App\Households\AccountManagerLabel), otherwise "Account".
     |
     */
 
@@ -34,6 +36,7 @@ return [
         'key' => env('ACCOUNT_MANAGER_SERVICE_KEY'),
         'secret' => env('ACCOUNT_MANAGER_SECRET'),
         'report_shares' => (bool) env('ACCOUNT_MANAGER_REPORT_SHARES', true),
+        'label' => env('ACCOUNT_MANAGER_LABEL'),
     ],
 
 ];
