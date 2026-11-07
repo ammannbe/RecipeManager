@@ -108,9 +108,15 @@ If any command fails, repeat the process from the beginning.
   form (`?action=unlinkOidc`). The form takes a new password + confirmation (`Password::default()`); unlinking sets
   it, rotates the remember token, ends the other sessions and moves mirrored households to pending
   (AccountManager driver). The provider may confirm without a prompt while the user is still signed in there.
-* Profile: linked accounts show "Connected with …" instead of the password fields, the e-mail is read-only (changing
-  it needs the current password). Admins: Authors list column "Sign-in", the author form hides the password of
-  linked accounts.
+* Profile (`App\Filament\Auth\EditProfile`, same structure as "Manage account" in the settings of Shoppinglist and
+  Chorelist): section "Author" (the author name: a field of the recipe collection, shown on recipes and cookbooks,
+  unique, stays editable for everybody, never taken from the provider) and section "Manage account". Local accounts:
+  e-mail and password there. Linked accounts show "Connected with …" instead of the password fields, the e-mail is
+  read-only (changing it needs the current password); with `ACCOUNT_MANAGER_URL` the header action "Manage account
+  in “:name”" opens `AccountManagerLabel::profileUrl()` in a new tab (the portal's public address from `/api/info`
+  `households_url` if known, otherwise `ACCOUNT_MANAGER_URL` + `/profile`). Header actions "Link :provider" /
+  "Unlink from :provider"; signing out is in the user menu. No self-deletion (deleting users: admins, `user.deleted`).
+  Admins: Authors list column "Sign-in", the author form hides the password of linked accounts.
 * Existing data: migration `2026_11_13_090000_remove_local_login_from_linked_accounts` (passwords, remember tokens,
   reset tokens and sessions of linked accounts; linked users sign in again once). Unlinked accounts are untouched;
   accounts without password and without `oidc_sub` can still use "Forgot password".

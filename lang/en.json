@@ -214,7 +214,6 @@
     "Register with :provider": "Register with :provider",
     "No :provider account yet?": "No :provider account yet?",
     "Create one": "Create one",
-    "Unlink :provider": "Unlink :provider",
     "This account is connected to :provider. Sign in with :provider.": "This account is connected to :provider. Sign in with :provider.",
     "This sign-in belongs to another account.": "This sign-in belongs to another account.",
     "Please confirm your password first.": "Please confirm your password first.",
@@ -448,5 +447,10 @@
     "Manage in “:name”": "Manage in “:name”",
     "Your access to :app is suspended.": "Your access to :app is suspended.",
     "Your access to :app is not enabled.": "Your access to :app is not enabled.",
-    "Admin rights of linked accounts are managed in “:name”.": "Admin rights of linked accounts are managed in “:name”."
+    "Admin rights of linked accounts are managed in “:name”.": "Admin rights of linked accounts are managed in “:name”.",
+    "Manage account": "Manage account",
+    "Manage account in “:name”": "Manage account in “:name”",
+    "Unlink from :provider": "Unlink from :provider",
+    "Shown as the author of your recipes and cookbooks.": "Shown as the author of your recipes and cookbooks.",
+    "It is the address of your :provider account.": "It is the address of your :provider account."
 }
