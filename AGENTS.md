@@ -5,7 +5,8 @@
 This is a Laravel recipe management application.
 
 The app manages:
-- cookbooks, shared with other users via e-mail invitations, public or private
+- cookbooks, shared with other users via e-mail invitations or with households, public or private
+- households (groups of users that cookbooks are shared with)
 - recipes, public by default and publishable individually or per cookbook; a recipe
   defaults to private when created in a private cookbook
 - foods
@@ -72,27 +73,147 @@ If any command fails, repeat the process from the beginning.
   issuer, client id/secret). Off by default; any OIDC provider works (Laravel Socialite +
   `kovah/laravel-socialite-oidc`, JWT signature verified). `App\Auth\OidcProvider` additionally
   checks `iss`, `aud`/`azp` and `exp` (`OidcClaims`).
-* Routes `/auth/oidc/redirect` and `/auth/oidc/callback` (`OidcController`), matching in
+* Routes `/auth/oidc/redirect` and `/auth/oidc/callback` (`OidcController`, intents `login`, `link`, `confirm`), matching in
   `App\Auth\OidcLogin`: by `users.oidc_sub`, otherwise by e-mail only if the provider marks it as
-  verified. Linking an unverified local account verifies it, removes its password and ends its sessions
-  (someone else may have registered the address; `AuthenticateSession` skips users without password). Unknown users get an account (`AUTH_OIDC_REGISTRATION`) with a
+  verified (an unverified local account gets verified). Unknown users get an account (`AUTH_OIDC_REGISTRATION`) with a
   unique author name and no password. `AUTH_OIDC_REQUIRED_GROUP` checks the `groups` claim.
 * `AUTH_LOCAL_ENABLED=false` hides the password form (`/admin/login?local=1` shows it) and allows
-  password logins for admins only (emergency access). Password reset stays available, so SSO-only
-  users can set a password (rollback path). `AUTH_LOCAL_REGISTRATION=false` removes registration.
-* Profile: "Link …" / "Unlink …" (unlink only with a password, otherwise the account is lost).
+  password logins for admins only (emergency access). Password reset stays available for unlinked accounts.
+  `AUTH_LOCAL_REGISTRATION=false` removes registration.
+
+### Linked accounts are SSO-only (reference for Shoppinglist and Chorelist)
+
+* A linked account (`oidc_sub` set, `User::isLinkedToOidc()`) signs in through the provider only. All rules live in
+  `App\Auth\OidcAccount`; `UserObserver::saving` throws if a linked account would get a password (link/unlink only
+  through `OidcAccount`, the factory drops the password of `linked()` users).
+* Linking (first OIDC sign-in matched by e-mail, or "Link …" in the profile) = `OidcAccount::link()`: password null,
+  remember token rotated, password reset tokens deleted, the user's other sessions deleted (database session driver
+  only; other drivers: they run out after `SESSION_LIFETIME`, `AuthenticateSession` skips users without password),
+  then the callback signs in again with a new remember cookie. OAuth tokens/MCP grants stay (approved clients,
+  revocable under "Connected AI clients"; unverified users cannot get any). The app has no passkeys/MFA/recovery codes;
+  add them to `link()` if that changes.
+* "Link …" in the profile first asks for the current password (accounts without one skip it): the action stores
+  `oidc.password_confirmed_at`, `/auth/oidc/redirect?link=1` needs it (5 min, used once), otherwise back to the profile.
+* Local login: `Login::isUserAllowedToAccessPanel()` refuses linked accounts (also with a leftover password) and
+  `throwFailureValidationException()` answers "This account is connected to :provider. Sign in with :provider."
+  (`OidcAccount::message()`, :provider = `OidcLabel`). Enumeration: this only adds "linked or not" for addresses
+  whose account exists, which registration ("already taken") and the reset page ("can't find a user") tell anyway;
+  unknown addresses and wrong passwords keep Filament's message, the login stays rate limited.
+* Password reset (`App\Filament\Auth\RequestPasswordReset`/`ResetPassword`): a linked account gets no token but the
+  mail `SignInWithOidcNotice` (once per 15 min) and the page shows the same "sent" message as for any account; a
+  reset link of a linked account (e.g. older than the link) is refused with the message above and its token deleted.
+* Unlinking ("Unlink …", only with the OIDC login enabled) = `OidcAccount::unlink()`: needs an OIDC sign-in within
+  15 min (`oidc.signed_in_at`, set by every sign-in/link/confirmation). Otherwise the action sends the user to
+  `/auth/oidc/redirect?confirm=1`; the callback checks that the provider returns the same `sub` and reopens the
+  form (`?action=unlinkOidc`). The form takes a new password + confirmation (`Password::default()`); unlinking sets
+  it, rotates the remember token, ends the other sessions and moves mirrored households to pending
+  (AccountManager driver). The provider may confirm without a prompt while the user is still signed in there.
+* Profile: linked accounts show "Connected with …" instead of the password fields, the e-mail is read-only (changing
+  it needs the current password). Admins: Authors list column "Sign-in", the author form hides the password of
+  linked accounts.
+* Existing data: migration `2026_11_13_090000_remove_local_login_from_linked_accounts` (passwords, remember tokens,
+  reset tokens and sessions of linked accounts; linked users sign in again once). Unlinked accounts are untouched;
+  accounts without password and without `oidc_sub` can still use "Forgot password".
+* Emergency admins must stay unlinked (with `AUTH_LOCAL_ENABLED=false` they are the only password login).
+  Way back (provider gone, lost provider account): `users:unlink-oidc {emails*} {--all}` unlinks without password,
+  the users then use "Forgot password".
+* Tests: `OidcLinkedAccountTest` (shared Socialite mock `Tests\Feature\Concerns\MocksOidcProvider`).
+
+### OIDC login button and local test
+
 * Button label `App\Auth\OidcLabel::get()`: `AUTH_OIDC_LABEL`, otherwise the `appName` (Pocket ID's
   `APP_NAME`) from the public `<issuer>/api/application-configuration` (cached a day, a failure an hour),
   otherwise "SSO". `filament/oidc-login-button.blade.php` sits above the login and registration form
   (render hooks `AUTH_LOGIN_FORM_BEFORE`/`AUTH_REGISTER_FORM_BEFORE`; registration only with
   `AUTH_OIDC_REGISTRATION`); `AUTH_OIDC_SIGNUP_URL` (e.g. the AccountManager's `/register`) adds
-  "No … account yet?". Users switch to SSO voluntarily: linking keeps the local account and its data.
-* Local Pocket ID: `.ddev/docker-compose.pocket-id.yaml` (`https://recipemanager.ddev.site:14111`,
-  first start `/setup`; dev-only keys; Application Configuration via env (`UI_CONFIG_DISABLED=true`),
-  mails to Mailpit). The apps use `AUTH_OIDC_ISSUER=http://ddev-RecipeManager-pocket-id:1411` (also Shoppinglist and
-  Chorelist, which reach it through the shared `ddev_default` network).
+  "No … account yet?". Users switch to SSO voluntarily: linking keeps the local account and its data (not its password).
+* Local test: Pocket ID runs in the AccountManager DDEV project (`https://accountmanager.ddev.site:14111`,
+  see its `AGENTS.md`), reached at `AUTH_OIDC_ISSUER=http://ddev-AccountManager-pocket-id:1411` through
+  the shared `ddev_default` network.
   Set the `AUTH_OIDC_*` values in `.ddev/config.local.yaml` (`web_environment`), not in git.
   Tests mock Socialite (`tests/Feature/OidcLoginTest.php`).
+
+## Households
+
+* Concept: `~/Projekte/AccountManager/docs/KONZEPT.md` 5.6 (phase 7 "local"; phase 8 mirrors the AccountManager).
+  Same design and names in Shoppinglist and Chorelist.
+* `config/households.php` `driver` (`HOUSEHOLDS_DRIVER`): `local` (default) manages households here; `account-manager` mirrors
+  them from the AccountManager (see below) and makes the local management read-only (`Households::isLocal()`:
+  `HouseholdPolicy` forbids create/rename/delete/invite/roles/remove/leave, invitation links and pending invitations
+  are refused); sharing cookbooks with households stays possible.
+* Tables `households` (uuid, name, `created_by`, `account_manager_household_uuid`, `account_manager_version`, `account_manager_import_status`,
+  `account_manager_shares_hash`), `household_user` (role `admin`|`member`, `joined_at`),
+  `household_invitations` (like `cookbook_invitations`: token hash, role, `invited_by`, 14 days,
+  `household-invitations:prune` daily) and `cookbook_household` (same grants as `cookbook_user`).
+* `App\Services\Households` keeps the rules: the creator is admin; at least one admin stays (`LastHouseholdAdmin`
+  on removing, demoting or leaving the last one, admin rows locked); deleting a household or removing a member only
+  removes access, contents stay with their owner; a removed or leaving member's own cookbooks are no longer shared
+  with the household (`Household::detachMembers()`, same in Shoppinglist/Chorelist); deleting a user (`UserObserver`) drops the memberships, hands an
+  admin-less household to its longest member and deletes empty ones.
+* Invitations always need consent, also for existing users (unlike cookbooks): `/household-invitations/{token}`
+  (`HouseholdInvitationController`) accepts only for a logged-in user with the invited, verified address; guests go
+  to login (intended URL) and the token waits in the session, verifying the address accepts it
+  (`AcceptHouseholdInvitationFromSession`). Pending invitations to one's address are accepted or declined on the
+  households page (`PendingHouseholdInvitations` header widget). The invite notice never tells whether an account
+  exists.
+* UI: `HouseholdResource` (navigation and user menu "Households", list + view page; only own households, also for
+  global admins), relation managers Members (invite, change role, remove), Pending invitations (admins) and Shared
+  cookbooks (read-only). Cookbooks: `HouseholdsRelationManager` "Shared with households" (users with `share` on the
+  cookbook share with households they belong to, edit the grants, unshare).
+* Access: every check goes through `Cookbook::grants()` / `sharesFor()` (personal membership + shares of the user's
+  households, grants add up) and the query scope `Cookbook::scopeSharedWith($user, $grants)`, used by
+  `Cookbook::visibleTo()`/`administeredBy()`, `Recipe::visibleTo()`, the Recipe/Cookbook resources and
+  `MyCookbooksWidget`. Never query `cookbook_user` directly for access. Tests: `HouseholdTest`, `HouseholdSharingTest`.
+
+### Households from the AccountManager (`HOUSEHOLDS_DRIVER=account-manager`)
+
+* Contract: AccountManager `docs/HOUSEHOLDS-API.md` (phase 8). Env `ACCOUNT_MANAGER_URL`, `ACCOUNT_MANAGER_SERVICE_KEY`, `ACCOUNT_MANAGER_SECRET` (one
+  secret signs the webhooks and authenticates the API with HTTP Basic), `ACCOUNT_MANAGER_REPORT_SHARES`. Mirroring is active only
+  with the driver and all three values (`AccountManagerHouseholds::enabled()`), otherwise the webhook returns 404. Needs the
+  OIDC login (members are matched by `users.oidc_sub`) and the queue worker. Same names as Chorelist and Shoppinglist.
+* `App\Households\AccountManagerClient` (`GET /api/households?sub=`, `GET /api/households/{uuid}`, `PUT …/shares`,
+  `POST/GET /api/households/import`; connect 3 s, total 10 s, no redirects; every failure is `AccountManagerUnavailable`, 404 is an
+  answer), `AccountManagerHouseholds` (applying snapshots), jobs `ApplyAccountManagerEvent`, `ReportAccountManagerShares`.
+* Webhook `POST /api/account-manager/webhook` (`routes/api.php`, no session/CSRF, `throttle:120,1`, `Api\AccountManagerWebhookController`):
+  HMAC-SHA256 over `"{timestamp}.{body}"` (raw body, `X-Account-Manager-Signature`, `X-Account-Manager-Timestamp` max. 300 s off), accepted
+  once per `event_id` (`account_manager_webhook_events`, `model:prune` after 7 days), applied by the queued `ApplyAccountManagerEvent`
+  (retried while the AccountManager is down). Always 204 for duplicates, stale and unknown types.
+* Every event and API answer is a full snapshot: name, members by `oidc_sub` (unknown subjects →
+  `household_pending_members`, attached on the first OIDC sign-in or link), roles, all other members removed.
+  Webhooks apply only `version > account_manager_version`, API answers also `=`. `household.deleted` (or 404) deletes the
+  household: memberships, pending members and `cookbook_household` go with it (FK cascades), cookbooks and recipes stay
+  with their owners. Events of unknown households are confirmed with `GET /api/households/{uuid}` (404: nothing is
+  created). Cookbook access needs no extra step: it is resolved through the membership (`Cookbook::grants()`), so
+  added/removed members gain/lose it right away. Removed members' own cookbooks are no longer shared with the household
+  (`Household::detachMembers()`, like leaving a local household or unlinking the sign-in).
+* `households:sync` (daily 04:15): `GET /api/households?sub=` for every user with `oidc_sub`, mirrored households nobody
+  listed are checked one by one (404 deletes), then the shares are reported. The OIDC callback (sign-in and linking,
+  `AccountManagerHouseholds::syncOnSignIn()`, total timeout 5 s) attaches pending memberships and syncs the user; unlinking in the
+  profile moves the user's mirrored memberships back to pending. AccountManager down: the last state stays, a warning
+  is logged, the sign-in works.
+* Shares (optional, `ACCOUNT_MANAGER_REPORT_SHARES`): `ReportAccountManagerShares` sends the cookbooks shared with a mirrored household
+  (`cookbook`, id, name; trashed ones left out) after sharing/unsharing (`CookbookHouseholdShare` created/deleted events),
+  renaming, trashing or restoring a cookbook and in the daily sync; only changes (`account_manager_shares_hash`), failures ignored.
+* UI (account-manager): the households list has "Manage households in “:name”" (`AccountManagerHouseholds::portalUrl()`: the
+  `households_url` of the AccountManager's `/api/info`, otherwise `ACCOUNT_MANAGER_URL/households`), the columns "Not
+  using the app yet" (pending members) and the AccountManager's name (`Household::accountManagerStatus()`: managed in “:name” / proposed /
+  not taken over / only in this app); the view page shows the same and "Manage in “:name”". No create, rename,
+  delete, invite, roles or leave.
+* Name in these texts: `App\Households\AccountManagerLabel::get()`: `ACCOUNT_MANAGER_LABEL`, otherwise the `name` (its `APP_NAME`) from the
+  public `ACCOUNT_MANAGER_URL/api/info` (only asked with the account-manager driver; cached a day, a failure 10 minutes), otherwise
+  "Account" («Konto»). Tests: `AccountManagerLabelTest`.
+* Switching from `local`: set the driver and the AccountManager values, run `households:import`: proposes the local households
+  without `account_manager_household_uuid` (members with `oidc_sub` only; households without any stay local, the command warns
+  about members without a linked sign-in). An admin of the AccountManager confirms; the hourly
+  `households:import --check` maps confirmed ones (`account_manager_household_uuid`, name and members from the snapshot, cookbook
+  shares stay; if the household is mirrored already the shares move there, grants add up, and the local one is dropped)
+  and marks rejected ones (`account_manager_import_status`, they stay local and read-only). Members without a linked sign-in lose
+  the household access on confirmation.
+* Back to `local` (Rückbau): mirrored households become ordinary local households (management enabled again,
+  `account_manager_household_uuid`/`account_manager_version` stay, pending members are ignored, households without `created_by` are fine),
+  shares stay; the webhook answers 404. Switching to `account-manager` again overwrites them with the next newer snapshot.
+* Deleting a user: in mirrored households the user only leaves (no hand-over, the AccountManager decides).
+* Tests: `AccountManagerHouseholdTest` (fake AccountManager via `Http::fake`, signed webhooks, Socialite mock).
 
 ## Companion App API (Shoppinglist)
 
@@ -378,6 +499,8 @@ Important test areas:
 * authentication
 * policies
 * cookbook sharing and invitations
+* households (membership, roles, last admin, invitations, driver) and cookbook access through households
+* households from the AccountManager (webhook signature, idempotency, versions, sync, import, AccountManager down)
 * recipe visibility, including photo access
 * API (OAuth, visibility, search ranking, scaling, recipe creation)
 * filament pages

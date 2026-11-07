@@ -75,13 +75,10 @@ class Recipe extends Model
             }
 
             if ($user !== null) {
+                // Shared personally or with one of the user's households.
                 $query->orWhereHas(
                     'cookbook',
-                    fn (Builder $cookbook) => $cookbook->whereHas(
-                        'members',
-                        fn (Builder $member) => $member->whereKey($user->getKey())
-                            ->where(fn (Builder $grant) => $grant->where('can_read', true)->orWhere('can_admin', true)),
-                    ),
+                    fn (Builder $cookbook) => $cookbook->sharedWith($user, ['can_read', 'can_admin']),
                 );
             }
         });

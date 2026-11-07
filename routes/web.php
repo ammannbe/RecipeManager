@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\OidcController;
 use App\Http\Controllers\CookbookInvitationController;
+use App\Http\Controllers\HouseholdInvitationController;
 use App\Http\Controllers\ImportPhotoController;
 use App\Http\Controllers\McpAuthorizationController;
 use App\Http\Controllers\ProfileController;
@@ -22,6 +23,10 @@ Route::get('/import-photos/{filename}', ImportPhotoController::class)
 Route::get('/cookbook-invitations/{token}', [CookbookInvitationController::class, 'show'])
     ->middleware('throttle:10,1')
     ->name('cookbook-invitations.show');
+
+Route::get('/household-invitations/{token}', [HouseholdInvitationController::class, 'show'])
+    ->middleware('throttle:10,1')
+    ->name('household-invitations.show');
 
 Route::get('/locale/{locale}', [ProfileController::class, 'locale'])->name('profile.locale');
 

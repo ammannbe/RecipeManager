@@ -1,6 +1,8 @@
 <?php
 
+use App\Models\AccountManagerWebhookEvent;
 use App\Models\CookbookInvitation;
+use App\Models\HouseholdInvitation;
 use App\Models\RecipeDraft;
 use App\Models\User;
 use App\Services\RecipePhotos;
@@ -23,6 +25,22 @@ Artisan::command('cookbook-invitations:prune', function () {
 })->purpose('Delete expired and accepted cookbook invitations');
 
 Schedule::command('cookbook-invitations:prune')->daily();
+
+Artisan::command('household-invitations:prune', function () {
+    $pruned = HouseholdInvitation::query()
+        ->where(fn ($query) => $query->where('expires_at', '<', now())->orWhereNotNull('accepted_at'))
+        ->delete();
+
+    $this->info("Pruned {$pruned} invitation(s).");
+})->purpose('Delete expired and accepted household invitations');
+
+Schedule::command('household-invitations:prune')->daily();
+
+// HOUSEHOLDS_DRIVER=account-manager: fallback for lost webhooks, the state of proposed local households and the
+// processed webhook events (idempotency, 7 days). The commands do nothing with the local driver.
+Schedule::command('households:sync')->dailyAt('04:15')->withoutOverlapping();
+Schedule::command('households:import --check')->hourly()->withoutOverlapping();
+Schedule::command('model:prune', ['--model' => [AccountManagerWebhookEvent::class]])->daily();
 
 Artisan::command('recipe-drafts:prune', function () {
     $pruned = RecipeDraft::query()->where('expires_at', '<=', now())->delete();

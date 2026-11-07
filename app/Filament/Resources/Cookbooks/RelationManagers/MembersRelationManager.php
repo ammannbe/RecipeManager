@@ -38,9 +38,11 @@ class MembersRelationManager extends RelationManager
     }
 
     /**
+     * Also used for the shares with households.
+     *
      * @return array<int, Toggle>
      */
-    private static function grantFields(): array
+    public static function grantFields(): array
     {
         return [
             Toggle::make('can_admin')

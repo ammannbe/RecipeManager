@@ -12,20 +12,17 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Testing\TestResponse;
-use Laravel\Socialite\Facades\Socialite;
-use Laravel\Socialite\Two\AbstractProvider;
-use Laravel\Socialite\Two\User as SocialiteUser;
 use Livewire\Livewire;
-use Mockery;
 use RuntimeException;
 use SocialiteProviders\OIDC\InvalidTokenException;
 use Symfony\Component\HttpFoundation\RedirectResponse;
-use Symfony\Component\HttpFoundation\Response;
+use Tests\Feature\Concerns\MocksOidcProvider;
 use Tests\TestCase;
 
 class OidcLoginTest extends TestCase
 {
+    use MocksOidcProvider;
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -36,49 +33,6 @@ class OidcLoginTest extends TestCase
             'login.oidc.registration' => true,
             'login.oidc.required_group' => null,
         ]);
-    }
-
-    /**
-     * @param  array<string, mixed>  $claims
-     */
-    private function identity(array $claims = []): SocialiteUser
-    {
-        $claims = [
-            'sub' => 'sub-123',
-            'email' => 'cook@example.com',
-            'email_verified' => true,
-            'name' => 'Pocket Cook',
-            ...$claims,
-        ];
-
-        return (new SocialiteUser)->setRaw($claims)->map([
-            'id' => $claims['sub'],
-            'email' => $claims['email'],
-            'name' => $claims['name'],
-            'nickname' => null,
-        ]);
-    }
-
-    private function provider(): Mockery\MockInterface
-    {
-        $provider = Mockery::mock(AbstractProvider::class);
-        $provider->shouldReceive('redirectUrl')->andReturnSelf();
-        $provider->shouldReceive('scopes')->andReturnSelf();
-
-        Socialite::shouldReceive('driver')->with('oidc')->andReturn($provider);
-
-        return $provider;
-    }
-
-    /**
-     * @param  array<string, mixed>  $claims
-     * @return TestResponse<Response>
-     */
-    private function signIn(array $claims = []): TestResponse
-    {
-        $this->provider()->shouldReceive('user')->andReturn($this->identity($claims));
-
-        return $this->get(route('oidc.callback'));
     }
 
     public function test_the_routes_are_hidden_while_oidc_is_disabled(): void
@@ -110,13 +64,13 @@ class OidcLoginTest extends TestCase
     public function test_a_verified_local_account_is_linked_by_email(): void
     {
         $user = User::factory()->create(['email' => 'Cook@Example.com']);
-        $password = $user->password;
 
         $this->signIn();
 
         $this->assertAuthenticatedAs($user);
         $this->assertSame('sub-123', $user->fresh()->oidc_sub);
-        $this->assertSame($password, $user->fresh()->password);
+        // From now on SSO-only (OidcLinkedAccountTest).
+        $this->assertNull($user->fresh()->password);
     }
 
     public function test_an_unverified_local_account_loses_its_password_when_linked(): void
@@ -222,7 +176,9 @@ class OidcLoginTest extends TestCase
         $provider->shouldReceive('redirect')->andReturn(new RedirectResponse('https://login.example.com/authorize'));
         $provider->shouldReceive('user')->andReturn($this->identity());
 
-        $this->actingAs($user)->get(route('oidc.redirect', ['link' => 1]));
+        // The profile action confirms the password first (OidcLinkedAccountTest).
+        $this->actingAs($user)->withSession(['oidc.password_confirmed_at' => now()->getTimestamp()])
+            ->get(route('oidc.redirect', ['link' => 1]))->assertRedirect('https://login.example.com/authorize');
         $this->get(route('oidc.callback'))->assertRedirect();
 
         $this->assertSame('sub-123', $user->fresh()->oidc_sub);
@@ -237,10 +193,12 @@ class OidcLoginTest extends TestCase
         $provider->shouldReceive('redirect')->andReturn(new RedirectResponse('https://login.example.com/authorize'));
         $provider->shouldReceive('user')->andReturn($this->identity());
 
-        $this->actingAs($user)->get(route('oidc.redirect', ['link' => 1]));
+        $this->actingAs($user)->withSession(['oidc.password_confirmed_at' => now()->getTimestamp()])
+            ->get(route('oidc.redirect', ['link' => 1]));
         $this->get(route('oidc.callback'));
 
         $this->assertNull($user->fresh()->oidc_sub);
+        $this->assertNotNull($user->fresh()->password);
     }
 
     public function test_the_id_token_claims_are_checked(): void

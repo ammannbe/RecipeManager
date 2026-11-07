@@ -15,6 +15,7 @@ Written with the PHP Framework [Laravel](https://laravel.com/).
 
 -   **Manage your recipes** - You and your friends can save, edit and delete recipes.
 -   **Share cookbooks** - Invite others by e-mail and decide per person whether they may read, add, edit or delete recipes.
+-   **Households** - Create a household, invite your family by e-mail and share cookbooks with everyone in it at once (or take the households from a central AccountManager).
 -   **Publish what you want** - Recipes and whole cookbooks stay private until you publish them.
 -   **Import with AI** - Turn a photo, PDF or text of a recipe into a ready-to-import JSON file ([how it works](docs/ai-recipe-import.md)).
 -   **Calculate servings** - Calculate servings directly in the recipe on the fly.
@@ -62,6 +63,9 @@ git clone https://github.com/ammannbe/RecipeManager.git
 ```bash
   *  *  *  *  *  www-data   cd /path-to-the-project && php artisan schedule:run >> /dev/null 2>&1
 ```
+
+- **Optional** login with an OpenID Connect provider (e.g. Pocket ID): `AUTH_OIDC_*` in `.env` (see `config/login.php`). An account linked to the provider signs in only there (no password, no password reset); keep at least one admin unlinked as local emergency access. Way back to passwords: `php artisan users:unlink-oidc <email>` (or `--all`), then "Forgot password".
+- **Optional** households from the AccountManager: `HOUSEHOLDS_DRIVER=account-manager`, `ACCOUNT_MANAGER_URL`, `ACCOUNT_MANAGER_SERVICE_KEY` and `ACCOUNT_MANAGER_SECRET` in `.env`; in the AccountManager (Services → edit) the webhook URL `<APP_URL>/api/account-manager/webhook` and a secret. Needs the OIDC login (members are matched by `oidc_sub`) and the queue worker. Switching from local households: `php artisan households:import` (an admin of the AccountManager confirms the proposals, the hourly `households:import --check` maps them). Back to local: `HOUSEHOLDS_DRIVER=local`, the mirrored households become local ones. Contract: AccountManager `docs/HOUSEHOLDS-API.md`.
 
 #### Development deployment/update
 

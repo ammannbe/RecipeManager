@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\AccountManagerWebhookController;
 use App\Http\Controllers\Api\FoodController;
 use App\Http\Controllers\Api\RecipeController;
 use App\Http\Controllers\Api\RecipeDraftController;
@@ -17,3 +18,6 @@ Route::middleware(['auth:api', DenyMcpTokens::class, 'throttle:120,1'])->group(f
     Route::get('/vocabulary', [VocabularyController::class, 'index'])->name('api.vocabulary');
     Route::post('/recipe-drafts', [RecipeDraftController::class, 'store'])->name('api.recipe-drafts.store');
 });
+
+// Household events of the AccountManager (HOUSEHOLDS_DRIVER=account-manager), signed, no session or CSRF.
+Route::post('/account-manager/webhook', AccountManagerWebhookController::class)->middleware('throttle:120,1')->name('account-manager.webhook');
