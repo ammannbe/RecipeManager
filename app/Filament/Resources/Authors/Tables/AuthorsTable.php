@@ -2,7 +2,9 @@
 
 namespace App\Filament\Resources\Authors\Tables;
 
+use App\Auth\OidcLabel;
 use App\Filament\Resources\Authors\AuthorResource;
+use App\Models\Author;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -26,6 +28,15 @@ class AuthorsTable
                     ->label(__('User email'))
                     ->searchable()
                     ->sortable(),
+                TextColumn::make('sign_in')
+                    ->label(__('Sign-in'))
+                    ->badge()
+                    ->color(fn (Author $record): string => $record->user?->isLinkedToOidc() ? 'primary' : 'gray')
+                    ->state(fn (Author $record): ?string => match (true) {
+                        $record->user === null => null,
+                        $record->user->isLinkedToOidc() => OidcLabel::get(),
+                        default => (string) __('Password'),
+                    }),
                 IconColumn::make('user.admin')
                     ->label(__('Admin'))
                     ->boolean(),

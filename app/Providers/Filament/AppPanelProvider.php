@@ -5,6 +5,8 @@ namespace App\Providers\Filament;
 use App\Filament\Auth\EditProfile;
 use App\Filament\Auth\Login;
 use App\Filament\Auth\Register;
+use App\Filament\Auth\RequestPasswordReset;
+use App\Filament\Auth\ResetPassword;
 use App\Filament\Resources\Households\HouseholdResource;
 use App\Filament\Resources\Recipes\Pages\EditRecipe;
 use App\Http\Middleware\SetLocale;
@@ -41,8 +43,8 @@ class AppPanelProvider extends PanelProvider
             ->brandLogo(fn (): View => view('filament.brand'))
             ->brandLogoHeight('2rem')
             ->login(Login::class)
-            // Kept without the local login, so that admins and SSO-only users can still set a password.
-            ->passwordReset()
+            // Kept without the local login (admins, unlinked accounts without password); linked accounts get a notice instead.
+            ->passwordReset(RequestPasswordReset::class, ResetPassword::class)
             ->emailVerification()
             ->profile(EditProfile::class, isSimple: false)
             ->userMenuItems([

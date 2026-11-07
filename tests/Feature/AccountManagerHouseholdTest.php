@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Auth\OidcAccount;
 use App\Enums\HouseholdRole;
 use App\Filament\Auth\EditProfile;
 use App\Filament\Resources\Households\Pages\ListHouseholds;
@@ -81,9 +82,9 @@ class AccountManagerHouseholdTest extends TestCase
         });
 
         $this->owner = User::factory()->create(['admin' => false]);
-        $this->owner->forceFill(['oidc_sub' => 'sub-owner'])->save();
+        $this->owner->forceFill(['oidc_sub' => 'sub-owner', 'password' => null])->save();
         $this->member = User::factory()->create(['admin' => false]);
-        $this->member->forceFill(['oidc_sub' => 'sub-member'])->save();
+        $this->member->forceFill(['oidc_sub' => 'sub-member', 'password' => null])->save();
 
         $this->cookbook = Cookbook::factory()->create(['author_id' => $this->owner->author_id, 'is_public' => false, 'name' => 'Familienrezepte']);
         $this->recipe = Recipe::factory()->create([
@@ -305,7 +306,7 @@ class AccountManagerHouseholdTest extends TestCase
 
         // A new member who uses the app already gets access right away.
         $newcomer = User::factory()->create(['admin' => false]);
-        $newcomer->forceFill(['oidc_sub' => 'sub-newcomer'])->save();
+        $newcomer->forceFill(['oidc_sub' => 'sub-newcomer', 'password' => null])->save();
         $this->assertFalse($this->canRead($newcomer));
 
         $this->webhook('household.member_added', $this->snapshot(5, ['sub-owner' => 'admin', 'sub-member' => 'member', 'sub-newcomer' => 'member']))->assertNoContent();
@@ -402,7 +403,7 @@ class AccountManagerHouseholdTest extends TestCase
         $this->share($household);
         $this->accountManager['GET households?sub=sub-linked'] = [200, ['data' => [$this->snapshot(1, ['sub-owner' => 'admin', 'sub-linked' => 'admin'])]]];
 
-        $this->actingAs($local)->withSession(['oidc.link' => true]);
+        $this->actingAs($local)->withSession(['oidc.intent' => 'link']);
         $this->oidcSignIn('sub-linked', 'other@example.com')->assertRedirect();
 
         $this->assertSame('sub-linked', $local->fresh()?->oidc_sub);
@@ -431,7 +432,10 @@ class AccountManagerHouseholdTest extends TestCase
         $this->share($household);
 
         $this->actingAs($this->member);
-        Livewire::test(EditProfile::class)->callAction('unlinkOidc');
+        // Unlinking needs the OIDC login, a recent OIDC sign-in and a new password (OidcLinkedAccountTest).
+        config(['login.oidc.enabled' => true]);
+        app(OidcAccount::class)->rememberSignIn();
+        Livewire::test(EditProfile::class)->callAction('unlinkOidc', ['password' => 'new-secret-password', 'passwordConfirmation' => 'new-secret-password']);
 
         $this->assertNull($this->member->fresh()?->oidc_sub);
         $this->assertFalse($household->hasMember($this->member));

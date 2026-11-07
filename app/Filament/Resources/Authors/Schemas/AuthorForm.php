@@ -2,10 +2,12 @@
 
 namespace App\Filament\Resources\Authors\Schemas;
 
+use App\Auth\OidcLabel;
 use App\Models\Author;
 use App\Models\User;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
@@ -42,13 +44,19 @@ class AuthorForm
                             ->required()
                             ->maxLength(255)
                             ->unique(User::class, 'email', ignoreRecord: true),
+                        // Linked accounts sign in through the OIDC provider only (App\Auth\OidcAccount).
                         TextInput::make('password')
                             ->label(__('Password'))
                             ->password()
                             ->revealable()
                             ->maxLength(255)
                             ->required(fn (?User $record): bool => $record === null)
-                            ->dehydrated(fn (?string $state): bool => filled($state)),
+                            ->dehydrated(fn (?string $state): bool => filled($state))
+                            ->hidden(fn (?User $record): bool => (bool) $record?->isLinkedToOidc()),
+                        TextEntry::make('oidcSignIn')
+                            ->label(__('Sign-in'))
+                            ->state(fn (): string => __('Connected with :provider', ['provider' => OidcLabel::get()]))
+                            ->visible(fn (?User $record): bool => (bool) $record?->isLinkedToOidc()),
                         Toggle::make('admin')
                             ->label(__('Admin')),
                         Toggle::make('ai_enabled')

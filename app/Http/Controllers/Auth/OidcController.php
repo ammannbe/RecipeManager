@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Auth;
 
+use App\Auth\OidcAccount;
 use App\Auth\OidcLogin;
 use App\Auth\OidcLoginException;
 use App\Filament\Auth\EditProfile;
@@ -23,21 +24,46 @@ use UnexpectedValueException;
 
 class OidcController extends Controller
 {
-    public function redirect(Request $request): SymfonyRedirectResponse
+    private const INTENT = 'oidc.intent';
+
+    /**
+     * "?link=1" links the signed-in user (profile, after confirming the password), "?confirm=1"
+     * confirms a linked user's sign-in before unlinking; otherwise a normal sign-in.
+     */
+    public function redirect(Request $request, OidcAccount $accounts): SymfonyRedirectResponse
     {
         abort_unless(config('login.oidc.enabled'), 404);
 
-        // "Link" from the profile: the callback attaches the identity to the signed-in user.
-        $request->session()->put('oidc.link', $request->boolean('link') && Auth::check());
+        $request->session()->forget(self::INTENT);
+
+        /** @var User|null $user */
+        $user = Auth::user();
+        $intent = 'login';
+
+        if ($user && $request->boolean('link')) {
+            // Linking removes the password, so a session alone (e.g. an unlocked device) is not enough.
+            if (! $accounts->pullPasswordConfirmation($user)) {
+                return $this->failed(__('Please confirm your password first.'), 'link');
+            }
+
+            $intent = 'link';
+        } elseif ($user && $request->boolean('confirm')) {
+            $intent = 'confirm';
+        }
+
+        $request->session()->put(self::INTENT, $intent);
 
         return $this->provider()->redirect();
     }
 
-    public function callback(Request $request, OidcLogin $login, AccountManagerHouseholds $households): RedirectResponse
+    public function callback(Request $request, OidcLogin $login, OidcAccount $accounts, AccountManagerHouseholds $households): RedirectResponse
     {
         abort_unless(config('login.oidc.enabled'), 404);
 
-        $linking = (bool) $request->session()->pull('oidc.link', false) && Auth::check();
+        /** @var User|null $current */
+        $current = Auth::user();
+        $intent = (string) $request->session()->pull(self::INTENT, 'login');
+        $intent = $current ? $intent : 'login';
 
         try {
             $identity = $this->provider()->user();
@@ -46,30 +72,37 @@ class OidcController extends Controller
                 throw new UnexpectedValueException('Unexpected OIDC user.');
             }
 
-            /** @var User|null $current */
-            $current = $linking ? Auth::user() : null;
+            if ($intent === 'confirm' && $current) {
+                $login->confirm($identity, $current);
+                $accounts->rememberSignIn();
 
-            $user = $login->resolve($identity, $current);
+                // Opens the unlink form right away.
+                return redirect()->to(EditProfile::getUrl(['action' => 'unlinkOidc'], panel: 'app'));
+            }
+
+            $user = $login->resolve($identity, $intent === 'link' ? $current : null);
         } catch (OidcLoginException $exception) {
-            return $this->failed(__($exception->getMessage()), $linking);
+            return $this->failed(__($exception->getMessage()), $intent);
         } catch (Throwable $exception) {
             Log::warning('OIDC login failed', ['exception' => $exception->getMessage()]);
 
-            return $this->failed(__('The sign-in failed. Please try again.'), $linking);
+            return $this->failed(__('The sign-in failed. Please try again.'), $intent);
         }
 
         // HOUSEHOLDS_DRIVER=account-manager: pending memberships and the user's households (failures only log).
         $households->syncOnSignIn($user);
 
-        if ($linking) {
+        // Remembered like Shoppinglist and Chorelist, otherwise the session ends after SESSION_LIFETIME idle minutes.
+        // Also after linking: the remember token was rotated, this device gets the new one.
+        Auth::login($user, remember: true);
+        $request->session()->regenerate();
+        $accounts->rememberSignIn();
+
+        if ($intent === 'link') {
             Notification::make()->success()->title(__('The sign-in is linked to your account.'))->send();
 
             return redirect()->to(EditProfile::getUrl(panel: 'app'));
         }
-
-        // Remembered like Shoppinglist and Chorelist, otherwise the session ends after SESSION_LIFETIME idle minutes.
-        Auth::login($user, remember: true);
-        $request->session()->regenerate();
 
         return redirect()->intended(Filament::getPanel('app')->getUrl());
     }
@@ -88,12 +121,12 @@ class OidcController extends Controller
         return $provider;
     }
 
-    private function failed(string $message, bool $linking): RedirectResponse
+    private function failed(string $message, string $intent): RedirectResponse
     {
         Notification::make()->danger()->title($message)->persistent()->send();
 
-        return redirect()->to($linking
-            ? EditProfile::getUrl(panel: 'app')
-            : Filament::getPanel('app')->getLoginUrl());
+        return redirect()->to($intent === 'login'
+            ? Filament::getPanel('app')->getLoginUrl()
+            : EditProfile::getUrl(panel: 'app'));
     }
 }

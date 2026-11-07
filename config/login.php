@@ -9,8 +9,9 @@ return [
     |
     | E-mail and password login of the app itself. When disabled, only admins
     | may still sign in with a password (emergency access, e.g. while the
-    | OpenID Connect provider is down). Registration and password reset are
-    | only offered while the local login is enabled.
+    | OpenID Connect provider is down) and registration is not offered.
+    | Accounts linked to the OpenID Connect login never sign in with a
+    | password (App\Auth\OidcAccount), so emergency admins stay unlinked.
     |
     */
 
