@@ -3,6 +3,8 @@
 namespace App\Filament\Resources\Authors\Schemas;
 
 use App\Auth\OidcLabel;
+use App\Entitlements\Entitlements;
+use App\Households\AccountManagerLabel;
 use App\Models\Author;
 use App\Models\User;
 use Filament\Forms\Components\TextInput;
@@ -57,8 +59,13 @@ class AuthorForm
                             ->label(__('Sign-in'))
                             ->state(fn (): string => __('Connected with :provider', ['provider' => OidcLabel::get()]))
                             ->visible(fn (?User $record): bool => (bool) $record?->isLinkedToOidc()),
+                        // AUTH_ADMIN_SOURCE=account-manager: linked users get the admin rights from the AccountManager.
                         Toggle::make('admin')
-                            ->label(__('Admin')),
+                            ->label(__('Admin'))
+                            ->disabled(fn (?User $record): bool => Entitlements::adminFromAccountManager() && (bool) $record?->isLinkedToOidc())
+                            ->helperText(fn (?User $record): ?string => Entitlements::adminFromAccountManager() && $record?->isLinkedToOidc()
+                                ? (string) __('Admin rights of linked accounts are managed in “:name”.', ['name' => AccountManagerLabel::get()])
+                                : null),
                         Toggle::make('ai_enabled')
                             ->label(__('AI features'))
                             ->helperText(__('Create recipes and photos with AI (verified users only).'))

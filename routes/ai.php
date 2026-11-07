@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureEntitlementAccess;
 use App\Http\Middleware\EnsureMcpGrant;
 use App\Mcp\Servers\RecipesServer;
 use Illuminate\Support\Facades\Route;
@@ -12,4 +13,4 @@ Route::middleware('throttle:10,1')->group(function (): void {
 });
 
 Mcp::web('/mcp', RecipesServer::class)
-    ->middleware(['auth:api', EnsureMcpGrant::class, 'throttle:120,1']);
+    ->middleware(['auth:api', EnsureMcpGrant::class, EnsureEntitlementAccess::class, 'throttle:120,1']);

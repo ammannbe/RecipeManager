@@ -1329,7 +1329,7 @@ class ImportRecipe extends Page
         $this->scopeLookups = [];
 
         foreach (['cookbook' => LookupType::Cookbook, 'author' => LookupType::Author] as $scope => $type) {
-            $value = $scope === 'cookbook' ? $this->parsed->cookbook : ($this->parsed->author !== null && user()?->admin ? $this->parsed->author : null);
+            $value = $scope === 'cookbook' ? $this->parsed->cookbook : ($this->parsed->author !== null && user()?->isAdmin() ? $this->parsed->author : null);
 
             if ($value !== null) {
                 $key = ResolutionReport::key($type, $value);

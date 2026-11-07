@@ -9,6 +9,7 @@ use App\Filament\Auth\RequestPasswordReset;
 use App\Filament\Auth\ResetPassword;
 use App\Filament\Resources\Households\HouseholdResource;
 use App\Filament\Resources\Recipes\Pages\EditRecipe;
+use App\Http\Middleware\EnsureEntitlementAccess;
 use App\Http\Middleware\SetLocale;
 use Filament\Actions\Action;
 use Filament\Http\Middleware\Authenticate;
@@ -103,6 +104,7 @@ class AppPanelProvider extends PanelProvider
                 DisableBladeIconComponents::class,
                 DispatchServingFilamentEvent::class,
                 SetLocale::class,
+                EnsureEntitlementAccess::class,
             ])
             ->authMiddleware([
                 Authenticate::class,

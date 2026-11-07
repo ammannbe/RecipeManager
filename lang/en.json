@@ -435,5 +435,8 @@
     "Not using the app yet": "Not using the app yet",
     "Members of the household in “:name” who have not signed in here yet. They get access on their first sign-in.": "Members of the household in “:name” who have not signed in here yet. They get access on their first sign-in.",
     "Manage households in “:name”": "Manage households in “:name”",
-    "Manage in “:name”": "Manage in “:name”"
+    "Manage in “:name”": "Manage in “:name”",
+    "Your access to :app is suspended.": "Your access to :app is suspended.",
+    "Your access to :app is not enabled.": "Your access to :app is not enabled.",
+    "Admin rights of linked accounts are managed in “:name”.": "Admin rights of linked accounts are managed in “:name”."
 }

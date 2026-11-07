@@ -5,6 +5,8 @@ namespace App\Http\Controllers\Auth;
 use App\Auth\OidcAccount;
 use App\Auth\OidcLogin;
 use App\Auth\OidcLoginException;
+use App\Entitlements\AccountManagerEntitlements;
+use App\Entitlements\Entitlements;
 use App\Filament\Auth\EditProfile;
 use App\Households\AccountManagerHouseholds;
 use App\Http\Controllers\Controller;
@@ -56,7 +58,7 @@ class OidcController extends Controller
         return $this->provider()->redirect();
     }
 
-    public function callback(Request $request, OidcLogin $login, OidcAccount $accounts, AccountManagerHouseholds $households): RedirectResponse
+    public function callback(Request $request, OidcLogin $login, OidcAccount $accounts, AccountManagerHouseholds $households, AccountManagerEntitlements $entitlements): RedirectResponse
     {
         abort_unless(config('login.oidc.enabled'), 404);
 
@@ -91,6 +93,19 @@ class OidcController extends Controller
 
         // HOUSEHOLDS_DRIVER=account-manager: pending memberships and the user's households (failures only log).
         $households->syncOnSignIn($user);
+
+        // ENTITLEMENTS_DRIVER / AUTH_ADMIN_SOURCE=account-manager: the current snapshot (failures keep the last one).
+        $entitlements->syncOnSignIn($user);
+
+        if (! Entitlements::allowsAccess($user)) {
+            if ($current) {
+                Auth::guard('web')->logout();
+                $request->session()->invalidate();
+                $request->session()->regenerateToken();
+            }
+
+            return $this->failed(Entitlements::deniedMessage($user), 'login');
+        }
 
         // Remembered like Shoppinglist and Chorelist, otherwise the session ends after SESSION_LIFETIME idle minutes.
         // Also after linking: the remember token was rotated, this device gets the new one.

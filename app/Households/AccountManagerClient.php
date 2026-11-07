@@ -2,17 +2,20 @@
 
 namespace App\Households;
 
+use App\Entitlements\Entitlements;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 /**
- * Households API of the AccountManager (docs/HOUSEHOLDS-API.md there, section 3): HTTP Basic with
- * the service key and the service secret. Every failure is a AccountManagerUnavailable, 404 is an answer.
+ * API of the AccountManager (docs/HOUSEHOLDS-API.md there, section 3, and docs/ENTITLEMENTS-API.md, section 4):
+ * HTTP Basic with the service key and the service secret. Every failure is a AccountManagerUnavailable, 404 is an answer.
  *
+ * @phpstan-type EntitlementSnapshot array{sub: string, status: string, admin: bool, features: list<string>, version: int}
  * @phpstan-type Snapshot array{uuid: string, name: string, version: int, members: list<array{sub: string, role: string}>}
  * @phpstan-type ImportState array{local_id: string, status: string, household_uuid: string|null, household: Snapshot|null}
  */
@@ -96,6 +99,63 @@ class AccountManagerClient
     public function importStatus(): array
     {
         return $this->importStates($this->send(fn (PendingRequest $http): Response => $http->get('households/import')));
+    }
+
+    /**
+     * Entitlements of a user for this service (ENTITLEMENTS-API.md 4.1), null if the user is unknown
+     * there or has no access (404).
+     *
+     * @return EntitlementSnapshot|null
+     */
+    public function entitlements(string $sub): ?array
+    {
+        $response = $this->send(fn (PendingRequest $http): Response => $http->get('entitlements/'.rawurlencode($sub)), allowNotFound: true);
+
+        if ($response->notFound()) {
+            return null;
+        }
+
+        try {
+            return self::validEntitlements($response->json('data'));
+        } catch (ValidationException) {
+            throw new AccountManagerUnavailable('The AccountManager returned invalid entitlements.');
+        }
+    }
+
+    /**
+     * Validates an entitlements snapshot from a webhook or an API answer. It must be meant for this
+     * service; an unknown status counts as "none", features and admin only count while active.
+     *
+     * @return EntitlementSnapshot
+     *
+     * @throws ValidationException
+     */
+    public static function validEntitlements(mixed $snapshot): array
+    {
+        /** @var array{sub: string, status: string, admin: bool, features: list<string>, version: int|string} $data */
+        $data = Validator::make(['entitlements' => $snapshot], [
+            'entitlements' => ['required', 'array'],
+            'entitlements.sub' => ['required', 'string', 'max:255'],
+            'entitlements.service' => ['sometimes', 'string', Rule::in([(string) config('households.account_manager.key')])],
+            'entitlements.status' => ['required', 'string', 'max:20'],
+            'entitlements.admin' => ['required', 'boolean'],
+            'entitlements.features' => ['present', 'array'],
+            'entitlements.features.*' => ['string', 'max:255'],
+            'entitlements.version' => ['required', 'integer', 'min:0'],
+        ])->validate()['entitlements'];
+
+        $status = in_array($data['status'], Entitlements::STATUSES, true) ? $data['status'] : Entitlements::NONE;
+        $active = $status === Entitlements::ACTIVE;
+        $features = $active ? array_values(array_unique(array_map('strval', $data['features']))) : [];
+        sort($features);
+
+        return [
+            'sub' => (string) $data['sub'],
+            'status' => $status,
+            'admin' => $active && (bool) $data['admin'],
+            'features' => $features,
+            'version' => (int) $data['version'],
+        ];
     }
 
     /**

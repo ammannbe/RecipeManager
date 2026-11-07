@@ -247,7 +247,7 @@ class AccountManagerHouseholdTest extends TestCase
         $this->assertSame(2, AccountManagerWebhookEvent::query()->count());
 
         // Unknown types are acknowledged; with a household they count as household.updated.
-        $this->webhook('user.deleted', [], ['data' => ['household' => null]])->assertNoContent();
+        $this->webhook('subscription.renewed', [], ['data' => ['household' => null]])->assertNoContent();
         Queue::assertPushed(ApplyAccountManagerEvent::class, 1);
 
         $this->travel(8)->days();

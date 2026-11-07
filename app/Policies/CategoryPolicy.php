@@ -13,7 +13,7 @@ class CategoryPolicy
             return null;
         }
 
-        if ($user->admin) {
+        if ($user->isAdmin()) {
             return true;
         }
 
@@ -42,7 +42,7 @@ class CategoryPolicy
 
     public function delete(User $user, Category $category): bool
     {
-        return $user->admin && $category->recipes->isEmpty();
+        return $user->isAdmin() && $category->recipes->isEmpty();
     }
 
     public function restore(User $user, Category $category): bool
@@ -52,6 +52,6 @@ class CategoryPolicy
 
     public function forceDelete(User $user, Category $category): bool
     {
-        return $user->admin && $category->recipes->isEmpty();
+        return $user->isAdmin() && $category->recipes->isEmpty();
     }
 }

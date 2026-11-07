@@ -215,6 +215,43 @@ If any command fails, repeat the process from the beginning.
 * Deleting a user: in mirrored households the user only leaves (no hand-over, the AccountManager decides).
 * Tests: `AccountManagerHouseholdTest` (fake AccountManager via `Http::fake`, signed webhooks, Socialite mock).
 
+## Entitlements from the AccountManager
+
+* Contract: AccountManager `docs/ENTITLEMENTS-API.md` (phase 6a), concept 5.3/6. Same design and names in Shoppinglist and
+  Chorelist. `config/entitlements.php`: `driver` (`ENTITLEMENTS_DRIVER`, `local` default) and `admin_source`
+  (`AUTH_ADMIN_SOURCE`, `local` default); uses the `ACCOUNT_MANAGER_*` values of `config/households.php`, the same client
+  (`AccountManagerClient::entitlements()`, `GET /api/entitlements/{sub}`, 404 = no access) and the same webhook.
+* `App\Entitlements\Entitlements` (static): `has($user, 'key')`, `features()`, `isAdmin()`, `status()`, `allowsAccess()`.
+  Local driver: every user has access and `entitlements.local.features` (empty here; the AI features stay per user,
+  `users.ai_enabled`). Account-manager driver: linked users (`oidc_sub`) get the stored snapshot (features only while
+  `active`); never synced = access but no features; users without a linked sign-in keep the local behaviour.
+* Admin rights: always `$user->isAdmin()` / `User::query()->admins()`, never `users.admin` directly (policies, resources,
+  widgets, import, mails). `AUTH_ADMIN_SOURCE=account-manager`: linked users are admins only with `admin: true` in an
+  active snapshot (the local flag of linked users is ignored and read-only in the author form), unlinked admins
+  (emergency admins) stay admins.
+* Storage: `user_entitlements` (user_id unique, status, admin, features JSON, version, synced_at; model `UserEntitlement`,
+  `User::entitlement()`), dropped when `oidc_sub` changes (`UserObserver::updated`, versions count per subject).
+  `App\Entitlements\AccountManagerEntitlements`: webhooks apply only `version > stored`, API answers also `=`; 404 sets
+  `none` and keeps the version. `entitlements.changed` for unknown subjects is ignored (204): the OIDC callback fetches the
+  snapshot (`syncOnSignIn()`, total timeout 5 s, failures keep the last state and only log) and `entitlements:sync`
+  (daily 04:30) fetches it for every linked user (a failure stops the run, the state stays). Snapshots are stored when
+  the driver or the admin source is `account-manager` and the AccountManager is configured (`Entitlements::syncEnabled()`).
+* Webhook `POST /api/account-manager/webhook` (`AccountManagerWebhookController`): open when households are mirrored or
+  entitlements are synced, otherwise 404. Same signature check and `event_id` idempotency; `entitlements.changed` is applied
+  right away in one transaction with the event row (`service` must be ours, otherwise 422; unknown statuses count as
+  `none`), `user.deleted` by the queued `DeleteAccountManagerUser`, household events as before, unknown types 204.
+* Access (driver account-manager): `EnsureEntitlementAccess` (web group, panel middleware, API and MCP routes) signs out a
+  linked user whose status is `suspended`, `requested` or `none` and redirects to the login with `?access=suspended|disabled`
+  (`Login::mount()` shows «Dein Zugang zu :app ist gesperrt.» / «… ist nicht freigeschaltet.»); API/MCP get 403 JSON with the
+  message. The OIDC callback refuses blocked users after the sync. Passport tokens stay (access returns with the status).
+* `user.deleted` = `App\Services\UserDeletion` (also for soft-deleted users): the user's cookbooks with all their recipes
+  (like deleting a user always did, also shared ones) and their recipes without cookbook are force deleted (photos go with
+  `RecipeObserver`), recipes they added to other users' cookbooks move to that cookbook's author, memberships go
+  (`UserObserver`, `Households::forget()`), OAuth tokens/codes/clients, MCP grants, sessions (database driver), drafts
+  and import photos; then the user and the author are force deleted. AI usage rows stay without user. Applied whenever the
+  webhook is open (also with only mirrored households). Removing the access is no deletion (`status: none`).
+* Tests: `AccountManagerEntitlementsTest` (fake AccountManager via `Http::fake`, signed webhooks, Socialite mock).
+
 ## Companion App API (Shoppinglist)
 
 JSON API for the companion app "Shoppinglist", secured with Laravel Passport
@@ -505,6 +542,7 @@ Important test areas:
 * cookbook sharing and invitations
 * households (membership, roles, last admin, invitations, driver) and cookbook access through households
 * households from the AccountManager (webhook signature, idempotency, versions, sync, import, AccountManager down)
+* entitlements from the AccountManager (snapshots, admin source, blocked access, user.deleted, sync, AccountManager down)
 * recipe visibility, including photo access
 * API (OAuth, visibility, search ranking, scaling, recipe creation)
 * filament pages

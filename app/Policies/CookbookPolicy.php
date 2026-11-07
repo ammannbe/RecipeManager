@@ -9,7 +9,7 @@ class CookbookPolicy
 {
     public function before(User $user, string $ability): ?bool
     {
-        if ($user->admin) {
+        if ($user->isAdmin()) {
             return true;
         }
 

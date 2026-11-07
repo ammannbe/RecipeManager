@@ -49,7 +49,7 @@ class LookupRequests
             ->label(__('Approve'))
             ->icon(Heroicon::OutlinedCheck)
             ->color('success')
-            ->visible(fn (Food|Unit|IngredientAttribute|Tag $record): bool => (bool) user()?->admin && $record->isRequested())
+            ->visible(fn (Food|Unit|IngredientAttribute|Tag $record): bool => (bool) user()?->isAdmin() && $record->isRequested())
             ->action(function (Food|Unit|IngredientAttribute|Tag $record): void {
                 $record->approve();
                 Notification::make()->success()->title(__('Approved'))->send();
@@ -61,7 +61,7 @@ class LookupRequests
         return Action::make('merge')
             ->label(__('Merge into …'))
             ->icon(Heroicon::OutlinedArrowsPointingIn)
-            ->visible(fn (): bool => (bool) user()?->admin)
+            ->visible(fn (): bool => (bool) user()?->isAdmin())
             ->modalDescription(__('All recipes using this entry will use the chosen one instead. This entry is then deleted.'))
             ->schema(fn (Model $record): array => [
                 Select::make('target')
@@ -89,7 +89,7 @@ class LookupRequests
      */
     public static function badge(string $model): ?string
     {
-        if (! user()?->admin) {
+        if (! user()?->isAdmin()) {
             return null;
         }
 

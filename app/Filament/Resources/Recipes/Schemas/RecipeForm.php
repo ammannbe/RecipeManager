@@ -442,7 +442,7 @@ class RecipeForm
                     ->required()
                     ->searchable()
                     ->preload()
-                    ->visible(fn (): bool => (bool) user()?->admin)
+                    ->visible(fn (): bool => (bool) user()?->isAdmin())
                     ->options(fn (): array => Author::query()->orderBy('name')->pluck('name', 'id')->all()),
                 Select::make('cookbook_id')
                     ->label(__('Cookbook'))
@@ -534,14 +534,14 @@ class RecipeForm
                     ->preload()
                     ->options(fn (mixed $state): array => self::lookupOptions(Tag::class, $state))
                     // Mirrors LookupType::canBeCreatedBy(): only admins add new tags.
-                    ->createOptionForm(fn (): ?array => user()?->admin ? [
+                    ->createOptionForm(fn (): ?array => user()?->isAdmin() ? [
                         TextInput::make('name')
                             ->required()
                             ->maxLength(RecipeJsonSchema::MAX_TAG_NAME)
                             ->unique(Tag::class, 'name'),
                     ] : null)
                     ->createOptionUsing(function (array $data): int {
-                        abort_unless((bool) user()?->admin, 403);
+                        abort_unless((bool) user()?->isAdmin(), 403);
 
                         return Tag::query()->create(['name' => $data['name']])->id;
                     })
@@ -635,7 +635,7 @@ class RecipeForm
         // visibleTo() adds no condition for admins, and an empty nested orWhere is dropped,
         // which would leave only the selected entries.
         return $model::query()
-            ->when(! user()?->admin, fn (Builder $query) => $query->where(fn (Builder $query) => $query->whereIn('id', $selected)
+            ->when(! user()?->isAdmin(), fn (Builder $query) => $query->where(fn (Builder $query) => $query->whereIn('id', $selected)
                 ->orWhere(fn (Builder $query) => $query->visibleTo(user()))))
             ->orderBy('name')
             ->pluck('name', 'id')

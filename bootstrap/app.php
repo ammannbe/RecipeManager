@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnsureEntitlementAccess;
 use App\Http\Middleware\SetLocale;
 use App\Models\OAuthClient;
 use Illuminate\Foundation\Application;
@@ -17,6 +18,8 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->web(append: [
             SetLocale::class,
+            // ENTITLEMENTS_DRIVER=account-manager: signs out users whose access was blocked in the AccountManager.
+            EnsureEntitlementAccess::class,
         ]);
 
         // Guests hitting /oauth/authorize log in through Filament and come back afterwards. Trusted

@@ -76,11 +76,11 @@ class AuthorResource extends Resource
 
     public static function shouldRegisterNavigation(): bool
     {
-        return (bool) user()?->admin;
+        return (bool) user()?->isAdmin();
     }
 
     public static function canAccess(): bool
     {
-        return (bool) user()?->admin;
+        return (bool) user()?->isAdmin();
     }
 }

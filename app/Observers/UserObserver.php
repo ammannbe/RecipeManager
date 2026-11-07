@@ -19,6 +19,18 @@ class UserObserver
         }
     }
 
+    /**
+     * A stored entitlements snapshot belongs to the subject it was synced for (versions count per
+     * subject): linking another one or unlinking drops it.
+     */
+    public function updated(User $user): void
+    {
+        if ($user->wasChanged('oidc_sub')) {
+            $user->entitlement()->delete();
+            $user->unsetRelation('entitlement');
+        }
+    }
+
     public function deleting(User $user): void
     {
         $user->author?->cookbooks()->each(fn (Cookbook $cookbook) => $cookbook->delete());

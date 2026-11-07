@@ -122,7 +122,7 @@ class Cookbook extends Model
             return false;
         }
 
-        if ($user->admin || $this->isOwnedBy($user)) {
+        if ($user->isAdmin() || $this->isOwnedBy($user)) {
             return true;
         }
 
@@ -174,7 +174,7 @@ class Cookbook extends Model
      */
     public function scopeVisibleTo(Builder $query, ?User $user): void
     {
-        if ($user?->admin) {
+        if ($user?->isAdmin()) {
             return;
         }
 
@@ -199,7 +199,7 @@ class Cookbook extends Model
      */
     public function scopeAdministeredBy(Builder $query, ?User $user): void
     {
-        if ($user?->admin) {
+        if ($user?->isAdmin()) {
             return;
         }
 

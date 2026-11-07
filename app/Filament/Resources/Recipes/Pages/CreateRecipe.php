@@ -19,7 +19,7 @@ class CreateRecipe extends CreateRecord
         $recipe = new Recipe;
         $recipe->fill($data);
 
-        if (! user()->admin) {
+        if (! user()->isAdmin()) {
             $recipe->author_id = user()->author_id;
         }
 

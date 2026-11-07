@@ -25,7 +25,7 @@ class AiUsageWidget extends TableWidget
 
     public static function canView(): bool
     {
-        return (bool) user()?->admin;
+        return (bool) user()?->isAdmin();
     }
 
     protected function getTableHeading(): string|Htmlable|null
