@@ -2,37 +2,37 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Households\KontoClient;
-use App\Households\KontoHouseholds;
+use App\Households\AccountManagerClient;
+use App\Households\AccountManagerHouseholds;
 use App\Http\Controllers\Controller;
-use App\Jobs\ApplyKontoEvent;
-use App\Models\KontoWebhookEvent;
+use App\Jobs\ApplyAccountManagerEvent;
+use App\Models\AccountManagerWebhookEvent;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Validator;
 use JsonException;
 
 /**
- * Household events of the AccountManager (HOUSEHOLDS_DRIVER=konto, contract: AccountManager
+ * Household events of the AccountManager (HOUSEHOLDS_DRIVER=account-manager, contract: AccountManager
  * docs/HOUSEHOLDS-API.md, section 4): signed with HMAC-SHA256 over "{timestamp}.{body}", at most
  * 300 seconds old, accepted once per event_id and applied by a queued job.
  */
-class KontoWebhookController extends Controller
+class AccountManagerWebhookController extends Controller
 {
     public const TOLERANCE = 300;
 
     public function __invoke(Request $request): Response
     {
         // Not mirrored (local driver or not configured): the AccountManager should not send here.
-        abort_unless(KontoHouseholds::enabled(), 404);
+        abort_unless(AccountManagerHouseholds::enabled(), 404);
 
         $body = $request->getContent();
 
         abort_unless(self::verify(
-            (string) config('households.konto.secret'),
-            (string) $request->header('X-Konto-Timestamp'),
+            (string) config('households.account_manager.secret'),
+            (string) $request->header('X-Account-Manager-Timestamp'),
             $body,
-            (string) $request->header('X-Konto-Signature'),
+            (string) $request->header('X-Account-Manager-Signature'),
         ), 401);
 
         try {
@@ -53,16 +53,16 @@ class KontoWebhookController extends Controller
             return response()->noContent();
         }
 
-        $snapshot = KontoClient::validSnapshot($event['data']['household']);
+        $snapshot = AccountManagerClient::validSnapshot($event['data']['household']);
 
-        $new = KontoWebhookEvent::query()->insertOrIgnore([
+        $new = AccountManagerWebhookEvent::query()->insertOrIgnore([
             'event_id' => strtolower($event['event_id']),
             'type' => $event['type'],
             'created_at' => now(),
         ]);
 
         if ($new > 0) {
-            ApplyKontoEvent::dispatch($event['type'], $snapshot);
+            ApplyAccountManagerEvent::dispatch($event['type'], $snapshot);
         }
 
         return response()->noContent();

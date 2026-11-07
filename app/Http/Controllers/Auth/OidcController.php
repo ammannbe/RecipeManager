@@ -5,7 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Auth\OidcLogin;
 use App\Auth\OidcLoginException;
 use App\Filament\Auth\EditProfile;
-use App\Households\KontoHouseholds;
+use App\Households\AccountManagerHouseholds;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Filament\Facades\Filament;
@@ -33,7 +33,7 @@ class OidcController extends Controller
         return $this->provider()->redirect();
     }
 
-    public function callback(Request $request, OidcLogin $login, KontoHouseholds $households): RedirectResponse
+    public function callback(Request $request, OidcLogin $login, AccountManagerHouseholds $households): RedirectResponse
     {
         abort_unless(config('login.oidc.enabled'), 404);
 
@@ -58,7 +58,7 @@ class OidcController extends Controller
             return $this->failed(__('The sign-in failed. Please try again.'), $linking);
         }
 
-        // HOUSEHOLDS_DRIVER=konto: pending memberships and the user's households (failures only log).
+        // HOUSEHOLDS_DRIVER=account-manager: pending memberships and the user's households (failures only log).
         $households->syncOnSignIn($user);
 
         if ($linking) {

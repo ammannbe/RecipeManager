@@ -8,7 +8,7 @@ use App\Services\Households;
 
 /**
  * Households are private to their members, also for global admins. Managing them is
- * only possible with the local driver; with "konto" they are read-only mirrors.
+ * only possible with the local driver; with "account-manager" they are read-only mirrors.
  */
 class HouseholdPolicy
 {

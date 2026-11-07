@@ -2,8 +2,8 @@
 
 namespace App\Jobs;
 
-use App\Households\KontoHouseholds;
-use App\Households\KontoUnavailable;
+use App\Households\AccountManagerHouseholds;
+use App\Households\AccountManagerUnavailable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Log;
@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Log;
  * AccountManager cannot be asked about an unknown household, the job is tried again later; after
  * the last try the daily households:sync heals the state.
  */
-class ApplyKontoEvent implements ShouldQueue
+class ApplyAccountManagerEvent implements ShouldQueue
 {
     use Queueable;
 
@@ -24,16 +24,16 @@ class ApplyKontoEvent implements ShouldQueue
      */
     public function __construct(public string $type, public array $snapshot) {}
 
-    public function handle(KontoHouseholds $households): void
+    public function handle(AccountManagerHouseholds $households): void
     {
-        if (! KontoHouseholds::enabled()) {
+        if (! AccountManagerHouseholds::enabled()) {
             return;
         }
 
         try {
             $households->handleEvent($this->type, $this->snapshot);
-        } catch (KontoUnavailable $exception) {
-            KontoHouseholds::logUnavailable($exception, "applying {$this->type} of {$this->snapshot['uuid']}");
+        } catch (AccountManagerUnavailable $exception) {
+            AccountManagerHouseholds::logUnavailable($exception, "applying {$this->type} of {$this->snapshot['uuid']}");
 
             if ($this->attempts() < $this->tries) {
                 $this->release([60, 300, 900, 3600][$this->attempts() - 1] ?? 3600);

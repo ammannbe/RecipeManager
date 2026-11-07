@@ -13,8 +13,8 @@ return new class extends Migration
             $table->uuid()->unique();
             $table->string('name');
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
-            // Set once the household is mirrored from the AccountManager (HOUSEHOLDS_DRIVER=konto).
-            $table->uuid('konto_household_uuid')->nullable()->unique();
+            // Set once the household is mirrored from the AccountManager (HOUSEHOLDS_DRIVER=account-manager).
+            $table->uuid('account_manager_household_uuid')->nullable()->unique();
             $table->timestamps();
         });
 

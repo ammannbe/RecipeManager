@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use App\Households\KontoHouseholds;
-use App\Jobs\ReportKontoShares;
+use App\Households\AccountManagerHouseholds;
+use App\Jobs\ReportAccountManagerShares;
 use Database\Factories\CookbookFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -42,20 +42,20 @@ class Cookbook extends Model
             $builder->withAggregate('author', 'name');
         });
 
-        // The AccountManager shows the names of the cookbooks shared with a household (HOUSEHOLDS_DRIVER=konto).
+        // The AccountManager shows the names of the cookbooks shared with a household (HOUSEHOLDS_DRIVER=account-manager).
         static::updated(function (Cookbook $cookbook): void {
             if ($cookbook->wasChanged('name')) {
-                $cookbook->reportKontoShares();
+                $cookbook->reportAccountManagerShares();
             }
         });
-        static::deleted(fn (Cookbook $cookbook) => $cookbook->reportKontoShares());
-        static::restored(fn (Cookbook $cookbook) => $cookbook->reportKontoShares());
+        static::deleted(fn (Cookbook $cookbook) => $cookbook->reportAccountManagerShares());
+        static::restored(fn (Cookbook $cookbook) => $cookbook->reportAccountManagerShares());
     }
 
-    public function reportKontoShares(): void
+    public function reportAccountManagerShares(): void
     {
-        if (KontoHouseholds::enabled()) {
-            ReportKontoShares::dispatchFor($this->households()->whereNotNull('konto_household_uuid')->get());
+        if (AccountManagerHouseholds::enabled()) {
+            ReportAccountManagerShares::dispatchFor($this->households()->whereNotNull('account_manager_household_uuid')->get());
         }
     }
 

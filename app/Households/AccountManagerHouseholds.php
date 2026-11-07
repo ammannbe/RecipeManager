@@ -3,7 +3,7 @@
 namespace App\Households;
 
 use App\Enums\HouseholdRole;
-use App\Jobs\ReportKontoShares;
+use App\Jobs\ReportAccountManagerShares;
 use App\Models\CookbookHouseholdShare;
 use App\Models\Household;
 use App\Models\HouseholdPendingMember;
@@ -14,23 +14,23 @@ use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
- * Mirrors the households of the AccountManager (HOUSEHOLDS_DRIVER=konto, contract: AccountManager
+ * Mirrors the households of the AccountManager (HOUSEHOLDS_DRIVER=account-manager, contract: AccountManager
  * docs/HOUSEHOLDS-API.md, section 5). Every webhook and API answer carries the full snapshot of a
  * household: the local copy is set to it (name, members by oidc_sub, roles), older versions are
  * ignored. Access to shared cookbooks is resolved through the membership at runtime
  * (Cookbook::grants()), so it follows the members right away.
  *
- * @phpstan-import-type Snapshot from KontoClient
+ * @phpstan-import-type Snapshot from AccountManagerClient
  */
-class KontoHouseholds
+class AccountManagerHouseholds
 {
     public const DELETED = 'household.deleted';
 
-    public function __construct(private readonly KontoClient $client) {}
+    public function __construct(private readonly AccountManagerClient $client) {}
 
     public static function enabled(): bool
     {
-        return config('households.driver') === 'konto' && KontoClient::configured();
+        return config('households.driver') === 'account-manager' && AccountManagerClient::configured();
     }
 
     /**
@@ -38,9 +38,9 @@ class KontoHouseholds
      */
     public static function portalUrl(): ?string
     {
-        $url = config('households.konto.url');
+        $url = config('households.account_manager.url');
 
-        return config('households.driver') === 'konto' && filled($url) ? rtrim((string) $url, '/').'/households' : null;
+        return config('households.driver') === 'account-manager' && filled($url) ? rtrim((string) $url, '/').'/households' : null;
     }
 
     /**
@@ -55,7 +55,7 @@ class KontoHouseholds
 
         try {
             (new self($this->client->withTimeout(5)))->syncUser($user);
-        } catch (KontoUnavailable $exception) {
+        } catch (AccountManagerUnavailable $exception) {
             self::logUnavailable($exception, 'syncing the households on sign-in');
         } catch (Throwable $exception) {
             report($exception);
@@ -68,7 +68,7 @@ class KontoHouseholds
      *
      * @param  array{uuid: string, name: string, version: int, members: list<array{sub: string, role: string}>, deleted?: bool}  $snapshot
      *
-     * @throws KontoUnavailable
+     * @throws AccountManagerUnavailable
      */
     public function handleEvent(string $type, array $snapshot): void
     {
@@ -78,7 +78,7 @@ class KontoHouseholds
             return;
         }
 
-        if (! Household::query()->where('konto_household_uuid', $snapshot['uuid'])->exists()) {
+        if (! Household::query()->where('account_manager_household_uuid', $snapshot['uuid'])->exists()) {
             $this->refresh($snapshot['uuid']);
 
             return;
@@ -92,7 +92,7 @@ class KontoHouseholds
     /**
      * Fetches the household and applies it; 404 deletes the local copy.
      *
-     * @throws KontoUnavailable
+     * @throws AccountManagerUnavailable
      */
     public function refresh(string $uuid): ?Household
     {
@@ -129,7 +129,7 @@ class KontoHouseholds
      */
     public function delete(string $uuid): void
     {
-        Household::query()->where('konto_household_uuid', $uuid)->first()?->delete();
+        Household::query()->where('account_manager_household_uuid', $uuid)->first()?->delete();
     }
 
     /**
@@ -139,7 +139,7 @@ class KontoHouseholds
      *
      * @param  array<array-key, true>  $checked
      *
-     * @throws KontoUnavailable the user's households could not be fetched (the state stays)
+     * @throws AccountManagerUnavailable the user's households could not be fetched (the state stays)
      */
     public function syncUser(User $user, array &$checked = []): void
     {
@@ -161,8 +161,8 @@ class KontoHouseholds
         }
 
         $missing = $user->households()
-            ->whereNotNull('konto_household_uuid')
-            ->pluck('konto_household_uuid')
+            ->whereNotNull('account_manager_household_uuid')
+            ->pluck('account_manager_household_uuid')
             ->reject(fn (string $uuid): bool => isset($seen[$uuid]) || isset($checked[$uuid]));
 
         foreach ($missing as $uuid) {
@@ -208,7 +208,7 @@ class KontoHouseholds
     public function detachUser(User $user): void
     {
         $user->households()
-            ->whereNotNull('konto_household_uuid')
+            ->whereNotNull('account_manager_household_uuid')
             ->get()
             ->each(function (Household $household) use ($user): void {
                 DB::transaction(function () use ($household, $user): void {
@@ -235,13 +235,13 @@ class KontoHouseholds
     public function adopt(Household $local, array $snapshot): Household
     {
         return DB::transaction(function () use ($local, $snapshot): Household {
-            $target = Household::query()->where('konto_household_uuid', $snapshot['uuid'])->first();
+            $target = Household::query()->where('account_manager_household_uuid', $snapshot['uuid'])->first();
 
             if ($target === null || $target->is($local)) {
                 $local->forceFill([
-                    'konto_household_uuid' => $snapshot['uuid'],
-                    'konto_version' => null,
-                    'konto_import_status' => null,
+                    'account_manager_household_uuid' => $snapshot['uuid'],
+                    'account_manager_version' => null,
+                    'account_manager_import_status' => null,
                 ])->save();
 
                 $target = $local;
@@ -262,13 +262,13 @@ class KontoHouseholds
      */
     public function reportShares(Household $household): void
     {
-        ReportKontoShares::dispatchFor($household);
+        ReportAccountManagerShares::dispatchFor($household);
     }
 
     /**
      * Logs a failed call; the app keeps working with the last mirrored state.
      */
-    public static function logUnavailable(KontoUnavailable $exception, string $context): void
+    public static function logUnavailable(AccountManagerUnavailable $exception, string $context): void
     {
         Log::warning("Households: {$context} failed, keeping the last state.", ['exception' => $exception->getMessage()]);
     }
@@ -281,21 +281,21 @@ class KontoHouseholds
         return DB::transaction(function () use ($snapshot, $authoritative, $household): Household {
             $household = $household
                 ? Household::query()->whereKey($household->getKey())->lockForUpdate()->firstOrFail()
-                : Household::query()->where('konto_household_uuid', $snapshot['uuid'])->lockForUpdate()->first();
+                : Household::query()->where('account_manager_household_uuid', $snapshot['uuid'])->lockForUpdate()->first();
 
-            if ($household?->konto_version !== null) {
+            if ($household?->account_manager_version !== null) {
                 $stale = $authoritative
-                    ? $snapshot['version'] < $household->konto_version
-                    : $snapshot['version'] <= $household->konto_version;
+                    ? $snapshot['version'] < $household->account_manager_version
+                    : $snapshot['version'] <= $household->account_manager_version;
 
                 if ($stale) {
                     return $household;
                 }
             }
 
-            $household ??= new Household(['konto_household_uuid' => $snapshot['uuid']]);
+            $household ??= new Household(['account_manager_household_uuid' => $snapshot['uuid']]);
             $household->name = mb_substr($snapshot['name'], 0, 255);
-            $household->konto_version = $snapshot['version'];
+            $household->account_manager_version = $snapshot['version'];
             $household->save();
 
             $this->syncMembers($household, $snapshot['members']);

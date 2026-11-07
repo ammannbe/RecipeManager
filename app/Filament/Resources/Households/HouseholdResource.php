@@ -22,7 +22,7 @@ use Illuminate\Database\Eloquent\Builder;
 
 /**
  * Households: every user sees the households they belong to. With HOUSEHOLDS_DRIVER=local
- * admins manage members and invitations; with "konto" they are read-only mirrors of the
+ * admins manage members and invitations; with "account-manager" they are read-only mirrors of the
  * AccountManager. Cookbooks are shared with a household on the cookbook ("Shared with households").
  */
 class HouseholdResource extends Resource
@@ -67,10 +67,10 @@ class HouseholdResource extends Resource
             TextEntry::make('created_at')
                 ->label(__('Created at'))
                 ->dateTime(),
-            // HOUSEHOLDS_DRIVER=konto only.
-            TextEntry::make('konto_status')
+            // HOUSEHOLDS_DRIVER=account-manager only.
+            TextEntry::make('account_manager_status')
                 ->label(__('Account'))
-                ->state(fn (Household $record): ?string => $record->kontoStatus())
+                ->state(fn (Household $record): ?string => $record->accountManagerStatus())
                 ->visible(fn (): bool => ! Households::isLocal()),
             TextEntry::make('pending_members')
                 ->label(__('Not using the app yet'))
@@ -101,16 +101,16 @@ class HouseholdResource extends Resource
                     ->label(__('Cookbooks'))
                     ->counts('cookbooks')
                     ->sortable(),
-                // HOUSEHOLDS_DRIVER=konto only.
+                // HOUSEHOLDS_DRIVER=account-manager only.
                 TextColumn::make('pending_members_count')
                     ->label(__('Not using the app yet'))
                     ->counts('pendingMembers')
                     ->visible(fn (): bool => ! Households::isLocal()),
-                TextColumn::make('konto_status')
+                TextColumn::make('account_manager_status')
                     ->label(__('Account'))
-                    ->state(fn (Household $record): ?string => $record->kontoStatus())
+                    ->state(fn (Household $record): ?string => $record->accountManagerStatus())
                     ->badge()
-                    ->color(fn (Household $record): string => $record->konto_household_uuid !== null ? 'success' : 'gray')
+                    ->color(fn (Household $record): string => $record->account_manager_household_uuid !== null ? 'success' : 'gray')
                     ->visible(fn (): bool => ! Households::isLocal()),
             ])
             ->defaultSort('name')

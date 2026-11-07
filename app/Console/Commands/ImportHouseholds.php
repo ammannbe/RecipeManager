@@ -2,20 +2,20 @@
 
 namespace App\Console\Commands;
 
-use App\Households\KontoClient;
-use App\Households\KontoHouseholds;
-use App\Households\KontoUnavailable;
+use App\Households\AccountManagerClient;
+use App\Households\AccountManagerHouseholds;
+use App\Households\AccountManagerUnavailable;
 use App\Models\Household;
 use App\Models\User;
 use Illuminate\Console\Command;
 
 /**
- * Switching from HOUSEHOLDS_DRIVER=local to konto: proposes the local households to the
+ * Switching from HOUSEHOLDS_DRIVER=local to account-manager: proposes the local households to the
  * AccountManager (members with oidc_sub only), where an admin creates or merges them, then maps the
- * confirmed ones (konto_household_uuid, name and members from the AccountManager, cookbook shares
+ * confirmed ones (account_manager_household_uuid, name and members from the AccountManager, cookbook shares
  * stay). Proposing again is allowed (idempotent by local id). --check only polls the state (hourly).
  *
- * @phpstan-import-type ImportState from KontoClient
+ * @phpstan-import-type ImportState from AccountManagerClient
  */
 class ImportHouseholds extends Command
 {
@@ -27,17 +27,17 @@ class ImportHouseholds extends Command
 
     protected $description = 'Propose the local households to the AccountManager and map the confirmed ones';
 
-    public function handle(KontoClient $client, KontoHouseholds $households): int
+    public function handle(AccountManagerClient $client, AccountManagerHouseholds $households): int
     {
-        if (! KontoHouseholds::enabled()) {
-            $this->error('Set HOUSEHOLDS_DRIVER=konto, KONTO_URL, KONTO_SERVICE_KEY and KONTO_SECRET first.');
+        if (! AccountManagerHouseholds::enabled()) {
+            $this->error('Set HOUSEHOLDS_DRIVER=account-manager, ACCOUNT_MANAGER_URL, ACCOUNT_MANAGER_SERVICE_KEY and ACCOUNT_MANAGER_SECRET first.');
 
             return self::FAILURE;
         }
 
         $check = (bool) $this->option('check');
 
-        if ($check && ! Household::query()->whereNull('konto_household_uuid')->where('konto_import_status', self::PENDING)->exists()) {
+        if ($check && ! Household::query()->whereNull('account_manager_household_uuid')->where('account_manager_import_status', self::PENDING)->exists()) {
             return self::SUCCESS;
         }
 
@@ -47,8 +47,8 @@ class ImportHouseholds extends Command
             }
 
             $this->apply($client->importStatus(), $households);
-        } catch (KontoUnavailable $exception) {
-            KontoHouseholds::logUnavailable($exception, 'households:import');
+        } catch (AccountManagerUnavailable $exception) {
+            AccountManagerHouseholds::logUnavailable($exception, 'households:import');
             $this->error($exception->getMessage());
 
             return self::FAILURE;
@@ -57,10 +57,10 @@ class ImportHouseholds extends Command
         return self::SUCCESS;
     }
 
-    private function propose(KontoClient $client): void
+    private function propose(AccountManagerClient $client): void
     {
         $local = Household::query()
-            ->whereNull('konto_household_uuid')
+            ->whereNull('account_manager_household_uuid')
             ->with(['users' => fn ($query) => $query->orderByPivot('joined_at')->orderBy('users.id')])
             ->orderBy('id')
             ->get();
@@ -94,8 +94,8 @@ class ImportHouseholds extends Command
             foreach ($client->propose(array_values($chunk->all())) as $state) {
                 Household::query()
                     ->whereKey((int) $state['local_id'])
-                    ->whereNull('konto_household_uuid')
-                    ->update(['konto_import_status' => $state['status'] === self::REJECTED ? self::REJECTED : self::PENDING]);
+                    ->whereNull('account_manager_household_uuid')
+                    ->update(['account_manager_import_status' => $state['status'] === self::REJECTED ? self::REJECTED : self::PENDING]);
             }
         }
 
@@ -105,13 +105,13 @@ class ImportHouseholds extends Command
     /**
      * @param  list<ImportState>  $states
      */
-    private function apply(array $states, KontoHouseholds $households): void
+    private function apply(array $states, AccountManagerHouseholds $households): void
     {
         $counts = ['confirmed' => 0, self::PENDING => 0, self::REJECTED => 0];
 
         foreach ($states as $state) {
             $local = ctype_digit($state['local_id'])
-                ? Household::query()->whereKey((int) $state['local_id'])->whereNull('konto_household_uuid')->first()
+                ? Household::query()->whereKey((int) $state['local_id'])->whereNull('account_manager_household_uuid')->first()
                 : null;
 
             if ($local === null) {
@@ -122,7 +122,7 @@ class ImportHouseholds extends Command
                 $households->adopt($local, $state['household']);
                 $counts['confirmed']++;
             } elseif (in_array($state['status'], [self::PENDING, self::REJECTED], true)) {
-                $local->forceFill(['konto_import_status' => $state['status']])->save();
+                $local->forceFill(['account_manager_import_status' => $state['status']])->save();
                 $counts[$state['status']]++;
             }
         }

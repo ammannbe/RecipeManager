@@ -23,7 +23,7 @@ use Livewire\Livewire;
 use Tests\TestCase;
 
 /**
- * Local household management (HOUSEHOLDS_DRIVER=local) and its read-only "konto" mode.
+ * Local household management (HOUSEHOLDS_DRIVER=local) and its read-only "account-manager" mode.
  */
 class HouseholdTest extends TestCase
 {
@@ -402,9 +402,9 @@ class HouseholdTest extends TestCase
         $this->assertModelMissing($alone);
     }
 
-    public function test_the_konto_driver_makes_local_management_read_only(): void
+    public function test_the_account_manager_driver_makes_local_management_read_only(): void
     {
-        config(['households.driver' => 'konto']);
+        config(['households.driver' => 'account-manager']);
 
         $admin = User::factory()->create(['email' => 'admin@example.com']);
         $household = Household::factory()->administeredBy($admin)->create();

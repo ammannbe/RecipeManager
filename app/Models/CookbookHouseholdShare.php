@@ -2,8 +2,8 @@
 
 namespace App\Models;
 
-use App\Households\KontoHouseholds;
-use App\Jobs\ReportKontoShares;
+use App\Households\AccountManagerHouseholds;
+use App\Jobs\ReportAccountManagerShares;
 use Illuminate\Database\Eloquent\Relations\Pivot;
 
 /**
@@ -38,15 +38,15 @@ class CookbookHouseholdShare extends Pivot
 
     protected static function booted(): void
     {
-        // The AccountManager shows the cookbooks shared with a mirrored household (HOUSEHOLDS_DRIVER=konto).
-        static::created(fn (CookbookHouseholdShare $share) => $share->reportToKonto());
-        static::deleted(fn (CookbookHouseholdShare $share) => $share->reportToKonto());
+        // The AccountManager shows the cookbooks shared with a mirrored household (HOUSEHOLDS_DRIVER=account-manager).
+        static::created(fn (CookbookHouseholdShare $share) => $share->reportToAccountManager());
+        static::deleted(fn (CookbookHouseholdShare $share) => $share->reportToAccountManager());
     }
 
-    private function reportToKonto(): void
+    private function reportToAccountManager(): void
     {
-        if (KontoHouseholds::enabled() && ($household = Household::query()->find($this->getAttribute('household_id'))) !== null) {
-            ReportKontoShares::dispatchFor($household);
+        if (AccountManagerHouseholds::enabled() && ($household = Household::query()->find($this->getAttribute('household_id'))) !== null) {
+            ReportAccountManagerShares::dispatchFor($household);
         }
     }
 }

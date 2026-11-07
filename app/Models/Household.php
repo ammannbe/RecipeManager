@@ -3,7 +3,7 @@
 namespace App\Models;
 
 use App\Enums\HouseholdRole;
-use App\Jobs\ReportKontoShares;
+use App\Jobs\ReportAccountManagerShares;
 use App\Services\Households;
 use Database\Factories\HouseholdFactory;
 use Illuminate\Database\Eloquent\Builder;
@@ -30,20 +30,20 @@ class Household extends Model
     protected $fillable = [
         'name',
         'created_by',
-        'konto_household_uuid',
+        'account_manager_household_uuid',
     ];
 
     protected $casts = [
-        'konto_version' => 'integer',
+        'account_manager_version' => 'integer',
     ];
 
     /**
-     * Mirrored from the AccountManager (HOUSEHOLDS_DRIVER=konto): name and members come from there.
+     * Mirrored from the AccountManager (HOUSEHOLDS_DRIVER=account-manager): name and members come from there.
      * After switching back to "local" mirrored households are ordinary local ones.
      */
     public function isMirrored(): bool
     {
-        return $this->konto_household_uuid !== null && ! Households::isLocal();
+        return $this->account_manager_household_uuid !== null && ! Households::isLocal();
     }
 
     /**
@@ -83,19 +83,19 @@ class Household extends Model
     }
 
     /**
-     * HOUSEHOLDS_DRIVER=konto: whether the household comes from the AccountManager, or the state of
+     * HOUSEHOLDS_DRIVER=account-manager: whether the household comes from the AccountManager, or the state of
      * its proposal (households:import). Null with the local driver.
      */
-    public function kontoStatus(): ?string
+    public function accountManagerStatus(): ?string
     {
         if (Households::isLocal()) {
             return null;
         }
 
         return match (true) {
-            $this->konto_household_uuid !== null => __('Managed in your account'),
-            $this->konto_import_status === 'pending' => __('Proposed for your account, waiting for confirmation'),
-            $this->konto_import_status === 'rejected' => __('Not taken over into your account'),
+            $this->account_manager_household_uuid !== null => __('Managed in your account'),
+            $this->account_manager_import_status === 'pending' => __('Proposed for your account, waiting for confirmation'),
+            $this->account_manager_import_status === 'rejected' => __('Not taken over into your account'),
             default => __('Only in this app'),
         };
     }
@@ -146,7 +146,7 @@ class Household extends Model
             ->delete();
 
         if ($unshared > 0) {
-            ReportKontoShares::dispatchFor($this);
+            ReportAccountManagerShares::dispatchFor($this);
         }
 
         return $unshared;

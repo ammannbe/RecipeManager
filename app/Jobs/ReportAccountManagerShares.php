@@ -2,9 +2,9 @@
 
 namespace App\Jobs;
 
-use App\Households\KontoClient;
-use App\Households\KontoHouseholds;
-use App\Households\KontoUnavailable;
+use App\Households\AccountManagerClient;
+use App\Households\AccountManagerHouseholds;
+use App\Households\AccountManagerUnavailable;
 use App\Models\Cookbook;
 use App\Models\Household;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -15,7 +15,7 @@ use Illuminate\Foundation\Queue\Queueable;
  * for the overview there). Only changes are sent (hash of the last report); failures are harmless,
  * households:sync reports again.
  */
-class ReportKontoShares implements ShouldQueue
+class ReportAccountManagerShares implements ShouldQueue
 {
     use Queueable;
 
@@ -32,12 +32,12 @@ class ReportKontoShares implements ShouldQueue
      */
     public static function dispatchFor(Household|iterable $households): void
     {
-        if (! KontoHouseholds::enabled() || ! config('households.konto.report_shares')) {
+        if (! AccountManagerHouseholds::enabled() || ! config('households.account_manager.report_shares')) {
             return;
         }
 
         foreach ($households instanceof Household ? [$households] : $households as $household) {
-            if ($household->konto_household_uuid !== null) {
+            if ($household->account_manager_household_uuid !== null) {
                 static::dispatch($household)->afterCommit();
             }
         }
@@ -62,27 +62,27 @@ class ReportKontoShares implements ShouldQueue
             ->all());
     }
 
-    public function handle(KontoClient $client): void
+    public function handle(AccountManagerClient $client): void
     {
         $household = $this->household->fresh();
 
-        if ($household?->konto_household_uuid === null || ! KontoHouseholds::enabled()) {
+        if ($household?->account_manager_household_uuid === null || ! AccountManagerHouseholds::enabled()) {
             return;
         }
 
         $shares = self::shares($household);
         $hash = hash('sha256', json_encode($shares, JSON_THROW_ON_ERROR));
 
-        if ($hash === $household->konto_shares_hash) {
+        if ($hash === $household->account_manager_shares_hash) {
             return;
         }
 
         try {
-            if ($client->putShares($household->konto_household_uuid, $shares)) {
-                $household->forceFill(['konto_shares_hash' => $hash])->saveQuietly();
+            if ($client->putShares($household->account_manager_household_uuid, $shares)) {
+                $household->forceFill(['account_manager_shares_hash' => $hash])->saveQuietly();
             }
-        } catch (KontoUnavailable $exception) {
-            KontoHouseholds::logUnavailable($exception, 'reporting the shares');
+        } catch (AccountManagerUnavailable $exception) {
+            AccountManagerHouseholds::logUnavailable($exception, 'reporting the shares');
 
             if ($this->attempts() < $this->tries) {
                 $this->release(300);

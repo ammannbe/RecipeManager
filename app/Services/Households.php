@@ -23,7 +23,7 @@ class Households
     public const EXPIRES_AFTER_DAYS = 14;
 
     /**
-     * Whether households are managed in this app. With "konto" they are mirrored from the
+     * Whether households are managed in this app. With "account-manager" they are mirrored from the
      * AccountManager and read-only here.
      */
     public static function isLocal(): bool

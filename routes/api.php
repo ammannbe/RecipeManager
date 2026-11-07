@@ -1,7 +1,7 @@
 <?php
 
+use App\Http\Controllers\Api\AccountManagerWebhookController;
 use App\Http\Controllers\Api\FoodController;
-use App\Http\Controllers\Api\KontoWebhookController;
 use App\Http\Controllers\Api\RecipeController;
 use App\Http\Controllers\Api\RecipeDraftController;
 use App\Http\Controllers\Api\UserController;
@@ -19,5 +19,5 @@ Route::middleware(['auth:api', DenyMcpTokens::class, 'throttle:120,1'])->group(f
     Route::post('/recipe-drafts', [RecipeDraftController::class, 'store'])->name('api.recipe-drafts.store');
 });
 
-// Household events of the AccountManager (HOUSEHOLDS_DRIVER=konto), signed, no session or CSRF.
-Route::post('/konto/webhook', KontoWebhookController::class)->middleware('throttle:120,1')->name('konto.webhook');
+// Household events of the AccountManager (HOUSEHOLDS_DRIVER=account-manager), signed, no session or CSRF.
+Route::post('/account-manager/webhook', AccountManagerWebhookController::class)->middleware('throttle:120,1')->name('account-manager.webhook');

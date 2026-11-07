@@ -3,7 +3,7 @@
 namespace App\Filament\Auth;
 
 use App\Auth\OidcLabel;
-use App\Households\KontoHouseholds;
+use App\Households\AccountManagerHouseholds;
 use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Auth\Pages\EditProfile as BaseEditProfile;
@@ -35,9 +35,9 @@ class EditProfile extends BaseEditProfile
                 // Without a password the account would no longer be reachable.
                 ->visible(fn (): bool => $this->profileUser()->oidc_sub !== null && $this->profileUser()->password !== null)
                 ->action(function (): void {
-                    // Mirrored households are matched by the sign-in (HOUSEHOLDS_DRIVER=konto).
-                    if (KontoHouseholds::enabled()) {
-                        app(KontoHouseholds::class)->detachUser($this->profileUser());
+                    // Mirrored households are matched by the sign-in (HOUSEHOLDS_DRIVER=account-manager).
+                    if (AccountManagerHouseholds::enabled()) {
+                        app(AccountManagerHouseholds::class)->detachUser($this->profileUser());
                     }
 
                     $this->profileUser()->forceFill(['oidc_sub' => null])->save();

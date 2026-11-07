@@ -4,7 +4,7 @@ namespace App\Filament\Resources\Households\Pages;
 
 use App\Filament\Resources\Households\HouseholdResource;
 use App\Filament\Resources\Households\Widgets\PendingHouseholdInvitations;
-use App\Households\KontoHouseholds;
+use App\Households\AccountManagerHouseholds;
 use App\Services\Households;
 use Filament\Actions\Action;
 use Filament\Actions\CreateAction;
@@ -19,11 +19,11 @@ class ListHouseholds extends ListRecords
     protected function getHeaderActions(): array
     {
         return [
-            Action::make('manageInKonto')
+            Action::make('manageInAccountManager')
                 ->label(__('Manage households in your account'))
                 ->icon(Heroicon::OutlinedArrowTopRightOnSquare)
-                ->url(fn (): ?string => KontoHouseholds::portalUrl(), shouldOpenInNewTab: true)
-                ->visible(fn (): bool => KontoHouseholds::portalUrl() !== null),
+                ->url(fn (): ?string => AccountManagerHouseholds::portalUrl(), shouldOpenInNewTab: true)
+                ->visible(fn (): bool => AccountManagerHouseholds::portalUrl() !== null),
             CreateAction::make()
                 // The creator becomes the first admin.
                 ->using(fn (array $data): Model => app(Households::class)->create(user(), (string) $data['name'])),
