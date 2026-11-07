@@ -37,6 +37,24 @@ class AccountManagerLabel
     }
 
     /**
+     * Profile page of the AccountManager ("Manage account in …" for linked accounts): on the portal's public
+     * address when it publishes one (households_url), otherwise ACCOUNT_MANAGER_URL. Null without ACCOUNT_MANAGER_URL.
+     */
+    public static function profileUrl(): ?string
+    {
+        $url = config('households.account_manager.url');
+
+        if (! is_string($url) || trim($url) === '') {
+            return null;
+        }
+
+        $public = self::info()['households_url'];
+        $base = $public !== null ? preg_replace('#/households/?$#', '', $public) : $url;
+
+        return rtrim((string) $base, '/').'/profile';
+    }
+
+    /**
      * Only asked with HOUSEHOLDS_DRIVER=account-manager and ACCOUNT_MANAGER_URL, so nothing else (and no test) hits the network.
      *
      * @return array{name: ?string, households_url: ?string}

@@ -306,19 +306,45 @@ class OidcLinkedAccountTest extends TestCase
             ->assertActionVisible('unlinkOidc')
             ->assertActionHidden('linkOidc');
 
-        $this->get(EditProfile::getUrl(panel: 'app'))->assertOk()->assertSee('Connected with Pocket ID');
+        $this->get(EditProfile::getUrl(panel: 'app'))->assertOk()
+            ->assertSee('Connected with Pocket ID')
+            ->assertSee('Manage account')
+            ->assertSee('Unlink from Pocket ID');
     }
 
     public function test_the_profile_of_an_unlinked_account_keeps_the_password_fields(): void
     {
         $this->actingAs($this->localUser());
+        // Local accounts change e-mail and password here, also with the AccountManager connected.
+        config(['households.account_manager.url' => 'https://konto.example.com']);
 
         Livewire::test(EditProfile::class)
             ->assertDontSee('Connected with Pocket ID')
+            ->assertSee('Manage account')
             ->assertFormFieldExists('password')
             ->assertFormFieldEnabled('email')
+            ->assertFormFieldEnabled('name')
             ->assertActionVisible('linkOidc')
-            ->assertActionHidden('unlinkOidc');
+            ->assertActionHidden('unlinkOidc')
+            ->assertActionHidden('manageAccount');
+    }
+
+    public function test_linked_accounts_manage_their_account_in_the_account_manager_when_connected(): void
+    {
+        $this->actingAs(User::factory()->linked()->create());
+
+        Livewire::test(EditProfile::class)->assertActionHidden('manageAccount');
+
+        config(['households.account_manager.url' => 'https://konto.example.com/', 'households.account_manager.label' => 'NarrenKonto']);
+
+        Livewire::test(EditProfile::class)
+            ->assertActionVisible('manageAccount')
+            ->assertActionHasLabel('manageAccount', 'Manage account in “NarrenKonto”')
+            ->assertActionHasUrl('manageAccount', 'https://konto.example.com/profile')
+            ->assertActionShouldOpenUrlInNewTab('manageAccount')
+            ->assertSee('It is the address of your Pocket ID account.')
+            // The author name is a field of the recipe collection and stays editable.
+            ->assertFormFieldEnabled('name');
     }
 
     public function test_admins_see_the_sign_in_and_cannot_set_a_password_on_a_linked_account(): void

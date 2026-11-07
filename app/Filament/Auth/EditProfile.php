@@ -4,6 +4,7 @@ namespace App\Filament\Auth;
 
 use App\Auth\OidcAccount;
 use App\Auth\OidcLabel;
+use App\Households\AccountManagerLabel;
 use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Auth\Pages\EditProfile as BaseEditProfile;
@@ -12,14 +13,18 @@ use Filament\Forms\Components\TextInput;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
 use Filament\Schemas\Components\Component;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\Rules\Password;
 
 /**
- * Linked accounts (users.oidc_sub) show "Connected with …" instead of the password fields and can
- * only unlink together with a new password, after a recent OIDC sign-in. Unlinked accounts keep
- * the password fields and can link the sign-in after confirming their password (App\Auth\OidcAccount).
+ * Profile: the author name (shown on the recipes) and "Manage account" (same structure as the settings of
+ * Shoppinglist and Chorelist). Linked accounts (users.oidc_sub) show "Connected with …" instead of the
+ * password fields, "Manage account in “…”" (AccountManager connected) and can only unlink together with
+ * a new password, after a recent OIDC sign-in. Unlinked accounts keep e-mail and password and can link
+ * the sign-in after confirming their password (App\Auth\OidcAccount). Signing out is in the user menu;
+ * there is no self-deletion (only user.deleted of the AccountManager and admins delete users).
  */
 class EditProfile extends BaseEditProfile
 {
@@ -29,6 +34,7 @@ class EditProfile extends BaseEditProfile
     protected function getHeaderActions(): array
     {
         return [
+            $this->manageAccountAction(),
             $this->linkOidcAction(),
             $this->unlinkOidcAction(),
         ];
@@ -36,26 +42,55 @@ class EditProfile extends BaseEditProfile
 
     public function form(Schema $schema): Schema
     {
+        $author = Section::make(__('Author'))
+            ->schema([$this->getNameFormComponent()]);
+
         if (! $this->profileUser()->isLinkedToOidc()) {
-            return parent::form($schema);
+            return $schema->components([
+                $author,
+                Section::make(__('Manage account'))->schema([
+                    $this->getEmailFormComponent(),
+                    $this->getPasswordFormComponent(),
+                    $this->getPasswordConfirmationFormComponent(),
+                    $this->getCurrentPasswordFormComponent(),
+                ]),
+            ]);
         }
 
         $provider = OidcLabel::get();
+        $managerUrl = AccountManagerLabel::profileUrl();
 
         return $schema->components([
-            $this->getNameFormComponent(),
-            // Changing it needs the current password (which a linked account has not).
-            TextInput::make('email')
-                ->label(__('filament-panels::auth/pages/edit-profile.form.email.label'))
-                ->email()
-                ->disabled()
-                ->belowContent(__('To change it, unlink :provider first.', ['provider' => $provider])),
-            TextEntry::make('oidcSignIn')
-                ->label(__('Sign-in'))
-                ->state(__('Connected with :provider', ['provider' => $provider]))
-                ->icon('heroicon-o-link')
-                ->belowContent(__('Signing in with a password is turned off for this account.')),
+            $author,
+            Section::make(__('Manage account'))->schema([
+                // Changing it needs the current password (which a linked account has not).
+                TextInput::make('email')
+                    ->label(__('filament-panels::auth/pages/edit-profile.form.email.label'))
+                    ->email()
+                    ->disabled()
+                    ->belowContent($managerUrl !== null
+                        ? __('It is the address of your :provider account.', ['provider' => $provider])
+                        : __('To change it, unlink :provider first.', ['provider' => $provider])),
+                TextEntry::make('oidcSignIn')
+                    ->label(__('Sign-in'))
+                    ->state(__('Connected with :provider', ['provider' => $provider]))
+                    ->icon('heroicon-o-link')
+                    ->belowContent(__('Signing in with a password is turned off for this account.')),
+            ]),
         ]);
+    }
+
+    /**
+     * Linked accounts manage name, address and password in the AccountManager (if the app is connected to it).
+     */
+    private function manageAccountAction(): Action
+    {
+        return Action::make('manageAccount')
+            ->label(fn (): string => __('Manage account in “:name”', ['name' => AccountManagerLabel::get()]))
+            ->icon('heroicon-o-arrow-top-right-on-square')
+            ->color('gray')
+            ->visible(fn (): bool => $this->profileUser()->isLinkedToOidc() && AccountManagerLabel::profileUrl() !== null)
+            ->url(fn (): ?string => AccountManagerLabel::profileUrl(), shouldOpenInNewTab: true);
     }
 
     private function linkOidcAction(): Action
@@ -94,7 +129,7 @@ class EditProfile extends BaseEditProfile
         $confirmed = fn (): bool => app(OidcAccount::class)->hasRecentSignIn();
 
         return Action::make('unlinkOidc')
-            ->label(fn (): string => __('Unlink :provider', ['provider' => OidcLabel::get()]))
+            ->label(fn (): string => __('Unlink from :provider', ['provider' => OidcLabel::get()]))
             ->icon('heroicon-o-link-slash')
             ->color('gray')
             // Without the OIDC login there is nothing to confirm with; users:unlink-oidc is the way back then.
@@ -160,10 +195,14 @@ class EditProfile extends BaseEditProfile
         return $data;
     }
 
+    /**
+     * The author name: a field of the recipe collection (shown on recipes and cookbooks, unique), not the account's name.
+     */
     protected function getNameFormComponent(): Component
     {
         return TextInput::make('name')
             ->label(__('Name'))
+            ->belowContent(__('Shown as the author of your recipes and cookbooks.'))
             ->required()
             ->maxLength(50)
             ->unique('authors', 'name', ignorable: function () {
