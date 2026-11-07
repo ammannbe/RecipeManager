@@ -15,7 +15,8 @@ use Throwable;
 /**
  * Stores the entitlements snapshots of the AccountManager (contract: AccountManager docs/ENTITLEMENTS-API.md,
  * sections 5 and 6): every webhook and API answer replaces the stored state of the user. Webhooks
- * apply only newer versions, API answers also the same version; 404 of the API sets "none" and keeps
+ * apply only newer versions; API answers are the current truth and always apply, also with a lower
+ * version (e.g. after the AccountManager restored a backup); 404 of the API sets "none" and keeps
  * the version. Events of unknown subjects are ignored, the OIDC sign-in fetches the snapshot.
  *
  * @phpstan-import-type EntitlementSnapshot from AccountManagerClient
@@ -130,18 +131,9 @@ class AccountManagerEntitlements
         $applied = DB::transaction(function () use ($user, $snapshot, $authoritative): bool {
             $entitlement = UserEntitlement::query()->where('user_id', $user->getKey())->lockForUpdate()->first();
 
-            if ($entitlement !== null) {
-                $stale = $authoritative
-                    ? $snapshot['version'] < $entitlement->version
-                    : $snapshot['version'] <= $entitlement->version;
-
-                if ($stale) {
-                    if ($authoritative) {
-                        $entitlement->forceFill(['synced_at' => now()])->save();
-                    }
-
-                    return false;
-                }
+            // Only webhooks can be stale (no order guaranteed); API answers always apply.
+            if ($entitlement !== null && ! $authoritative && $snapshot['version'] <= $entitlement->version) {
+                return false;
             }
 
             $entitlement ??= new UserEntitlement(['user_id' => $user->getKey()]);

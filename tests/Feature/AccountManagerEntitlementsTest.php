@@ -356,12 +356,12 @@ class AccountManagerEntitlementsTest extends TestCase
         $this->assertSame(['none', false, 7], [$this->stored($other)?->status, $this->stored($other)?->admin, $this->stored($other)?->version]);
         Http::assertSentCount(2);
 
-        // API answers apply the same version, but not older ones.
+        // API answers apply the same and lower versions too (the API is the current truth).
         $this->accountManager['GET entitlements/sub-123'] = [200, ['data' => $this->snapshot(2, 'suspended')]];
         $this->accountManager['GET entitlements/sub-other'] = [200, ['data' => $this->snapshot(6, sub: 'sub-other')]];
         $this->command('entitlements:sync')->assertSuccessful();
         $this->assertSame('suspended', $this->stored()?->status);
-        $this->assertSame('none', $this->stored($other)?->status);
+        $this->assertSame(['active', 6], [$this->stored($other)?->status, $this->stored($other)?->version]);
     }
 
     public function test_the_last_state_stays_while_the_account_manager_is_down(): void
@@ -430,5 +430,25 @@ class AccountManagerEntitlementsTest extends TestCase
         $this->webhook('user.deleted', ['user' => ['sub' => '']])->assertUnprocessable();
 
         $this->assertNotNull($emergency->fresh());
+    }
+
+    public function test_api_answers_always_apply_also_older_versions(): void
+    {
+        $this->store($this->user, 'active', admin: true, version: 9);
+
+        // After a backup restore the AccountManager answers with a lower version: the API is the current truth.
+        $this->accountManager['GET entitlements/sub-123'] = [200, ['data' => $this->snapshot(3, 'suspended')]];
+        $this->command('entitlements:sync')->assertSuccessful();
+
+        $stored = $this->stored();
+        $this->assertSame(['suspended', false, 3], [$stored?->status, $stored?->admin, $stored?->version]);
+        $this->assertNotNull($stored?->synced_at);
+
+        // Webhooks stay strict: equal or lower versions are ignored, higher ones apply.
+        $this->changed($this->snapshot(3))->assertNoContent();
+        $this->changed($this->snapshot(2))->assertNoContent();
+        $this->assertSame('suspended', $this->stored()?->status);
+        $this->changed($this->snapshot(4))->assertNoContent();
+        $this->assertSame(['active', 4], [$this->stored()->status, $this->stored()->version]);
     }
 }

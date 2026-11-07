@@ -113,8 +113,9 @@ class AccountManagerHouseholds
     }
 
     /**
-     * Sets the local copy to the snapshot. Webhooks apply only newer versions, API answers
-     * ($authoritative) also the same version.
+     * Sets the local copy to the snapshot. Webhooks apply only newer versions; API answers
+     * ($authoritative) are the current truth and always apply, also with a lower version (e.g.
+     * after the AccountManager restored a backup).
      *
      * @param  Snapshot  $snapshot
      */
@@ -288,14 +289,9 @@ class AccountManagerHouseholds
                 ? Household::query()->whereKey($household->getKey())->lockForUpdate()->firstOrFail()
                 : Household::query()->where('account_manager_household_uuid', $snapshot['uuid'])->lockForUpdate()->first();
 
-            if ($household?->account_manager_version !== null) {
-                $stale = $authoritative
-                    ? $snapshot['version'] < $household->account_manager_version
-                    : $snapshot['version'] <= $household->account_manager_version;
-
-                if ($stale) {
-                    return $household;
-                }
+            // Only webhooks can be stale (no order guaranteed); API answers always apply.
+            if ($household?->account_manager_version !== null && ! $authoritative && $snapshot['version'] <= $household->account_manager_version) {
+                return $household;
             }
 
             $household ??= new Household(['account_manager_household_uuid' => $snapshot['uuid']]);

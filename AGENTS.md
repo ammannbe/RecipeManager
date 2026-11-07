@@ -180,7 +180,7 @@ If any command fails, repeat the process from the beginning.
   (retried while the AccountManager is down). Always 204 for duplicates, stale and unknown types.
 * Every event and API answer is a full snapshot: name, members by `oidc_sub` (unknown subjects →
   `household_pending_members`, attached on the first OIDC sign-in or link), roles, all other members removed.
-  Webhooks apply only `version > account_manager_version`, API answers also `=`. `household.deleted` (or 404) deletes the
+  Webhooks apply only `version > account_manager_version`, API answers always apply (current truth, also with a lower version, e.g. after a backup restore of the AccountManager). `household.deleted` (or 404) deletes the
   household: memberships, pending members and `cookbook_household` go with it (FK cascades), cookbooks and recipes stay
   with their owners. Events of unknown households are confirmed with `GET /api/households/{uuid}` (404: nothing is
   created). Cookbook access needs no extra step: it is resolved through the membership (`Cookbook::grants()`), so
@@ -231,7 +231,7 @@ If any command fails, repeat the process from the beginning.
   (emergency admins) stay admins.
 * Storage: `user_entitlements` (user_id unique, status, admin, features JSON, version, synced_at; model `UserEntitlement`,
   `User::entitlement()`), dropped when `oidc_sub` changes (`UserObserver::updated`, versions count per subject).
-  `App\Entitlements\AccountManagerEntitlements`: webhooks apply only `version > stored`, API answers also `=`; 404 sets
+  `App\Entitlements\AccountManagerEntitlements`: webhooks apply only `version > stored`, API answers always apply (current truth, also with a lower version, e.g. after a backup restore of the AccountManager); 404 sets
   `none` and keeps the version. `entitlements.changed` for unknown subjects is ignored (204): the OIDC callback fetches the
   snapshot (`syncOnSignIn()`, total timeout 5 s, failures keep the last state and only log) and `entitlements:sync`
   (daily 04:30) fetches it for every linked user (a failure stops the run, the state stays). Snapshots are stored when
