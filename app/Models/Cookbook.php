@@ -2,6 +2,8 @@
 
 namespace App\Models;
 
+use App\Households\KontoHouseholds;
+use App\Jobs\ReportKontoShares;
 use Database\Factories\CookbookFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -39,6 +41,22 @@ class Cookbook extends Model
         static::addGlobalScope('author_name', function (Builder $builder) {
             $builder->withAggregate('author', 'name');
         });
+
+        // The AccountManager shows the names of the cookbooks shared with a household (HOUSEHOLDS_DRIVER=konto).
+        static::updated(function (Cookbook $cookbook): void {
+            if ($cookbook->wasChanged('name')) {
+                $cookbook->reportKontoShares();
+            }
+        });
+        static::deleted(fn (Cookbook $cookbook) => $cookbook->reportKontoShares());
+        static::restored(fn (Cookbook $cookbook) => $cookbook->reportKontoShares());
+    }
+
+    public function reportKontoShares(): void
+    {
+        if (KontoHouseholds::enabled()) {
+            ReportKontoShares::dispatchFor($this->households()->whereNotNull('konto_household_uuid')->get());
+        }
     }
 
     /**

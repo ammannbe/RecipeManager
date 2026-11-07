@@ -99,11 +99,12 @@ If any command fails, repeat the process from the beginning.
 
 * Concept: `~/Projekte/AccountManager/docs/KONZEPT.md` 5.6 (phase 7 "local"; phase 8 mirrors the AccountManager).
   Same design and names in Shoppinglist and Chorelist.
-* `config/households.php` `driver` (`HOUSEHOLDS_DRIVER`): `local` (default) manages households here; `konto` makes
-  the local management read-only (`Households::isLocal()`: `HouseholdPolicy` forbids create/rename/delete/invite/
-  roles/remove/leave, invitation links and pending invitations are refused). Syncing from the AccountManager is not
-  built yet; `households.konto_household_uuid` is reserved for it.
-* Tables `households` (uuid, name, `created_by`), `household_user` (role `admin`|`member`, `joined_at`),
+* `config/households.php` `driver` (`HOUSEHOLDS_DRIVER`): `local` (default) manages households here; `konto` mirrors
+  them from the AccountManager (see below) and makes the local management read-only (`Households::isLocal()`:
+  `HouseholdPolicy` forbids create/rename/delete/invite/roles/remove/leave, invitation links and pending invitations
+  are refused); sharing cookbooks with households stays possible.
+* Tables `households` (uuid, name, `created_by`, `konto_household_uuid`, `konto_version`, `konto_import_status`,
+  `konto_shares_hash`), `household_user` (role `admin`|`member`, `joined_at`),
   `household_invitations` (like `cookbook_invitations`: token hash, role, `invited_by`, 14 days,
   `household-invitations:prune` daily) and `cookbook_household` (same grants as `cookbook_user`).
 * `App\Services\Households` keeps the rules: the creator is admin; at least one admin stays (`LastHouseholdAdmin`
@@ -124,6 +125,52 @@ If any command fails, repeat the process from the beginning.
   households, grants add up) and the query scope `Cookbook::scopeSharedWith($user, $grants)`, used by
   `Cookbook::visibleTo()`/`administeredBy()`, `Recipe::visibleTo()`, the Recipe/Cookbook resources and
   `MyCookbooksWidget`. Never query `cookbook_user` directly for access. Tests: `HouseholdTest`, `HouseholdSharingTest`.
+
+### Households from the AccountManager (`HOUSEHOLDS_DRIVER=konto`)
+
+* Contract: AccountManager `docs/HOUSEHOLDS-API.md` (phase 8). Env `KONTO_URL`, `KONTO_SERVICE_KEY`, `KONTO_SECRET` (one
+  secret signs the webhooks and authenticates the API with HTTP Basic), `KONTO_REPORT_SHARES`. Mirroring is active only
+  with the driver and all three values (`KontoHouseholds::enabled()`), otherwise the webhook returns 404. Needs the
+  OIDC login (members are matched by `users.oidc_sub`) and the queue worker. Same names as Chorelist and Shoppinglist.
+* `App\Households\KontoClient` (`GET /api/households?sub=`, `GET /api/households/{uuid}`, `PUT …/shares`,
+  `POST/GET /api/households/import`; connect 3 s, total 10 s, no redirects; every failure is `KontoUnavailable`, 404 is an
+  answer), `KontoHouseholds` (applying snapshots), jobs `ApplyKontoEvent`, `ReportKontoShares`.
+* Webhook `POST /api/konto/webhook` (`routes/api.php`, no session/CSRF, `throttle:120,1`, `Api\KontoWebhookController`):
+  HMAC-SHA256 over `"{timestamp}.{body}"` (raw body, `X-Konto-Signature`, `X-Konto-Timestamp` max. 300 s off), accepted
+  once per `event_id` (`konto_webhook_events`, `model:prune` after 7 days), applied by the queued `ApplyKontoEvent`
+  (retried while the AccountManager is down). Always 204 for duplicates, stale and unknown types.
+* Every event and API answer is a full snapshot: name, members by `oidc_sub` (unknown subjects →
+  `household_pending_members`, attached on the first OIDC sign-in or link), roles, all other members removed.
+  Webhooks apply only `version > konto_version`, API answers also `=`. `household.deleted` (or 404) deletes the
+  household: memberships, pending members and `cookbook_household` go with it (FK cascades), cookbooks and recipes stay
+  with their owners. Events of unknown households are confirmed with `GET /api/households/{uuid}` (404: nothing is
+  created). Cookbook access needs no extra step: it is resolved through the membership (`Cookbook::grants()`), so
+  added/removed members gain/lose it right away. Removed members' own cookbooks stay shared with the household (like
+  leaving a local household; the owner unshares them on the cookbook).
+* `households:sync` (daily 04:15): `GET /api/households?sub=` for every user with `oidc_sub`, mirrored households nobody
+  listed are checked one by one (404 deletes), then the shares are reported. The OIDC callback (sign-in and linking,
+  `KontoHouseholds::syncOnSignIn()`, total timeout 5 s) attaches pending memberships and syncs the user; unlinking in the
+  profile moves the user's mirrored memberships back to pending. AccountManager down: the last state stays, a warning
+  is logged, the sign-in works.
+* Shares (optional, `KONTO_REPORT_SHARES`): `ReportKontoShares` sends the cookbooks shared with a mirrored household
+  (`cookbook`, id, name; trashed ones left out) after sharing/unsharing (`CookbookHouseholdShare` created/deleted events),
+  renaming, trashing or restoring a cookbook and in the daily sync; only changes (`konto_shares_hash`), failures ignored.
+* UI (konto): the households list has "Manage households in your account" (`KONTO_URL/households`), the columns "Not
+  using the app yet" (pending members) and "Account" (`Household::kontoStatus()`: managed in the account / proposed /
+  not taken over / only in this app); the view page shows the same and "Manage in your account". No create, rename,
+  delete, invite, roles or leave.
+* Switching from `local`: set the driver and the Konto values, run `households:import`: proposes the local households
+  without `konto_household_uuid` (members with `oidc_sub` only; households without any stay local, the command warns
+  about members without a linked sign-in). An admin of the AccountManager confirms; the hourly
+  `households:import --check` maps confirmed ones (`konto_household_uuid`, name and members from the snapshot, cookbook
+  shares stay; if the household is mirrored already the shares move there, grants add up, and the local one is dropped)
+  and marks rejected ones (`konto_import_status`, they stay local and read-only). Members without a linked sign-in lose
+  the household access on confirmation.
+* Back to `local` (Rückbau): mirrored households become ordinary local households (management enabled again,
+  `konto_household_uuid`/`konto_version` stay, pending members are ignored, households without `created_by` are fine),
+  shares stay; the webhook answers 404. Switching to `konto` again overwrites them with the next newer snapshot.
+* Deleting a user: in mirrored households the user only leaves (no hand-over, the AccountManager decides).
+* Tests: `KontoHouseholdTest` (fake AccountManager via `Http::fake`, signed webhooks, Socialite mock).
 
 ## Companion App API (Shoppinglist)
 
@@ -410,6 +457,7 @@ Important test areas:
 * policies
 * cookbook sharing and invitations
 * households (membership, roles, last admin, invitations, driver) and cookbook access through households
+* households from the AccountManager (webhook signature, idempotency, versions, sync, import, Konto down)
 * recipe visibility, including photo access
 * API (OAuth, visibility, search ranking, scaling, recipe creation)
 * filament pages

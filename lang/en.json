@@ -411,5 +411,14 @@
     "You joined the household \":name\".": "You joined the household \":name\".",
     "You left the household.": "You left the household.",
     "You lose access to the cookbooks shared with the household. Your own cookbooks stay yours.": "You lose access to the cookbooks shared with the household. Your own cookbooks stay yours.",
-    "Your role": "Your role"
+    "Your role": "Your role",
+    "Account": "Account",
+    "Managed in your account": "Managed in your account",
+    "Proposed for your account, waiting for confirmation": "Proposed for your account, waiting for confirmation",
+    "Not taken over into your account": "Not taken over into your account",
+    "Only in this app": "Only in this app",
+    "Not using the app yet": "Not using the app yet",
+    "Members of the household in your account who have not signed in here yet. They get access on their first sign-in.": "Members of the household in your account who have not signed in here yet. They get access on their first sign-in.",
+    "Manage households in your account": "Manage households in your account",
+    "Manage in your account": "Manage in your account"
 }

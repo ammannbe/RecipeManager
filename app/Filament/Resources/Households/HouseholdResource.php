@@ -9,6 +9,7 @@ use App\Filament\Resources\Households\RelationManagers\CookbooksRelationManager;
 use App\Filament\Resources\Households\RelationManagers\InvitationsRelationManager;
 use App\Filament\Resources\Households\RelationManagers\UsersRelationManager;
 use App\Models\Household;
+use App\Services\Households;
 use BackedEnum;
 use Filament\Forms\Components\TextInput;
 use Filament\Infolists\Components\TextEntry;
@@ -20,9 +21,9 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
- * Local households (HOUSEHOLDS_DRIVER=local): every user sees the households they belong
- * to, admins manage members and invitations. Cookbooks are shared with a household on
- * the cookbook ("Shared with households").
+ * Households: every user sees the households they belong to. With HOUSEHOLDS_DRIVER=local
+ * admins manage members and invitations; with "konto" they are read-only mirrors of the
+ * AccountManager. Cookbooks are shared with a household on the cookbook ("Shared with households").
  */
 class HouseholdResource extends Resource
 {
@@ -66,6 +67,16 @@ class HouseholdResource extends Resource
             TextEntry::make('created_at')
                 ->label(__('Created at'))
                 ->dateTime(),
+            // HOUSEHOLDS_DRIVER=konto only.
+            TextEntry::make('konto_status')
+                ->label(__('Account'))
+                ->state(fn (Household $record): ?string => $record->kontoStatus())
+                ->visible(fn (): bool => ! Households::isLocal()),
+            TextEntry::make('pending_members')
+                ->label(__('Not using the app yet'))
+                ->state(fn (Household $record): int => $record->pendingMembers()->count())
+                ->helperText(__('Members of the household in your account who have not signed in here yet. They get access on their first sign-in.'))
+                ->visible(fn (Household $record): bool => $record->isMirrored()),
         ]);
     }
 
@@ -90,6 +101,17 @@ class HouseholdResource extends Resource
                     ->label(__('Cookbooks'))
                     ->counts('cookbooks')
                     ->sortable(),
+                // HOUSEHOLDS_DRIVER=konto only.
+                TextColumn::make('pending_members_count')
+                    ->label(__('Not using the app yet'))
+                    ->counts('pendingMembers')
+                    ->visible(fn (): bool => ! Households::isLocal()),
+                TextColumn::make('konto_status')
+                    ->label(__('Account'))
+                    ->state(fn (Household $record): ?string => $record->kontoStatus())
+                    ->badge()
+                    ->color(fn (Household $record): string => $record->konto_household_uuid !== null ? 'success' : 'gray')
+                    ->visible(fn (): bool => ! Households::isLocal()),
             ])
             ->defaultSort('name')
             ->emptyStateHeading(__('No households yet'))

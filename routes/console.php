@@ -2,6 +2,7 @@
 
 use App\Models\CookbookInvitation;
 use App\Models\HouseholdInvitation;
+use App\Models\KontoWebhookEvent;
 use App\Models\RecipeDraft;
 use App\Models\User;
 use App\Services\RecipePhotos;
@@ -34,6 +35,12 @@ Artisan::command('household-invitations:prune', function () {
 })->purpose('Delete expired and accepted household invitations');
 
 Schedule::command('household-invitations:prune')->daily();
+
+// HOUSEHOLDS_DRIVER=konto: fallback for lost webhooks, the state of proposed local households and the
+// processed webhook events (idempotency, 7 days). The commands do nothing with the local driver.
+Schedule::command('households:sync')->dailyAt('04:15')->withoutOverlapping();
+Schedule::command('households:import --check')->hourly()->withoutOverlapping();
+Schedule::command('model:prune', ['--model' => [KontoWebhookEvent::class]])->daily();
 
 Artisan::command('recipe-drafts:prune', function () {
     $pruned = RecipeDraft::query()->where('expires_at', '<=', now())->delete();

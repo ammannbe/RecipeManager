@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\HouseholdRole;
+use App\Services\Households;
 use Database\Factories\HouseholdFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -29,6 +30,19 @@ class Household extends Model
         'created_by',
         'konto_household_uuid',
     ];
+
+    protected $casts = [
+        'konto_version' => 'integer',
+    ];
+
+    /**
+     * Mirrored from the AccountManager (HOUSEHOLDS_DRIVER=konto): name and members come from there.
+     * After switching back to "local" mirrored households are ordinary local ones.
+     */
+    public function isMirrored(): bool
+    {
+        return $this->konto_household_uuid !== null && ! Households::isLocal();
+    }
 
     /**
      * Only the uuid column is generated; the primary key stays an auto-increment id.
@@ -64,6 +78,34 @@ class Household extends Model
     public function invitations(): HasMany
     {
         return $this->hasMany(HouseholdInvitation::class);
+    }
+
+    /**
+     * HOUSEHOLDS_DRIVER=konto: whether the household comes from the AccountManager, or the state of
+     * its proposal (households:import). Null with the local driver.
+     */
+    public function kontoStatus(): ?string
+    {
+        if (Households::isLocal()) {
+            return null;
+        }
+
+        return match (true) {
+            $this->konto_household_uuid !== null => __('Managed in your account'),
+            $this->konto_import_status === 'pending' => __('Proposed for your account, waiting for confirmation'),
+            $this->konto_import_status === 'rejected' => __('Not taken over into your account'),
+            default => __('Only in this app'),
+        };
+    }
+
+    /**
+     * Members of the mirrored household without a user here yet (attached on their first OIDC sign-in).
+     *
+     * @return HasMany<HouseholdPendingMember, $this>
+     */
+    public function pendingMembers(): HasMany
+    {
+        return $this->hasMany(HouseholdPendingMember::class);
     }
 
     /**

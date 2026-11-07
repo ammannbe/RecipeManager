@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Households\Pages;
 
 use App\Exceptions\LastHouseholdAdmin;
 use App\Filament\Resources\Households\HouseholdResource;
+use App\Households\KontoHouseholds;
 use App\Models\Household;
 use App\Services\Households;
 use Filament\Actions\Action;
@@ -21,6 +22,12 @@ class ViewHousehold extends ViewRecord
     protected function getHeaderActions(): array
     {
         return [
+            Action::make('manageInKonto')
+                ->label(__('Manage in your account'))
+                ->icon(Heroicon::OutlinedArrowTopRightOnSquare)
+                ->color('gray')
+                ->url(fn (): ?string => KontoHouseholds::portalUrl(), shouldOpenInNewTab: true)
+                ->visible(fn (Household $record): bool => $record->isMirrored() && KontoHouseholds::portalUrl() !== null),
             EditAction::make()
                 ->label(__('Rename'))
                 ->modalHeading(__('Rename household'))
