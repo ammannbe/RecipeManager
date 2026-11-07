@@ -491,10 +491,15 @@ ddev artisan passport:client --name=Shoppinglist --redirect_uri=https://<shoppin
   the next smaller approved metric unit where they fit (`UnitConverter::precise()`: 1/8 l = 0.125 l becomes 1.25 dl);
   the import prompt asks for the same.
 * Data: `database/data/food-conversions.php` (units by name, foods by name: measure, density, piece
-  weights). `ddev artisan foods:conversions {--dry-run} {--force}` assigns it to exactly matching names,
-  values set by hand are kept without `--force`, and lists data names without a match. A data migration
-  ran it once. Foods whose units mean different things (Kaffee, Gemüsebouillon: liquid or powder) are
-  left out on purpose.
+  weights). `ddev artisan foods:conversions {--dry-run} {--force}` assigns it to exactly matching names:
+  without `--force` every empty field (measure, density, base amount, piece weight) is filled on its own and
+  fields already set to another value are kept (listed as "kept (is …)", also where the data has no density);
+  `--force` overwrites them (a data density of null clears it). It lists data names without a match. Data
+  migrations run it on deploy (`2026_11_07_090100_assign_food_conversions`,
+  `2026_11_15_090000_fill_missing_food_conversions`); add another one when the data grows. The data covers
+  the foods used in recipes: densities measured loosely in a spoon/cup, null where a volume makes no sense
+  (whole meat, sausages, bread, whole fruit/vegetables, salads, dough, chocolate bars). Foods whose units
+  mean different things (Kaffee, Gemüsebouillon: liquid or powder) are left out on purpose.
 
 ## Number format
 

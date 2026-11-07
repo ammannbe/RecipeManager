@@ -481,4 +481,45 @@ class UnitConversionTest extends TestCase
 
         $this->assertSame(0.55, $flour->fresh()->density);
     }
+
+    public function test_the_command_fills_each_empty_field_on_its_own(): void
+    {
+        $piece = $this->unit('Stück');
+        // Measure set, density missing: the density is filled.
+        $sugar = Food::factory()->create(['name' => 'Zucker', 'measure' => Measure::Mass]);
+        // Other measure set by hand, density missing: the measure stays, the density is filled.
+        $honey = Food::factory()->create(['name' => 'Honig', 'measure' => Measure::Volume]);
+        // Density set, measure missing: the measure is filled, the density stays.
+        $flour = Food::factory()->create(['name' => 'Mehl', 'density' => 0.6]);
+        // Density set where the data has none: kept.
+        $apples = Food::factory()->create(['name' => 'Äpfel', 'measure' => Measure::Mass, 'density' => 0.8]);
+        FoodUnitWeight::query()->create(['food_id' => $apples->id, 'unit_id' => $piece->id, 'grams' => 180]);
+
+        $command = $this->artisan('foods:conversions', ['--dry-run' => true]);
+        $this->assertInstanceOf(PendingCommand::class, $command);
+        $command->expectsOutputToContain('kept (is volume, use --force)')->assertSuccessful()->run();
+        $this->assertNull($sugar->fresh()->density);
+
+        $command = $this->artisan('foods:conversions');
+        $this->assertInstanceOf(PendingCommand::class, $command);
+        $command->assertSuccessful()->run();
+
+        $this->assertSame(Measure::Mass, $sugar->fresh()->measure);
+        $this->assertSame(0.85, $sugar->fresh()->density);
+        $this->assertSame(Measure::Volume, $honey->fresh()->measure);
+        $this->assertSame(1.4, $honey->fresh()->density);
+        $this->assertSame(Measure::Mass, $flour->fresh()->measure);
+        $this->assertSame(0.6, $flour->fresh()->density);
+        $this->assertSame(0.8, $apples->fresh()->density);
+        $this->assertSame(180.0, FoodUnitWeight::query()->where(['food_id' => $apples->id, 'unit_id' => $piece->id])->sole()->grams);
+
+        $command = $this->artisan('foods:conversions', ['--force' => true]);
+        $this->assertInstanceOf(PendingCommand::class, $command);
+        $command->assertSuccessful()->run();
+
+        $this->assertSame(Measure::Mass, $honey->fresh()->measure);
+        $this->assertSame(0.55, $flour->fresh()->density);
+        $this->assertNull($apples->fresh()->density);
+        $this->assertSame(150.0, FoodUnitWeight::query()->where(['food_id' => $apples->id, 'unit_id' => $piece->id])->sole()->grams);
+    }
 }

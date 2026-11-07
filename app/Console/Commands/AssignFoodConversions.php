@@ -11,7 +11,8 @@ use Illuminate\Support\Collection;
 
 /**
  * Assigns the unit converter data (database/data/food-conversions.php) to units and foods with
- * exactly matching names. Values set by hand win unless --force.
+ * exactly matching names. Empty fields (measure, density, base amount, piece weights) are filled one
+ * by one; values already set win unless --force.
  */
 class AssignFoodConversions extends Command
 {
@@ -97,31 +98,41 @@ class AssignFoodConversions extends Command
     }
 
     /**
-     * Sets the values unless they are equal; other values set by hand are kept without --force.
+     * Fills each empty field on its own; fields already set to another value are kept without --force.
      *
      * @param  array<string, mixed>  $values
      */
     private function assign(Unit|Food $model, array $values, string $label): void
     {
-        $current = collect($values)->map(fn (mixed $value, string $key): mixed => $model->getAttribute($key));
+        $changes = [];
 
-        if ($current->all() == $values) {
-            return;
+        foreach ($values as $key => $value) {
+            $current = $model->getAttribute($key);
+
+            if ($current == $value) {
+                continue;
+            }
+
+            $row = ["{$label} ({$key})", self::format($value)];
+
+            if (! $this->force && $current !== null) {
+                $this->rows[] = [...$row, 'kept (is '.self::format($current).', use --force)'];
+
+                continue;
+            }
+
+            $changes[$key] = $value;
+            $this->rows[] = [...$row, $this->dryRun ? 'would update' : 'updated'];
         }
 
-        $value = collect($values)->map(fn (mixed $value): string => $value instanceof Measure ? $value->value : (string) ($value ?? '–'))->implode(', ');
-
-        if (! $this->force && $current->filter(fn (mixed $value): bool => $value !== null)->isNotEmpty()) {
-            $this->rows[] = [$label, $value, 'kept (already set, use --force)'];
-
-            return;
+        if ($changes !== [] && ! $this->dryRun) {
+            $model->update($changes);
         }
+    }
 
-        if (! $this->dryRun) {
-            $model->update($values);
-        }
-
-        $this->rows[] = [$label, $value, $this->dryRun ? 'would update' : 'updated'];
+    private static function format(mixed $value): string
+    {
+        return $value instanceof Measure ? $value->value : (is_scalar($value) ? (string) $value : '–');
     }
 
     private function assignWeight(Food $food, Unit $unit, float $grams): void
