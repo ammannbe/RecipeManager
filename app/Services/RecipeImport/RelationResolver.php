@@ -90,7 +90,7 @@ class RelationResolver
             $values[] = [LookupType::Cookbook, $recipe->cookbook, null];
         }
 
-        if ($recipe->author !== null && $user?->admin) {
+        if ($recipe->author !== null && $user?->isAdmin()) {
             $values[] = [LookupType::Author, $recipe->author, null];
         }
 
@@ -282,7 +282,7 @@ class RelationResolver
         if ($type === LookupType::Cookbook) {
             $query->withoutGlobalScope('author_name');
 
-            if (! $user?->admin) {
+            if (! $user?->isAdmin()) {
                 $query->where('author_id', $user?->author_id);
             }
         }

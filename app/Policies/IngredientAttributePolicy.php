@@ -13,7 +13,7 @@ class IngredientAttributePolicy
             return null;
         }
 
-        if ($user->admin) {
+        if ($user->isAdmin()) {
             return true;
         }
 
@@ -42,7 +42,7 @@ class IngredientAttributePolicy
 
     public function delete(User $user, IngredientAttribute $attribute): bool
     {
-        return $user->admin && ! $attribute->ingredients()->exists();
+        return $user->isAdmin() && ! $attribute->ingredients()->exists();
     }
 
     public function restore(User $user, IngredientAttribute $attribute): bool
@@ -52,6 +52,6 @@ class IngredientAttributePolicy
 
     public function forceDelete(User $user, IngredientAttribute $attribute): bool
     {
-        return $user->admin && ! $attribute->ingredients()->exists();
+        return $user->isAdmin() && ! $attribute->ingredients()->exists();
     }
 }

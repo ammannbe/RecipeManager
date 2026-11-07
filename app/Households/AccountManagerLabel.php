@@ -2,6 +2,7 @@
 
 namespace App\Households;
 
+use App\Entitlements\Entitlements;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Throwable;
@@ -45,7 +46,9 @@ class AccountManagerLabel
         return once(function (): array {
             $url = config('households.account_manager.url');
 
-            if (config('households.driver') !== 'account-manager' || ! is_string($url) || $url === '') {
+            $used = config('households.driver') === 'account-manager' || Entitlements::usesAccountManager() || Entitlements::adminFromAccountManager();
+
+            if (! $used || ! is_string($url) || $url === '') {
                 return ['name' => null, 'households_url' => null];
             }
 

@@ -16,7 +16,7 @@ class CreateCookbook extends CreateRecord
     protected function mutateFormDataBeforeCreate(array $data): array
     {
         // Never trust a submitted owner: only admins may choose one.
-        if (! user()?->admin) {
+        if (! user()?->isAdmin()) {
             $data['author_id'] = user()?->author_id;
         }
 

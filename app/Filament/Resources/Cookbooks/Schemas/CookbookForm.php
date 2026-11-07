@@ -26,7 +26,7 @@ class CookbookForm
                         ignoreRecord: true,
                         // Scoped to the owner, and trashed cookbooks free their name again.
                         modifyRuleUsing: fn (Unique $rule, Get $get): Unique => $rule
-                            ->where('author_id', user()?->admin ? $get('author_id') : user()?->author_id)
+                            ->where('author_id', user()?->isAdmin() ? $get('author_id') : user()?->author_id)
                             ->whereNull('deleted_at'),
                     ),
                 Select::make('author_id')
@@ -36,8 +36,8 @@ class CookbookForm
                     ->searchable()
                     ->preload()
                     // Only admins may pick an owner; everyone else is pinned server-side.
-                    ->visible(fn (): bool => (bool) user()?->admin)
-                    ->dehydrated(fn (): bool => (bool) user()?->admin),
+                    ->visible(fn (): bool => (bool) user()?->isAdmin())
+                    ->dehydrated(fn (): bool => (bool) user()?->isAdmin()),
                 Toggle::make('is_public')
                     ->label(__('Public'))
                     ->helperText(__('Publishing a cookbook makes every recipe in it, including its images, visible to everyone.'))

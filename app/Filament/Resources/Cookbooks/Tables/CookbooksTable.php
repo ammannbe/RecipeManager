@@ -24,7 +24,7 @@ class CookbooksTable
                 TextColumn::make('author.name')
                     ->searchable()
                     ->sortable()
-                    ->visible(fn (): bool => (bool) user()?->admin),
+                    ->visible(fn (): bool => (bool) user()?->isAdmin()),
                 TextColumn::make('name')
                     ->label(__('Name'))
                     ->searchable()

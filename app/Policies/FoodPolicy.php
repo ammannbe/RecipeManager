@@ -13,7 +13,7 @@ class FoodPolicy
             return null;
         }
 
-        if ($user->admin) {
+        if ($user->isAdmin()) {
             return true;
         }
 
@@ -42,7 +42,7 @@ class FoodPolicy
 
     public function delete(User $user, Food $food): bool
     {
-        return $user->admin && ! $food->ingredients()->exists();
+        return $user->isAdmin() && ! $food->ingredients()->exists();
     }
 
     public function restore(User $user, Food $food): bool
@@ -52,6 +52,6 @@ class FoodPolicy
 
     public function forceDelete(User $user, Food $food): bool
     {
-        return $user->admin && ! $food->ingredients()->exists();
+        return $user->isAdmin() && ! $food->ingredients()->exists();
     }
 }

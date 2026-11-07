@@ -44,7 +44,7 @@ class RecipesTable
                 TextColumn::make('author.name')
                     ->searchable()
                     ->sortable()
-                    ->visible(fn (): bool => (bool) user()?->admin),
+                    ->visible(fn (): bool => (bool) user()?->isAdmin()),
                 TextColumn::make('cookbook.name')
                     ->label(__('Cookbook'))
                     ->placeholder('-')
@@ -97,7 +97,7 @@ class RecipesTable
                     ->label(__('Public')),
                 SelectFilter::make('author_id')
                     ->label(__('Author'))
-                    ->visible(fn (): bool => (bool) user()?->admin)
+                    ->visible(fn (): bool => (bool) user()?->isAdmin())
                     ->options(fn (): array => Author::query()->orderBy('name')->pluck('name', 'id')->all()),
                 SelectFilter::make('cookbook_id')
                     ->label(__('Cookbook'))

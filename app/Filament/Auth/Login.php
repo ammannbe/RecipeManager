@@ -3,9 +3,11 @@
 namespace App\Filament\Auth;
 
 use App\Auth\OidcAccount;
+use App\Entitlements\Entitlements;
 use App\Models\User;
 use Filament\Auth\Http\Responses\Contracts\LoginResponse;
 use Filament\Auth\Pages\Login as BaseLogin;
+use Filament\Notifications\Notification;
 use Filament\Schemas\Schema;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Validation\ValidationException;
@@ -22,6 +24,13 @@ class Login extends BaseLogin
     public function mount(): void
     {
         $this->localRequested = request()->boolean('local');
+
+        // Signed out because the AccountManager blocked the access (EnsureEntitlementAccess).
+        $blocked = Entitlements::messageFor((string) request()->query('access'));
+
+        if ($blocked !== null) {
+            Notification::make()->danger()->title($blocked)->persistent()->send();
+        }
 
         parent::mount();
     }
@@ -60,7 +69,7 @@ class Login extends BaseLogin
             return false;
         }
 
-        if (! config('login.local.enabled') && ! ($user instanceof User && $user->admin)) {
+        if (! config('login.local.enabled') && ! ($user instanceof User && $user->isAdmin())) {
             return false;
         }
 

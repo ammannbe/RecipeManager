@@ -81,7 +81,7 @@ class RecipeResource extends Resource
         $query = parent::getEloquentQuery()
             ->with(['author', 'category', 'cookbook']);
 
-        if ($user?->admin) {
+        if ($user?->isAdmin()) {
             return $query;
         }
 

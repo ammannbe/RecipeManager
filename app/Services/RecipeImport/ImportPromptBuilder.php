@@ -120,7 +120,7 @@ class ImportPromptBuilder
     {
         $query = Cookbook::query();
 
-        if (! $user?->admin) {
+        if (! $user?->isAdmin()) {
             $query->where('author_id', $user?->author_id);
         }
 

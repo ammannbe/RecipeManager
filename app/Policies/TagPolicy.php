@@ -13,7 +13,7 @@ class TagPolicy
             return null;
         }
 
-        if ($user->admin) {
+        if ($user->isAdmin()) {
             return true;
         }
 
@@ -42,7 +42,7 @@ class TagPolicy
 
     public function delete(User $user, Tag $tag): bool
     {
-        return $user->admin && ! $tag->recipes()->exists();
+        return $user->isAdmin() && ! $tag->recipes()->exists();
     }
 
     public function restore(User $user, Tag $tag): bool
@@ -52,6 +52,6 @@ class TagPolicy
 
     public function forceDelete(User $user, Tag $tag): bool
     {
-        return $user->admin && ! $tag->recipes()->exists();
+        return $user->isAdmin() && ! $tag->recipes()->exists();
     }
 }

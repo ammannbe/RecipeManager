@@ -117,7 +117,7 @@ enum LookupType: string
      */
     public function createsRequest(?User $user): bool
     {
-        return $this->isRequestable() && ! $user?->admin;
+        return $this->isRequestable() && ! $user?->isAdmin();
     }
 
     /**

@@ -7,6 +7,7 @@ use App\Enums\HouseholdRole;
 use App\Filament\Auth\EditProfile;
 use App\Filament\Resources\Households\Pages\ListHouseholds;
 use App\Filament\Resources\Households\Pages\ViewHousehold;
+use App\Households\AccountManagerHouseholds;
 use App\Households\AccountManagerLabel;
 use App\Jobs\ApplyAccountManagerEvent;
 use App\Models\AccountManagerWebhookEvent;
@@ -247,7 +248,7 @@ class AccountManagerHouseholdTest extends TestCase
         $this->assertSame(2, AccountManagerWebhookEvent::query()->count());
 
         // Unknown types are acknowledged; with a household they count as household.updated.
-        $this->webhook('user.deleted', [], ['data' => ['household' => null]])->assertNoContent();
+        $this->webhook('subscription.renewed', [], ['data' => ['household' => null]])->assertNoContent();
         Queue::assertPushed(ApplyAccountManagerEvent::class, 1);
 
         $this->travel(8)->days();
@@ -479,18 +480,23 @@ class AccountManagerHouseholdTest extends TestCase
         Http::assertSentCount(4);
     }
 
-    public function test_api_answers_apply_the_same_version_but_not_older_ones(): void
+    public function test_api_answers_always_apply_also_older_versions(): void
     {
-        $household = $this->mirror($this->snapshot(2));
-        $household->forceFill(['name' => 'Lokal verändert'])->save();
+        $household = $this->mirror($this->snapshot(5));
 
-        $this->accountManager['GET households?sub=sub-owner'] = [200, ['data' => [$this->snapshot(2)]]];
-        $this->accountManager['GET households?sub=sub-member'] = [200, ['data' => [$this->snapshot(1, ['sub-member' => 'admin'], 'Alt')]]];
+        // After a backup restore the AccountManager answers with a lower version: the API is the current truth.
+        $this->accountManager['GET households/'.self::UUID] = [200, ['data' => $this->snapshot(2, name: 'Wiederhergestellt')]];
+        app(AccountManagerHouseholds::class)->refresh(self::UUID);
 
-        $this->command('households:sync')->assertSuccessful()->run();
+        $this->assertSame('Wiederhergestellt', $household->refresh()->name);
+        $this->assertSame(2, $household->refresh()->account_manager_version);
 
-        $this->assertSame('Familie Muster', $household->fresh()?->name);
-        $this->assertSame(HouseholdRole::Admin, $household->roleOf($this->owner));
+        // Webhooks stay strict: equal or lower versions are ignored, higher ones apply.
+        $this->webhook('household.updated', $this->snapshot(2, name: 'Gleich'))->assertNoContent();
+        $this->webhook('household.updated', $this->snapshot(1, name: 'Alt'))->assertNoContent();
+        $this->assertSame('Wiederhergestellt', $household->refresh()->name);
+        $this->webhook('household.updated', $this->snapshot(3, name: 'Neu'))->assertNoContent();
+        $this->assertSame('Neu', $household->refresh()->name);
     }
 
     public function test_the_last_state_stays_while_the_account_manager_is_down(): void

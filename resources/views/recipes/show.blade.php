@@ -34,7 +34,7 @@
                 {{ __('Back to recipes') }}
             </a>
 
-            @if (user() && (user()->admin || user()->author_id === $recipe->author_id))
+            @if (user() && (user()->isAdmin() || user()->author_id === $recipe->author_id))
                 <a
                     href="{{ \App\Filament\Resources\Recipes\RecipeResource::getUrl('edit', ['record' => $recipe]) }}"
                     class="inline-flex items-center rounded-xl border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 shadow-sm transition hover:border-zinc-400 hover:bg-zinc-100 hover:text-zinc-900 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:border-zinc-600 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"

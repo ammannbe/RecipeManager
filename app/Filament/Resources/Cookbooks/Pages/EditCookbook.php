@@ -28,7 +28,7 @@ class EditCookbook extends EditRecord
     protected function mutateFormDataBeforeSave(array $data): array
     {
         // Never trust a submitted owner: only admins may reassign one.
-        if (! user()?->admin) {
+        if (! user()?->isAdmin()) {
             unset($data['author_id']);
         }
 

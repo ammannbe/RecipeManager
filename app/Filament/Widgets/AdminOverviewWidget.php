@@ -27,7 +27,7 @@ class AdminOverviewWidget extends StatsOverviewWidget
 
     public static function canView(): bool
     {
-        return (bool) user()?->admin;
+        return (bool) user()?->isAdmin();
     }
 
     protected function getHeading(): ?string

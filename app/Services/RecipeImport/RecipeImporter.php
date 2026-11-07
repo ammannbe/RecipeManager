@@ -127,7 +127,7 @@ class RecipeImporter
 
     private function authorId(ParsedRecipe $parsed, ?User $user): int
     {
-        if ($user?->admin && $parsed->author !== null) {
+        if ($user?->isAdmin() && $parsed->author !== null) {
             return $this->requiredId(LookupType::Author, $parsed->author);
         }
 

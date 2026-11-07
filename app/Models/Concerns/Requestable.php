@@ -38,7 +38,7 @@ trait Requestable
      */
     public function scopeVisibleTo(Builder $query, ?User $user): Builder
     {
-        if ($user?->admin) {
+        if ($user?->isAdmin()) {
             return $query;
         }
 

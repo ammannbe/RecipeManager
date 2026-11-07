@@ -46,7 +46,7 @@ class LookupRequestedMail extends Mailable
 
         $name = $user?->author->name ?? (string) $user?->email;
 
-        foreach (User::query()->where('admin', true)->whereKeyNot($user?->getKey())->get() as $admin) {
+        foreach (User::query()->admins()->whereKeyNot($user?->getKey())->get() as $admin) {
             try {
                 Mail::to($admin)->locale($admin->locale ?? config('app.locale'))->send(new self($name, $recipe, $requested));
             } catch (Throwable $exception) {

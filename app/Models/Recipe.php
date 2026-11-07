@@ -62,7 +62,7 @@ class Recipe extends Model
      */
     public function scopeVisibleTo(Builder $query, ?User $user): void
     {
-        if ($user?->admin) {
+        if ($user?->isAdmin()) {
             return;
         }
 
