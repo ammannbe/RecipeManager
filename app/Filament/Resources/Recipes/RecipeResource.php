@@ -91,7 +91,7 @@ class RecipeResource extends Resource
             if ($user !== null) {
                 $query->orWhereHas(
                     'cookbook',
-                    fn (Builder $cookbook) => $cookbook->whereHas('members', fn (Builder $member) => $member->whereKey($user->getKey())),
+                    fn (Builder $cookbook) => $cookbook->scopes(['sharedWith' => [$user]]),
                 );
             }
         });

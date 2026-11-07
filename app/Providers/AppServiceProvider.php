@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Auth\OidcProvider;
+use App\Listeners\AcceptHouseholdInvitationFromSession;
 use App\Listeners\AcceptPendingCookbookInvitations;
 use App\Models\OAuthClient;
 use App\Models\User;
@@ -36,6 +37,7 @@ class AppServiceProvider extends ServiceProvider
 
         Event::listen(Registered::class, AcceptPendingCookbookInvitations::class);
         Event::listen(Verified::class, AcceptPendingCookbookInvitations::class);
+        Event::listen(Verified::class, AcceptHouseholdInvitationFromSession::class);
         Event::listen(function (SocialiteWasCalled $event): void {
             $event->extendSocialite('oidc', OidcProvider::class);
         });

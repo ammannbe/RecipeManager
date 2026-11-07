@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Cookbooks;
 use App\Filament\Resources\Cookbooks\Pages\CreateCookbook;
 use App\Filament\Resources\Cookbooks\Pages\EditCookbook;
 use App\Filament\Resources\Cookbooks\Pages\ListCookbooks;
+use App\Filament\Resources\Cookbooks\RelationManagers\HouseholdsRelationManager;
 use App\Filament\Resources\Cookbooks\RelationManagers\InvitationsRelationManager;
 use App\Filament\Resources\Cookbooks\RelationManagers\MembersRelationManager;
 use App\Filament\Resources\Cookbooks\Schemas\CookbookForm;
@@ -57,6 +58,7 @@ class CookbookResource extends Resource
         return [
             MembersRelationManager::class,
             InvitationsRelationManager::class,
+            HouseholdsRelationManager::class,
         ];
     }
 
@@ -91,7 +93,7 @@ class CookbookResource extends Resource
             $query->where('author_id', $user?->author_id);
 
             if ($user !== null) {
-                $query->orWhereHas('members', fn (Builder $member) => $member->whereKey($user->getKey()));
+                $query->orWhere(fn (Builder $shared) => $shared->scopes(['sharedWith' => [$user]]));
             }
         });
     }

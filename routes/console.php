@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\CookbookInvitation;
+use App\Models\HouseholdInvitation;
 use App\Models\RecipeDraft;
 use App\Models\User;
 use App\Services\RecipePhotos;
@@ -23,6 +24,16 @@ Artisan::command('cookbook-invitations:prune', function () {
 })->purpose('Delete expired and accepted cookbook invitations');
 
 Schedule::command('cookbook-invitations:prune')->daily();
+
+Artisan::command('household-invitations:prune', function () {
+    $pruned = HouseholdInvitation::query()
+        ->where(fn ($query) => $query->where('expires_at', '<', now())->orWhereNotNull('accepted_at'))
+        ->delete();
+
+    $this->info("Pruned {$pruned} invitation(s).");
+})->purpose('Delete expired and accepted household invitations');
+
+Schedule::command('household-invitations:prune')->daily();
 
 Artisan::command('recipe-drafts:prune', function () {
     $pruned = RecipeDraft::query()->where('expires_at', '<=', now())->delete();

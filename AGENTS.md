@@ -5,7 +5,8 @@
 This is a Laravel recipe management application.
 
 The app manages:
-- cookbooks, shared with other users via e-mail invitations, public or private
+- cookbooks, shared with other users via e-mail invitations or with households, public or private
+- households (groups of users that cookbooks are shared with)
 - recipes, public by default and publishable individually or per cookbook; a recipe
   defaults to private when created in a private cookbook
 - foods
@@ -93,6 +94,36 @@ If any command fails, repeat the process from the beginning.
   Chorelist, which reach it through the shared `ddev_default` network).
   Set the `AUTH_OIDC_*` values in `.ddev/config.local.yaml` (`web_environment`), not in git.
   Tests mock Socialite (`tests/Feature/OidcLoginTest.php`).
+
+## Households
+
+* Concept: `~/Projekte/AccountManager/docs/KONZEPT.md` 5.6 (phase 7 "local"; phase 8 mirrors the AccountManager).
+  Same design and names in Shoppinglist and Chorelist.
+* `config/households.php` `driver` (`HOUSEHOLDS_DRIVER`): `local` (default) manages households here; `konto` makes
+  the local management read-only (`Households::isLocal()`: `HouseholdPolicy` forbids create/rename/delete/invite/
+  roles/remove/leave, invitation links and pending invitations are refused). Syncing from the AccountManager is not
+  built yet; `households.konto_household_uuid` is reserved for it.
+* Tables `households` (uuid, name, `created_by`), `household_user` (role `admin`|`member`, `joined_at`),
+  `household_invitations` (like `cookbook_invitations`: token hash, role, `invited_by`, 14 days,
+  `household-invitations:prune` daily) and `cookbook_household` (same grants as `cookbook_user`).
+* `App\Services\Households` keeps the rules: the creator is admin; at least one admin stays (`LastHouseholdAdmin`
+  on removing, demoting or leaving the last one, admin rows locked); deleting a household or removing a member only
+  removes access, contents stay with their owner; deleting a user (`UserObserver`) drops the memberships, hands an
+  admin-less household to its longest member and deletes empty ones.
+* Invitations always need consent, also for existing users (unlike cookbooks): `/household-invitations/{token}`
+  (`HouseholdInvitationController`) accepts only for a logged-in user with the invited, verified address; guests go
+  to login (intended URL) and the token waits in the session, verifying the address accepts it
+  (`AcceptHouseholdInvitationFromSession`). Pending invitations to one's address are accepted or declined on the
+  households page (`PendingHouseholdInvitations` header widget). The invite notice never tells whether an account
+  exists.
+* UI: `HouseholdResource` (navigation and user menu "Households", list + view page; only own households, also for
+  global admins), relation managers Members (invite, change role, remove), Pending invitations (admins) and Shared
+  cookbooks (read-only). Cookbooks: `HouseholdsRelationManager` "Shared with households" (users with `share` on the
+  cookbook share with households they belong to, edit the grants, unshare).
+* Access: every check goes through `Cookbook::grants()` / `sharesFor()` (personal membership + shares of the user's
+  households, grants add up) and the query scope `Cookbook::scopeSharedWith($user, $grants)`, used by
+  `Cookbook::visibleTo()`/`administeredBy()`, `Recipe::visibleTo()`, the Recipe/Cookbook resources and
+  `MyCookbooksWidget`. Never query `cookbook_user` directly for access. Tests: `HouseholdTest`, `HouseholdSharingTest`.
 
 ## Companion App API (Shoppinglist)
 
@@ -378,6 +409,7 @@ Important test areas:
 * authentication
 * policies
 * cookbook sharing and invitations
+* households (membership, roles, last admin, invitations, driver) and cookbook access through households
 * recipe visibility, including photo access
 * API (OAuth, visibility, search ranking, scaling, recipe creation)
 * filament pages

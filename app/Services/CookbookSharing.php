@@ -6,6 +6,7 @@ use App\Mail\CookbookInvitationMail;
 use App\Models\Cookbook;
 use App\Models\CookbookInvitation;
 use App\Models\CookbookMembership;
+use App\Models\Household;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
@@ -51,6 +52,33 @@ class CookbookSharing
         $cookbook->members()->syncWithoutDetaching([
             $user->getKey() => $this->normalise($grants),
         ]);
+    }
+
+    /**
+     * Shares the cookbook with every member of a household, also future ones. Only with
+     * households the sharing user belongs to.
+     *
+     * @param  array<string, bool>  $grants
+     */
+    public function shareWithHousehold(Cookbook $cookbook, Household $household, array $grants, User $sharedBy): bool
+    {
+        if (! $household->hasMember($sharedBy)) {
+            return false;
+        }
+
+        $cookbook->households()->syncWithoutDetaching([
+            $household->getKey() => $this->normalise($grants),
+        ]);
+
+        return true;
+    }
+
+    /**
+     * @param  array<string, bool>  $grants
+     */
+    public function updateHouseholdShare(Cookbook $cookbook, Household $household, array $grants): void
+    {
+        $cookbook->households()->updateExistingPivot($household->getKey(), $this->normalise($grants));
     }
 
     /**

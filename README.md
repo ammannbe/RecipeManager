@@ -15,6 +15,7 @@ Written with the PHP Framework [Laravel](https://laravel.com/).
 
 -   **Manage your recipes** - You and your friends can save, edit and delete recipes.
 -   **Share cookbooks** - Invite others by e-mail and decide per person whether they may read, add, edit or delete recipes.
+-   **Households** - Create a household, invite your family by e-mail and share cookbooks with everyone in it at once.
 -   **Publish what you want** - Recipes and whole cookbooks stay private until you publish them.
 -   **Import with AI** - Turn a photo, PDF or text of a recipe into a ready-to-import JSON file ([how it works](docs/ai-recipe-import.md)).
 -   **Calculate servings** - Calculate servings directly in the recipe on the fly.

@@ -5,8 +5,10 @@ namespace App\Providers\Filament;
 use App\Filament\Auth\EditProfile;
 use App\Filament\Auth\Login;
 use App\Filament\Auth\Register;
+use App\Filament\Resources\Households\HouseholdResource;
 use App\Filament\Resources\Recipes\Pages\EditRecipe;
 use App\Http\Middleware\SetLocale;
+use Filament\Actions\Action;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -15,6 +17,7 @@ use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
 use Filament\Support\Colors\Color;
+use Filament\Support\Icons\Heroicon;
 use Filament\View\PanelsRenderHook;
 use Filament\Widgets\AccountWidget;
 use Illuminate\Contracts\View\View;
@@ -42,6 +45,12 @@ class AppPanelProvider extends PanelProvider
             ->passwordReset()
             ->emailVerification()
             ->profile(EditProfile::class, isSimple: false)
+            ->userMenuItems([
+                Action::make('households')
+                    ->label(fn (): string => __('Households'))
+                    ->icon(Heroicon::OutlinedHome)
+                    ->url(fn (): string => HouseholdResource::getUrl()),
+            ])
             // Leaving a form with unsaved changes asks first.
             ->unsavedChangesAlerts()
             ->colors([

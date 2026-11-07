@@ -4,6 +4,7 @@ namespace App\Filament\Widgets;
 
 use App\Filament\Resources\Cookbooks\CookbookResource;
 use App\Models\Cookbook;
+use App\Models\User;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
@@ -12,7 +13,7 @@ use Illuminate\Contracts\Support\Htmlable;
 use Illuminate\Database\Eloquent\Builder;
 
 /**
- * Cookbooks the user owns or is a member of, with their number of recipes.
+ * Cookbooks the user owns or that are shared with them (also through a household), with their number of recipes.
  */
 class MyCookbooksWidget extends TableWidget
 {
@@ -29,7 +30,7 @@ class MyCookbooksWidget extends TableWidget
             ->query(fn (): Builder => Cookbook::query()
                 ->where(fn (Builder $query) => $query
                     ->where('author_id', user()?->author_id)
-                    ->orWhereHas('members', fn (Builder $member) => $member->whereKey(user()?->getKey())))
+                    ->when(user(), fn (Builder $query, User $user) => $query->orWhere(fn (Builder $shared) => $shared->sharedWith($user))))
                 ->withCount('recipes'))
             ->defaultSort('name')
             ->columns([
