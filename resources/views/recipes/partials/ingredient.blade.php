@@ -21,7 +21,8 @@
         <span class="text-zinc-500 dark:text-zinc-400">({{ $ingredient->ingredientAttributes->pluck('name')->implode(', ') }})</span>
     @endif
 
-    <span x-show="converted && conversion" x-cloak class="text-zinc-500 dark:text-zinc-400" x-text="'(' + originalAmount(amount, amountMax, unit) + ')'"></span>
+    <span x-show="bracketAmount(amount, amountMax, unit, conversion)" x-cloak class="text-zinc-500 dark:text-zinc-400" x-text="bracketAmount(amount, amountMax, unit, conversion)"></span>
+    <span x-show="cannotConvert(conversion)" x-cloak class="text-xs text-amber-700 dark:text-amber-400" title="{{ __('Without density or piece weight this amount cannot be converted.') }}" data-not-convertible>({{ __('not convertible') }})</span>
 
     @foreach ($alternatives as $alternative)
         <span
@@ -46,7 +47,8 @@
                 ({{ $alternative->ingredientAttributes->pluck('name')->implode(', ') }})
             @endif
 
-            <span x-show="converted && conversion" x-cloak x-text="'(' + originalAmount(amount, amountMax, unit) + ')'"></span>
+            <span x-show="bracketAmount(amount, amountMax, unit, conversion)" x-cloak x-text="bracketAmount(amount, amountMax, unit, conversion)"></span>
+            <span x-show="cannotConvert(conversion)" x-cloak class="text-xs text-amber-700 dark:text-amber-400" title="{{ __('Without density or piece weight this amount cannot be converted.') }}">({{ __('not convertible') }})</span>
         </span>
     @endforeach
 </li>
