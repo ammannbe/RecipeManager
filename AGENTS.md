@@ -88,10 +88,9 @@ If any command fails, repeat the process from the beginning.
   (render hooks `AUTH_LOGIN_FORM_BEFORE`/`AUTH_REGISTER_FORM_BEFORE`; registration only with
   `AUTH_OIDC_REGISTRATION`); `AUTH_OIDC_SIGNUP_URL` (e.g. the AccountManager's `/register`) adds
   "No … account yet?". Users switch to SSO voluntarily: linking keeps the local account and its data.
-* Local Pocket ID: `.ddev/docker-compose.pocket-id.yaml` (`https://recipemanager.ddev.site:14111`,
-  first start `/setup`; dev-only keys; Application Configuration via env (`UI_CONFIG_DISABLED=true`),
-  mails to Mailpit). The apps use `AUTH_OIDC_ISSUER=http://ddev-RecipeManager-pocket-id:1411` (also Shoppinglist and
-  Chorelist, which reach it through the shared `ddev_default` network).
+* Local test: Pocket ID runs in the AccountManager DDEV project (`https://accountmanager.ddev.site:14111`,
+  see its `AGENTS.md`), reached at `AUTH_OIDC_ISSUER=http://ddev-AccountManager-pocket-id:1411` through
+  the shared `ddev_default` network.
   Set the `AUTH_OIDC_*` values in `.ddev/config.local.yaml` (`web_environment`), not in git.
   Tests mock Socialite (`tests/Feature/OidcLoginTest.php`).
 
