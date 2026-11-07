@@ -6,7 +6,6 @@ use App\Enums\Complexity;
 use App\Models\Category;
 use App\Models\Cookbook;
 use App\Models\Food;
-use App\Models\Ingredient;
 use App\Models\Recipe;
 use App\Models\Tag;
 use App\Services\Document;
@@ -221,12 +220,15 @@ class RecipeController extends Controller
             ->sortBy('name')
             ->values();
 
+        $cupSystems = $converter->cupSystems();
+
         return view('recipes.show', [
             'recipe' => $recipe,
             'seasonFoods' => $seasonFoods,
             'inSeasonFoods' => $seasonFoods->filter(fn (Food $food): bool => $food->inSeason($month))->values(),
-            // "Convert" only when it changes something (alternatives are in ingredients too).
-            'convertible' => $recipe->ingredients->contains(fn (Ingredient $ingredient): bool => $converter->pageConversion($ingredient) !== null),
+            // The mode choice only when a mode changes something (alternatives are in ingredients too).
+            'unitModes' => $converter->pageModes($recipe->ingredients, $cupSystems),
+            'cupSystems' => $cupSystems,
         ]);
     }
 

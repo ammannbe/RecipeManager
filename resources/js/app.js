@@ -190,12 +190,58 @@ function numberLocale() {
     return preferred || lang;
 }
 
-Alpine.data('recipeServings', ({ initial }) => ({
+// Display modes of the recipe page's amounts, see UnitConverter::pageConversion().
+const UNIT_MODE_KEY = 'recipeUnitMode';
+// UnitConverter::CUP_FRACTIONS and SPOON_FRACTIONS.
+const CUP_FRACTIONS = [0, 1 / 4, 1 / 3, 1 / 2, 2 / 3, 3 / 4];
+const SPOON_FRACTIONS = [0, 1 / 8, 1 / 4, 1 / 2, 3 / 4];
+const FRACTION_GLYPHS = [[1 / 8, '⅛'], [1 / 4, '¼'], [1 / 3, '⅓'], [1 / 2, '½'], [2 / 3, '⅔'], [3 / 4, '¾']];
+
+// The nearest whole number plus one of the fractions (ties go to the smaller one), like UnitConverter::fraction().
+function roundToFraction(value, fractions) {
+    const whole = Math.floor(value);
+    let best = whole;
+
+    for (const candidate of [...fractions.map((fraction) => whole + fraction), whole + 1]) {
+        if (Math.abs(candidate - value) < Math.abs(best - value)) {
+            best = candidate;
+        }
+    }
+
+    return best;
+}
+
+function storedUnitMode() {
+    try {
+        return localStorage.getItem(UNIT_MODE_KEY);
+    } catch {
+        return null;
+    }
+}
+
+Alpine.data('recipeServings', ({ initial, modes = ['original'], systems = {} }) => ({
     baseServings: initial,
     servings: initial,
     changed: false,
-    // Amounts shown in g/kg or ml/dl/l (UnitConverter), toggled by the "Convert" button.
-    converted: false,
+    // 'original', 'metric' (g/kg or ml/dl/l), 'volume' (ml/dl/l) or a cup mode ('cups', 'cups_us'),
+    // chosen in the select and remembered in the browser. Only modes that change something are offered.
+    mode: modes.includes(storedUnitMode()) ? storedUnitMode() : 'original',
+    // Cup, tablespoon and teaspoon unit per cup mode (UnitConverter::cupSystems()).
+    systems,
+
+    get converted() {
+        return this.mode !== 'original';
+    },
+
+    setMode(mode) {
+        this.mode = mode;
+
+        try {
+            localStorage.setItem(UNIT_MODE_KEY, mode);
+        } catch {
+            // Not remembered (storage blocked).
+        }
+    },
 
     get canAdjust() {
         return this.baseServings !== null && this.baseServings > 0;
@@ -237,13 +283,89 @@ Alpine.data('recipeServings', ({ initial }) => ({
         }).format(value);
     },
 
-    // conversion: { measure: 'mass' | 'volume', factor: g or ml per unit } or null.
+    // conversion: UnitConverter::pageConversion() ({ metric: { measure, factor } | null, metric_changes,
+    // volume: ml per unit | null, volume_changes }) or null.
     formatAmount(amount, amountMax, unit, conversion = null) {
-        if (this.converted && conversion && (amount !== null || amountMax !== null)) {
-            return this.convertedAmount(amount, amountMax, conversion);
+        return this.modeAmount(amount, amountMax, conversion) ?? this.originalAmount(amount, amountMax, unit);
+    },
+
+    // The amount in the chosen mode, or null when it stays as entered.
+    modeAmount(amount, amountMax, conversion) {
+        if (! conversion || ! this.converted || (amount === null && amountMax === null)) {
+            return null;
         }
 
-        return this.originalAmount(amount, amountMax, unit);
+        if (this.mode === 'metric') {
+            return conversion.metric && conversion.metric_changes
+                ? this.convertedAmount(amount, amountMax, conversion.metric)
+                : null;
+        }
+
+        if (conversion.volume === null) {
+            return null;
+        }
+
+        if (this.mode === 'volume') {
+            return conversion.volume_changes
+                ? this.convertedAmount(amount, amountMax, { measure: 'volume', factor: conversion.volume })
+                : null;
+        }
+
+        return this.systems[this.mode] ? this.cupAmount(amount, amountMax, conversion.volume, this.systems[this.mode]) : null;
+    },
+
+    // The recipe's amount in brackets next to a converted one, '' when nothing changed.
+    bracketAmount(amount, amountMax, unit, conversion) {
+        const converted = this.modeAmount(amount, amountMax, conversion);
+        const original = this.originalAmount(amount, amountMax, unit);
+
+        return converted !== null && converted !== original ? '(' + original + ')' : '';
+    },
+
+    // The chosen mode cannot convert this amount (no density or piece weight): it stays with a hint.
+    cannotConvert(conversion) {
+        if (! conversion || ! this.converted) {
+            return false;
+        }
+
+        return (this.mode === 'metric' ? conversion.metric : conversion.volume) === null;
+    },
+
+    // Cup from ¼ cup, otherwise tablespoon from 1, otherwise teaspoon, in friendly fractions.
+    // Mirrors UnitConverter::cups(); null when it rounds to nothing.
+    cupAmount(amount, amountMax, ml, system) {
+        const scale = this.multiplier * ml;
+        const base = [amount, amountMax].map((value) => (value !== null ? value * scale : null));
+        const reference = base[1] ?? base[0] ?? 0;
+
+        let key = 'teaspoon';
+
+        if (reference >= system.cup.ml / 4) {
+            key = 'cup';
+        } else if (reference >= system.spoon.ml) {
+            key = 'spoon';
+        }
+
+        const unit = system[key];
+        const fractions = key === 'cup' ? CUP_FRACTIONS : SPOON_FRACTIONS;
+        const values = base
+            .filter((value) => value !== null)
+            .map((value) => roundToFraction(value / unit.ml, fractions));
+        const shown = values[values.length - 1];
+
+        if (shown === 0) {
+            return null;
+        }
+
+        return values.map((value) => this.formatFraction(value)).join(' - ') + ' ' + this.matchingUnitName(unit, shown);
+    },
+
+    // 1.5 → 1½, 0.25 → ¼; the whole part in the browser's number format.
+    formatFraction(value) {
+        const whole = Math.floor(value + 0.000001);
+        const glyph = FRACTION_GLYPHS.find(([fraction]) => Math.abs(value - whole - fraction) < 0.001)?.[1] ?? '';
+
+        return (whole > 0 || ! glyph ? this.formatNumber(whole) : '') + glyph;
     },
 
     // The recipe's amount, shown next to a converted one.

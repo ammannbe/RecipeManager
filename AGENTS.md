@@ -472,11 +472,21 @@ ddev artisan passport:client --name=Shoppinglist --redirect_uri=https://<shoppin
   own), `foods.density` (g/ml) converts between mass and volume. Admins edit them in the Unit and Food
   resources; `LookupMerger` moves piece weights along.
 * `App\Services\UnitConverter`: `factor()` (g/ml per unit), `changes()` (other measure or a non-metric
-  unit), `display()` (g < 1000 ≤ kg; ml < 100 ≤ dl < 1000 ≤ l; g/ml whole from 10, else 1 decimal).
-  The recipe page passes `pageConversion()` per ingredient and multiplies in JS (`convertedAmount()` in
-  `app.js` mirrors `display()`); the "Convert" button (`data-convert-units`) only shows when an
-  ingredient changes, converted rows show the original amount in brackets and a warning like the
-  servings one.
+  unit), `volumeFactor()` (ml per unit, mass and piece weights through the density), `display()` (g < 1000 ≤ kg;
+  ml < 100 ≤ dl < 1000 ≤ l; g/ml whole from 10, else 1 decimal). The API's `converted` uses `factor()` + `display()` only.
+* Recipe page display modes (select `data-convert-units`, remembered in `localStorage` `recipeUnitMode`, default
+  "Original"): Original; Metric (g/kg or ml/dl/l by `factor()`, the former "Convert"); Volume (ml/dl/l by
+  `volumeFactor()`, units already in ml/dl/l stay); "Cups/EL/TL" and "Cups (US)" (`cupSystems()`: units `Tasse`
+  or `Cup` + `Esslöffel` + `Teelöffel` by name, approved with volume; size and names from the units table, a
+  mode without its units is not offered). `cups()` (mirrored by `cupAmount()` in `app.js`) picks the cup from ¼ cup,
+  otherwise the tablespoon from 1, otherwise the teaspoon (by the larger amount of a range) and rounds to the
+  nearest whole + fraction (cups ¼ ⅓ ½ ⅔ ¾, spoons ⅛ ¼ ½ ¾); an amount rounding to 0 (a drop) stays as entered.
+* `pageConversion()` per ingredient (`metric` = `factor()`, `metric_changes`, `volume`, `volume_changes`; null
+  without amount, for pieces without weight and vague amounts: they always stay) and `pageModes()` (the modes
+  that change at least one ingredient; the select only shows with more than "Original") feed `recipeServings`
+  in `app.js`, which multiplies with the servings (`convertedAmount()` mirrors `display()`). Converted rows
+  show the original amount in brackets (not when it reads the same), rows the chosen mode cannot convert (no
+  density/piece weight) stay with "(not convertible)", and a warning like the servings one.
 * Import (`RecipeImporter`, so wizard, MCP and drafts): amounts of kg, l or dl needing more than two decimals move to
   the next smaller approved metric unit where they fit (`UnitConverter::precise()`: 1/8 l = 0.125 l becomes 1.25 dl);
   the import prompt asks for the same.

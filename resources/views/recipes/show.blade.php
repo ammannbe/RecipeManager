@@ -46,7 +46,11 @@
 
         <article
             class="grid gap-5 rounded-2xl border border-zinc-200 bg-white p-5 shadow-[0_18px_35px_-30px_rgba(15,23,42,0.75)] md:gap-6 md:p-6 dark:border-zinc-800 dark:bg-zinc-900"
-            x-data="recipeServings({ initial: {{ $recipe->servings ?? 'null' }} })"
+            x-data="recipeServings({
+                initial: {{ $recipe->servings ?? 'null' }},
+                modes: {{ \Illuminate\Support\Js::from($unitModes ?? ['original']) }},
+                systems: {{ \Illuminate\Support\Js::from((object) ($cupSystems ?? [])) }},
+            })"
         >
             <header class="grid gap-2">
             <h1 class="text-[clamp(2rem,1.5rem+1.4vw,2.75rem)] font-extrabold leading-none tracking-[-0.03em] text-zinc-900 dark:text-zinc-100">{{ $recipe->name }}</h1>
@@ -296,23 +300,40 @@
                     <div class="mb-3 flex items-center justify-between gap-3">
                         <h2 class="text-[1.1rem] font-semibold leading-tight text-zinc-900 dark:text-zinc-100">{{ __('Ingredients') }}</h2>
 
-                        @if ($convertible ?? false)
-                            <button
-                                type="button"
-                                class="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-semibold leading-none transition"
+                        @if (count($unitModes ?? []) > 1)
+                            @php($modeLabels = [
+                                'original' => [__('Original'), __('Show amounts as entered')],
+                                'metric' => [__('Metric'), __('Show amounts in g/kg or ml/dl/l')],
+                                'volume' => [__('Volume'), __('Show amounts in ml/dl/l, weights too where the density is known')],
+                                'cups' => [__('Cups/EL/TL'), __('Show amounts in cups (2 dl), tablespoons and teaspoons')],
+                                'cups_us' => [__('Cups (US)'), __('Show amounts in US cups (2.4 dl), tablespoons and teaspoons')],
+                            ])
+
+                            <label
+                                class="relative inline-flex items-center gap-1.5 rounded-full border py-1 pl-2.5 pr-1.5 text-xs font-semibold leading-none transition focus-within:ring-2 focus-within:ring-violet-500/40"
                                 :class="converted
                                     ? 'border-violet-600 bg-violet-600 text-white hover:bg-violet-700 dark:border-violet-500 dark:bg-violet-500'
                                     : 'border-zinc-300 text-zinc-700 hover:border-violet-600 hover:text-violet-700 dark:border-zinc-700 dark:text-zinc-300 dark:hover:border-violet-500 dark:hover:text-violet-400'"
-                                @click="converted = ! converted"
-                                :aria-pressed="converted.toString()"
-                                title="{{ __('Show amounts in g/kg or ml/dl/l') }}"
-                                data-convert-units
+                                title="{{ __('Convert') }}"
                             >
                                 <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" class="h-3.5 w-3.5">
                                     <path d="M7 4v16M7 20l-3-3M7 20l3-3M17 20V4M17 4l-3 3M17 4l3 3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
                                 </svg>
-                                {{ __('Convert') }}
-                            </button>
+                                <span class="sr-only">{{ __('Convert') }}</span>
+                                <select
+                                    class="cursor-pointer appearance-none bg-transparent pr-4 leading-none focus:outline-none"
+                                    :value="mode"
+                                    @change="setMode($event.target.value)"
+                                    data-convert-units
+                                >
+                                    @foreach ($unitModes as $unitMode)
+                                        <option value="{{ $unitMode }}" title="{{ $modeLabels[$unitMode][1] }}" class="bg-white text-zinc-900 dark:bg-zinc-900 dark:text-zinc-100">{{ $modeLabels[$unitMode][0] }}</option>
+                                    @endforeach
+                                </select>
+                                <svg viewBox="0 0 24 24" fill="none" aria-hidden="true" class="pointer-events-none absolute right-1.5 h-3 w-3">
+                                    <path d="m6 9 6 6 6-6" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+                                </svg>
+                            </label>
                         @endif
                     </div>
 
