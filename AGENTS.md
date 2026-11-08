@@ -267,7 +267,8 @@ JSON API for the companion app "Shoppinglist", secured with Laravel Passport
   `app/Http/Controllers/Api`, `app/Http/Requests/Api`, `app/Services/Api`.
 * `GET /api/user`, `GET /api/foods` (with `season_months` / `storage_months`, empty arrays
   without data), `GET /api/vocabulary` (category and unit names, complexities),
-  `POST /api/recipes/search` (optional `season_month` 1–12: after `matched_foods_count`,
+  `POST /api/recipes/search` (`food_ids` and/or `query`: part of the name, min. 2 characters,
+  names starting with it first, `%`/`_` literal; optional `season_month` 1–12: after `matched_foods_count`,
   recipes with more in-season foods rank first), `GET /api/recipes/{id}?servings=`,
   `POST /api/recipe-drafts`.
 * Visibility always goes through `Recipe::visibleTo()` / `RecipePolicy` (invisible → 404).

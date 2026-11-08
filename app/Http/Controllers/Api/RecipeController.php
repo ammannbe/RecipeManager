@@ -29,17 +29,24 @@ class RecipeController extends Controller
         $foodIds = $request->foodIds();
         $seasonMonth = $request->seasonMonth();
 
+        $query = $request->nameQuery();
+        $like = $query === null ? null : '%'.addcslashes($query, '\\%_').'%';
+
         $recipes = Recipe::query()
             ->visibleTo($user)
-            ->whereHas('ingredients', fn ($query) => $query->whereIn('food_id', $foodIds))
-            ->addSelect([
-                'matched_foods_count' => Ingredient::query()
-                    ->selectRaw('count(distinct food_id)')
-                    ->whereColumn('ingredients.recipe_id', 'recipes.id')
-                    ->whereIn('food_id', $foodIds),
-            ])
-            ->orderByDesc('matched_foods_count')
-            ->when($seasonMonth !== null, fn ($query) => $query
+            ->when($like !== null, fn ($builder) => $builder->where('recipes.name', 'like', $like))
+            ->when($foodIds !== [], fn ($builder) => $builder
+                ->whereHas('ingredients', fn ($ingredients) => $ingredients->whereIn('food_id', $foodIds))
+                ->addSelect([
+                    'matched_foods_count' => Ingredient::query()
+                        ->selectRaw('count(distinct food_id)')
+                        ->whereColumn('ingredients.recipe_id', 'recipes.id')
+                        ->whereIn('food_id', $foodIds),
+                ])
+                ->orderByDesc('matched_foods_count'))
+            // Names starting with the query first.
+            ->when($query !== null, fn ($builder) => $builder->orderByRaw('case when recipes.name like ? then 0 else 1 end', [addcslashes($query, '\\%_').'%']))
+            ->when($seasonMonth !== null, fn ($builder) => $builder
                 ->addSelect(['season_foods_count' => Recipe::seasonFoodsCount($seasonMonth)])
                 ->orderByDesc('season_foods_count'))
             ->orderBy('name')

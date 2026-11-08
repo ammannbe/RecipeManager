@@ -196,4 +196,41 @@ class ApiRecipeSearchTest extends TestCase
         $this->postJson('/api/recipes/search', ['food_ids' => [1], 'limit' => 0])->assertJsonValidationErrors('limit');
         $this->postJson('/api/recipes/search', ['food_ids' => [1], 'limit' => 51])->assertJsonValidationErrors('limit');
     }
+
+    public function test_it_searches_visible_recipes_by_name_starting_matches_first(): void
+    {
+        $food = Food::factory()->create();
+        $inner = $this->recipeWith(['is_public' => true, 'name' => 'Gemüse-Lasagne'], [$food]);
+        $start = $this->recipeWith(['is_public' => true, 'name' => 'Lasagne al forno'], []);
+        $this->recipeWith(['is_public' => false, 'name' => 'Geheime Lasagne'], [$food]);
+        $this->recipeWith(['is_public' => true, 'name' => 'Risotto'], [$food]);
+
+        Passport::actingAs(User::factory()->create());
+
+        $data = $this->postJson('/api/recipes/search', ['query' => 'lasag'])->assertOk()->json('data');
+
+        $this->assertSame([$start->id, $inner->id], array_column($data, 'id'));
+        $this->assertSame([], $data[0]['matched_food_ids']);
+    }
+
+    public function test_the_name_search_combines_with_foods_and_treats_wildcards_literally(): void
+    {
+        $food = Food::factory()->create();
+        $match = $this->recipeWith(['is_public' => true, 'name' => 'Lasagne'], [$food]);
+        $this->recipeWith(['is_public' => true, 'name' => 'Lasagne ohne'], []);
+        $this->recipeWith(['is_public' => true, 'name' => 'Risotto'], [$food]);
+
+        Passport::actingAs(User::factory()->create());
+
+        $this->assertSame([$match->id], array_column($this->postJson('/api/recipes/search', ['query' => 'Lasagne', 'food_ids' => [$food->id]])->assertOk()->json('data'), 'id'));
+        $this->assertSame([], $this->postJson('/api/recipes/search', ['query' => '%_'])->assertOk()->json('data'));
+    }
+
+    public function test_the_name_search_is_validated(): void
+    {
+        Passport::actingAs(User::factory()->create());
+
+        $this->postJson('/api/recipes/search', ['query' => 'a'])->assertJsonValidationErrors('query');
+        $this->postJson('/api/recipes/search', ['query' => str_repeat('a', 101)])->assertJsonValidationErrors('query');
+    }
 }
