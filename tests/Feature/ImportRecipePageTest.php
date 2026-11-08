@@ -951,7 +951,7 @@ class ImportRecipePageTest extends TestCase
         $this->assertModelExists($draft);
     }
 
-    public function test_importing_a_draft_uses_cookbook_and_visibility_and_removes_the_draft(): void
+    public function test_importing_a_draft_uses_cookbook_and_visibility_and_remembers_the_recipe(): void
     {
         $this->seedLookups();
         $user = User::factory()->admin()->create();
@@ -965,8 +965,34 @@ class ImportRecipePageTest extends TestCase
             ->call('import')
             ->assertHasNoErrors();
 
-        $this->assertDatabaseHas(Recipe::class, ['name' => 'Apfelkuchen', 'cookbook_id' => $cookbook->id, 'is_public' => false]);
-        $this->assertModelMissing($draft);
+        $recipe = Recipe::query()->where('name', 'Apfelkuchen')->sole();
+        $this->assertSame([$cookbook->id, false], [$recipe->cookbook_id, $recipe->is_public]);
+
+        // Kept for the companion app, which links its entry to the recipe; it cannot be imported again.
+        $draft->refresh();
+        $this->assertSame($recipe->id, $draft->recipe_id);
+        $this->assertNotNull($draft->imported_at);
+        $this->assertSame(RecipeDraft::STATUS_IMPORTED, $draft->status());
+        $this->assertSame(0, RecipeDraft::query()->usableBy($user)->count());
+    }
+
+    public function test_an_imported_draft_opens_its_recipe_instead_of_a_second_import(): void
+    {
+        $user = User::factory()->admin()->create();
+        $this->actingAs($user);
+        $recipe = Recipe::factory()->create(['author_id' => $user->author_id]);
+        $draft = $this->draft($user);
+        RecipeDraft::markImported($draft->id, $recipe);
+
+        Livewire::withQueryParams(['draft' => $draft->id])
+            ->test(ImportRecipe::class)
+            ->assertSet('draftId', null)
+            ->assertNotified(__('This recipe draft was imported already.'))
+            ->assertRedirect(RecipeResource::getUrl('edit', ['record' => $recipe]));
+
+        // Marked once: a second import does not replace the first recipe.
+        RecipeDraft::markImported($draft->id, Recipe::factory()->create(['author_id' => $user->author_id]));
+        $this->assertSame($recipe->id, $draft->refresh()->recipe_id);
     }
 
     public function test_foreign_or_expired_drafts_are_not_loaded(): void

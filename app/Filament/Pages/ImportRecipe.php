@@ -177,6 +177,23 @@ class ImportRecipe extends Page
      */
     private function loadDraft(string $id): void
     {
+        $imported = RecipeDraft::query()->whereKey($id)->where('user_id', user()?->getKey())->whereNotNull('imported_at')->first();
+
+        if ($imported !== null) {
+            // Imported already (the link of the companion app opened again): to the recipe instead of a second copy.
+            Notification::make()
+                ->info()
+                ->title(__('This recipe draft was imported already.'))
+                ->send();
+
+            $recipe = $imported->recipe;
+            if ($recipe !== null && user()?->can('update', $recipe)) {
+                $this->redirect(RecipeResource::getUrl('edit', ['record' => $recipe]));
+            }
+
+            return;
+        }
+
         $draft = RecipeDraft::query()->whereKey($id)->usableBy(user())->first();
 
         if ($draft === null) {
@@ -1391,8 +1408,9 @@ class ImportRecipe extends Page
             return $this->importRecipe($parsed, $decisions);
         });
 
+        // Kept until it is pruned: the companion app links its entry to the recipe (GET /api/recipe-drafts/{draft}).
         if ($this->draftId !== null) {
-            RecipeDraft::query()->whereKey($this->draftId)->delete();
+            RecipeDraft::markImported($this->draftId, $recipe);
         }
 
         LookupRequestedMail::notifyAdmins(user(), $requested, $recipe->name);

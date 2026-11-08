@@ -150,6 +150,7 @@
     "You already have a recipe named \":name\".": "Du hast bereits ein Rezept mit dem Namen \":name\".",
     "Publication": "Veröffentlichung",
     "The recipe draft was not found or has expired.": "Der Rezeptentwurf wurde nicht gefunden oder ist abgelaufen.",
+    "This recipe draft was imported already.": "Dieser Rezeptentwurf wurde bereits importiert.",
     "Request \":value\"": "«:value» beantragen",
     "Usable in your recipe right away; an administrator checks it before others see it.": "Sofort in deinem Rezept nutzbar; ein Administrator prüft es, bevor andere es sehen.",
     "The ingredient is left out (with its alternatives). Check whether the instructions still mention it.": "Die Zutat wird weggelassen (mit ihren Alternativen). Prüfe, ob die Zubereitung sie noch erwähnt.",

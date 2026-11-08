@@ -46,7 +46,8 @@ Schedule::command('model:prune', ['--model' => [AccountManagerWebhookEvent::clas
 Schedule::command('entitlements:sync')->dailyAt('04:30')->withoutOverlapping();
 
 Artisan::command('recipe-drafts:prune', function () {
-    $pruned = RecipeDraft::query()->where('expires_at', '<=', now())->delete();
+    // Imported drafts stay a while longer: the companion app links its entry to the recipe.
+    $pruned = RecipeDraft::prune();
 
     // AI photos of import wizards that were left before importing.
     $disk = Storage::disk('local');

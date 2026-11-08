@@ -18,6 +18,7 @@ Route::middleware(['auth:api', DenyMcpTokens::class, EnsureEntitlementAccess::cl
     Route::get('/recipes/{recipe}', [RecipeController::class, 'show'])->name('api.recipes.show');
     Route::get('/vocabulary', [VocabularyController::class, 'index'])->name('api.vocabulary');
     Route::post('/recipe-drafts', [RecipeDraftController::class, 'store'])->name('api.recipe-drafts.store');
+    Route::get('/recipe-drafts/{draft}', [RecipeDraftController::class, 'show'])->whereUuid('draft')->name('api.recipe-drafts.show');
 });
 
 // Events of the AccountManager (households, entitlements, user.deleted), signed, no session or CSRF.

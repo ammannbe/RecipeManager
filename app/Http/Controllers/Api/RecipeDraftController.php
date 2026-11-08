@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Models\Recipe;
 use App\Models\RecipeDraft;
 use App\Models\User;
 use App\Services\RecipeImport\RecipeJsonValidator;
@@ -30,7 +31,7 @@ class RecipeDraftController extends Controller
             throw ValidationException::withMessages(['recipe' => $exception->validator->errors()->all()]);
         }
 
-        RecipeDraft::query()->where('expires_at', '<=', now())->delete();
+        RecipeDraft::prune();
 
         $draft = RecipeDraft::query()->create([
             'user_id' => $user->id,
@@ -46,5 +47,35 @@ class RecipeDraftController extends Controller
                 'expires_at' => $draft->expires_at->toIso8601String(),
             ],
         ], 201);
+    }
+
+    /**
+     * State of an own draft: pending, imported (with the recipe, null when it is gone or no longer
+     * visible) or expired. Drafts of others and unknown ones are 404, like pruned ones.
+     */
+    public function show(Request $request, string $draft): JsonResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+
+        $found = RecipeDraft::query()->whereKey($draft)->where('user_id', $user->id)->first();
+        abort_if($found === null, 404);
+
+        $recipe = $found->recipe_id === null ? null : Recipe::query()->visibleTo($user)->whereKey($found->recipe_id)->first();
+
+        return response()->json([
+            'data' => [
+                'id' => $found->id,
+                'status' => $found->status(),
+                'expires_at' => $found->expires_at->toIso8601String(),
+                'imported_at' => $found->imported_at?->toIso8601String(),
+                // Like the recipes of the search (RecipePresenter::summary).
+                'recipe' => $recipe === null ? null : [
+                    'id' => $recipe->id,
+                    'name' => $recipe->name,
+                    'url' => route('recipes.show', $recipe),
+                ],
+            ],
+        ]);
     }
 }

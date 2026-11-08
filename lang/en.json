@@ -150,6 +150,7 @@
     "You already have a recipe named \":name\".": "You already have a recipe named \":name\".",
     "Publication": "Publication",
     "The recipe draft was not found or has expired.": "The recipe draft was not found or has expired.",
+    "This recipe draft was imported already.": "This recipe draft was imported already.",
     "Request \":value\"": "Request \":value\"",
     "Usable in your recipe right away; an administrator checks it before others see it.": "Usable in your recipe right away; an administrator checks it before others see it.",
     "The ingredient is left out (with its alternatives). Check whether the instructions still mention it.": "The ingredient is left out (with its alternatives). Check whether the instructions still mention it.",

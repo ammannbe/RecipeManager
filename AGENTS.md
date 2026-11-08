@@ -273,7 +273,7 @@ JSON API for the companion app "Shoppinglist", secured with Laravel Passport
   `POST /api/recipes/search` (`food_ids` and/or `query`: part of the name, min. 2 characters,
   names starting with it first, `%`/`_` literal; optional `season_month` 1–12: after `matched_foods_count`,
   recipes with more in-season foods rank first), `GET /api/recipes/{id}?servings=`,
-  `POST /api/recipe-drafts`.
+  `POST /api/recipe-drafts`, `GET /api/recipe-drafts/{uuid}`.
 * Visibility always goes through `Recipe::visibleTo()` / `RecipePolicy` (invisible → 404).
   Photos are never exposed.
 * Ingredient text and scaling mirror the recipe page (`recipes/show.blade.php`, `recipeServings`
@@ -284,8 +284,15 @@ JSON API for the companion app "Shoppinglist", secured with Laravel Passport
   recipe in the import JSON format (`RecipeJsonValidator`, no photos), stores it as `RecipeDraft`
   (own user, expires after 24 h, pruned daily by `recipe-drafts:prune`) and returns the URL
   `/admin/import-recipe?draft=<uuid>`. The import wizard loads the draft and starts at "Resolve",
-  where the user picks cookbook and visibility and matches unknown values; the draft is deleted
-  after the import.
+  where the user picks cookbook and visibility and matches unknown values. The import stores the
+  recipe on the draft (`recipe_id`, nullable FK `nullOnDelete`, and `imported_at`, set once by
+  `RecipeDraft::markImported()`); an imported draft is kept `KEEP_IMPORTED_DAYS` (30) after the import
+  (`RecipeDraft::prune()`, also used by `POST`), cannot be imported again (opening its URL redirects
+  to the recipe's edit page with a notice). `GET /api/recipe-drafts/{uuid}` (own drafts only, others,
+  unknown and pruned ones 404) returns `{id, status: pending|imported|expired, expires_at, imported_at,
+  recipe: {id, name, url} | null}` (`recipe` like the search's summary, null while pending or when the
+  recipe is gone or no longer visible): Shoppinglist links its planned recipe to the imported one.
+  Tests: `ApiRecipeDraftTest`, `ImportRecipePageTest`.
 * OAuth: `GET /oauth/authorize` (guests log in via Filament first, unverified users are sent to
   e-mail verification), `POST /oauth/token` (`authorization_code`, `refresh_token`).
   Scope `recipes` is optional. Access tokens live 1 hour, refresh tokens 90 days. The approval

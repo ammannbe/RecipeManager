@@ -4,10 +4,13 @@ namespace Tests\Feature;
 
 use App\Models\Category;
 use App\Models\Food;
+use App\Models\Recipe;
 use App\Models\RecipeDraft;
 use App\Models\Unit;
 use App\Models\User;
 use App\Services\RecipeImport\RecipeJsonSchema;
+use Illuminate\Support\Str;
+use Illuminate\Testing\PendingCommand;
 use Laravel\Passport\Passport;
 use Tests\TestCase;
 
@@ -73,6 +76,79 @@ class ApiRecipeDraftTest extends TestCase
         $this->postJson('/api/recipe-drafts', $this->payload())->assertCreated();
 
         $this->assertModelMissing($old);
+    }
+
+    public function test_imported_drafts_are_kept_until_their_time_is_up(): void
+    {
+        $user = User::factory()->create();
+        $recipe = Recipe::factory()->create(['author_id' => $user->author_id]);
+        $imported = RecipeDraft::query()->create(['user_id' => $user->id, 'data' => [], 'expires_at' => now()->subDay(), 'recipe_id' => $recipe->id, 'imported_at' => now()->subDays(2)]);
+        $old = RecipeDraft::query()->create(['user_id' => $user->id, 'data' => [], 'expires_at' => now()->subDays(40), 'recipe_id' => $recipe->id, 'imported_at' => now()->subDays(RecipeDraft::KEEP_IMPORTED_DAYS + 1)]);
+        $pending = RecipeDraft::query()->create(['user_id' => $user->id, 'data' => [], 'expires_at' => now()->addHour()]);
+        Passport::actingAs($user);
+
+        $this->postJson('/api/recipe-drafts', $this->payload())->assertCreated();
+
+        $this->assertModelExists($imported);
+        $this->assertModelExists($pending);
+        $this->assertModelMissing($old);
+
+        $command = $this->artisan('recipe-drafts:prune');
+        $this->assertInstanceOf(PendingCommand::class, $command);
+        $command->assertSuccessful()->run();
+        $this->assertModelExists($imported);
+    }
+
+    public function test_the_state_of_a_pending_or_expired_draft_is_returned(): void
+    {
+        $user = User::factory()->create();
+        $draft = RecipeDraft::query()->create(['user_id' => $user->id, 'data' => [], 'expires_at' => now()->addHour()]);
+        Passport::actingAs($user);
+
+        $this->getJson('/api/recipe-drafts/'.$draft->id)
+            ->assertOk()
+            ->assertJsonPath('data.id', $draft->id)
+            ->assertJsonPath('data.status', 'pending')
+            ->assertJsonPath('data.imported_at', null)
+            ->assertJsonPath('data.recipe', null);
+
+        $draft->update(['expires_at' => now()->subMinute()]);
+
+        $this->getJson('/api/recipe-drafts/'.$draft->id)->assertOk()->assertJsonPath('data.status', 'expired');
+    }
+
+    public function test_an_imported_draft_returns_its_recipe(): void
+    {
+        $user = User::factory()->create();
+        $recipe = Recipe::factory()->create(['author_id' => $user->author_id, 'name' => 'Kürbis-Risotto', 'cookbook_id' => null, 'is_public' => false]);
+        $draft = RecipeDraft::query()->create(['user_id' => $user->id, 'data' => [], 'expires_at' => now()->subHour()]);
+        RecipeDraft::markImported($draft->id, $recipe);
+        Passport::actingAs($user);
+
+        $this->getJson('/api/recipe-drafts/'.$draft->id)
+            ->assertOk()
+            ->assertJsonPath('data.status', 'imported')
+            ->assertJsonPath('data.recipe', ['id' => $recipe->id, 'name' => 'Kürbis-Risotto', 'url' => route('recipes.show', $recipe)]);
+
+        // Deleted afterwards: still imported, without recipe.
+        $recipe->delete();
+        $this->getJson('/api/recipe-drafts/'.$draft->id)->assertOk()->assertJsonPath('data.status', 'imported')->assertJsonPath('data.recipe', null);
+
+        $recipe->forceDelete();
+        $this->assertNull($draft->refresh()->recipe_id);
+        $this->getJson('/api/recipe-drafts/'.$draft->id)->assertOk()->assertJsonPath('data.status', 'imported')->assertJsonPath('data.recipe', null);
+    }
+
+    public function test_only_the_owner_sees_a_draft(): void
+    {
+        $draft = RecipeDraft::query()->create(['user_id' => User::factory()->create()->id, 'data' => [], 'expires_at' => now()->addHour()]);
+
+        $this->getJson('/api/recipe-drafts/'.$draft->id)->assertUnauthorized();
+
+        Passport::actingAs(User::factory()->create());
+        $this->getJson('/api/recipe-drafts/'.$draft->id)->assertNotFound();
+        $this->getJson('/api/recipe-drafts/'.Str::uuid())->assertNotFound();
+        $this->getJson('/api/recipe-drafts/not-a-uuid')->assertNotFound();
     }
 
     public function test_guests_cannot_store_drafts(): void
