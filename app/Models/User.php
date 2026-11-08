@@ -101,6 +101,17 @@ class User extends Authenticatable implements FilamentUser, HasName, MustVerifyE
     }
 
     /**
+     * Accounts without password (linked to the OIDC login) return an empty string: Laravel's SessionGuard
+     * refuses remember-me cookies of users whose password is not a string, so they were signed out
+     * whenever the session expired. Their cookies carry the hash of an empty password already, and
+     * Hash::check() never accepts an empty hash, so this does not allow a login without password.
+     */
+    public function getAuthPassword(): string
+    {
+        return $this->password ?? '';
+    }
+
+    /**
      * Last entitlements snapshot of the AccountManager (linked users only).
      *
      * @return HasOne<UserEntitlement, $this>

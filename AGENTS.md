@@ -86,6 +86,9 @@ If any command fails, repeat the process from the beginning.
 * A linked account (`oidc_sub` set, `User::isLinkedToOidc()`) signs in through the provider only. All rules live in
   `App\Auth\OidcAccount`; `UserObserver::saving` throws if a linked account would get a password (link/unlink only
   through `OidcAccount`, the factory drops the password of `linked()` users).
+* Remember-me for accounts without password: `User::getAuthPassword()` returns `''` instead of null, because Laravel's
+  `SessionGuard::userFromRecaller()` refuses users whose password is not a string (linked users were signed out whenever
+  the session expired). Same in Shoppinglist, Chorelist and AccountManager. Tests `RememberLoginTest`.
 * Linking (first OIDC sign-in matched by e-mail, or "Link …" in the profile) = `OidcAccount::link()`: password null,
   remember token rotated, password reset tokens deleted, the user's other sessions deleted (database session driver
   only; other drivers: they run out after `SESSION_LIFETIME`, `AuthenticateSession` skips users without password),
