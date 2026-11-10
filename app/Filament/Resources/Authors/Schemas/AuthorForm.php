@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Authors\Schemas;
 
+use App\Ai\RecipeAssistant;
 use App\Auth\OidcLabel;
 use App\Entitlements\Entitlements;
 use App\Households\AccountManagerLabel;
@@ -66,9 +67,13 @@ class AuthorForm
                             ->helperText(fn (?User $record): ?string => Entitlements::adminFromAccountManager() && $record?->isLinkedToOidc()
                                 ? (string) __('Admin rights of linked accounts are managed in “:name”.', ['name' => AccountManagerLabel::get()])
                                 : null),
+                        // ENTITLEMENTS_DRIVER=account-manager: linked users get the AI features (recipes.ai) from the AccountManager.
                         Toggle::make('ai_enabled')
                             ->label(__('AI features'))
-                            ->helperText(__('Create recipes and photos with AI (verified users only).'))
+                            ->disabled(fn (?User $record): bool => RecipeAssistant::managedByAccountManager($record))
+                            ->helperText(fn (?User $record): string => RecipeAssistant::managedByAccountManager($record)
+                                ? (string) __('AI features of linked accounts are managed in “:name”.', ['name' => AccountManagerLabel::get()])
+                                : (string) __('Create recipes and photos with AI (verified users only).'))
                             ->default(true),
                     ]),
             ]);

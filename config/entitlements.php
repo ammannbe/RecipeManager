@@ -41,8 +41,9 @@ return [
     |
     | Feature keys every user has with the local driver, and users without a
     | linked sign-in with the account-manager driver (comma separated). The AI
-    | features of this app are switched per user (users.ai_enabled) and need
-    | no key yet.
+    | features use users.ai_enabled with the local driver and for users without
+    | a linked sign-in, the feature recipes.ai for linked users with the
+    | account-manager driver (App\Ai\RecipeAssistant::featureEnabled()).
     |
     */
 

@@ -448,6 +448,7 @@
     "Manage in “:name”": "Manage in “:name”",
     "Your access to :app is suspended.": "Your access to :app is suspended.",
     "Your access to :app is not enabled.": "Your access to :app is not enabled.",
+    "AI features of linked accounts are managed in “:name”.": "AI features of linked accounts are managed in “:name”.",
     "Admin rights of linked accounts are managed in “:name”.": "Admin rights of linked accounts are managed in “:name”.",
     "Manage account": "Manage account",
     "Manage account in “:name”": "Manage account in “:name”",

@@ -2,8 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Ai\RecipeAssistant;
 use App\Entitlements\Entitlements;
 use App\Filament\Auth\Login;
+use App\Filament\Resources\Authors\Pages\EditAuthor;
 use App\Filament\Resources\Authors\Pages\ListAuthors;
 use App\Models\AccountManagerWebhookEvent;
 use App\Models\Author;
@@ -219,6 +221,45 @@ class AccountManagerEntitlementsTest extends TestCase
         config(['entitlements.driver' => 'local']);
         $this->assertSame(['recipes.extra'], Entitlements::features($this->user));
         $this->assertSame('active', Entitlements::status($this->user));
+    }
+
+    public function test_the_ai_features_of_linked_users_follow_the_feature(): void
+    {
+        config(['services.openai.key' => 'test-key']);
+        $this->user->forceFill(['ai_enabled' => true, 'email_verified_at' => now()])->save();
+        $local = User::factory()->create(['ai_enabled' => true]);
+
+        // Linked users need recipes.ai, users.ai_enabled does not count for them.
+        $this->assertFalse(RecipeAssistant::allows($this->user));
+        $this->assertTrue(RecipeAssistant::allows($local));
+
+        $this->changed($this->snapshot(1, features: [RecipeAssistant::FEATURE]))->assertNoContent();
+        $this->user->forceFill(['ai_enabled' => false])->save();
+        $this->user->refresh();
+        $this->assertTrue(RecipeAssistant::allows($this->user));
+
+        // Suspended: no features.
+        $this->changed($this->snapshot(2, status: 'suspended', features: [RecipeAssistant::FEATURE]))->assertNoContent();
+        $this->user->refresh();
+        $this->assertFalse(RecipeAssistant::allows($this->user));
+
+        // Local driver: the switch again.
+        config(['entitlements.driver' => 'local']);
+        $this->assertFalse(RecipeAssistant::allows($this->user));
+        $this->user->forceFill(['ai_enabled' => true])->save();
+        $this->assertTrue(RecipeAssistant::allows($this->user));
+    }
+
+    public function test_the_ai_switch_of_linked_users_is_managed_in_the_account_manager(): void
+    {
+        $admin = User::factory()->admin()->create();
+        $this->actingAs($admin);
+
+        Livewire::test(EditAuthor::class, ['record' => $this->user->author_id])
+            ->assertFormFieldIsDisabled('user.ai_enabled');
+
+        Livewire::test(EditAuthor::class, ['record' => User::factory()->create()->author_id])
+            ->assertFormFieldIsEnabled('user.ai_enabled');
     }
 
     public function test_admin_rights_follow_the_admin_source(): void

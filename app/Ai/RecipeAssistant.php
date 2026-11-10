@@ -2,6 +2,7 @@
 
 namespace App\Ai;
 
+use App\Entitlements\Entitlements;
 use App\Models\AiUsage;
 use App\Models\Recipe;
 use App\Models\User;
@@ -19,8 +20,8 @@ use InvalidArgumentException;
 /**
  * AI features of the recipe app: turns a photo, PDF or text into the import JSON (the same
  * prompt as "manually via chat", the user still resolves and confirms the import), estimates
- * conversion data of new foods, creates and enhances recipe photos. Verified users with
- * users.ai_enabled, limited per hour.
+ * conversion data of new foods, creates and enhances recipe photos. Verified users with the AI
+ * features (featureEnabled()), limited per hour.
  */
 class RecipeAssistant
 {
@@ -37,12 +38,33 @@ class RecipeAssistant
         private FoodConversions $conversions,
     ) {}
 
+    /** Feature key in the AccountManager (ENTITLEMENTS_DRIVER=account-manager). */
+    public const FEATURE = 'recipes.ai';
+
     public static function allows(?User $user): bool
     {
         return OpenAiClient::enabled()
             && $user !== null
-            && $user->ai_enabled
+            && self::featureEnabled($user)
             && $user->hasVerifiedEmail();
+    }
+
+    /**
+     * ENTITLEMENTS_DRIVER=account-manager: linked users need the feature recipes.ai from the AccountManager.
+     * Otherwise (local driver, users without a linked sign-in): the switch users.ai_enabled.
+     */
+    public static function featureEnabled(User $user): bool
+    {
+        if (self::managedByAccountManager($user)) {
+            return Entitlements::has($user, self::FEATURE);
+        }
+
+        return (bool) $user->ai_enabled;
+    }
+
+    public static function managedByAccountManager(?User $user): bool
+    {
+        return Entitlements::usesAccountManager() && $user?->oidc_sub !== null;
     }
 
     /**

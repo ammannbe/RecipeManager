@@ -232,7 +232,8 @@ If any command fails, repeat the process from the beginning.
   (`AccountManagerClient::entitlements()`, `GET /api/entitlements/{sub}`, 404 = no access) and the same webhook.
 * `App\Entitlements\Entitlements` (static): `has($user, 'key')`, `features()`, `isAdmin()`, `status()`, `allowsAccess()`.
   Local driver: every user has access and `entitlements.local.features` (`ENTITLEMENTS_LOCAL_FEATURES`, comma separated,
-  empty here; the AI features stay per user, `users.ai_enabled`). Account-manager driver: linked users (`oidc_sub`) get the stored snapshot (features only while
+  empty here). AI features: `recipes.ai` for linked users with the account-manager driver, otherwise `users.ai_enabled`
+  (`RecipeAssistant::featureEnabled()`; the toggle in the user section is disabled for those linked users). Account-manager driver: linked users (`oidc_sub`) get the stored snapshot (features only while
   `active`); never synced = access but no features; users without a linked sign-in keep the local behaviour.
 * Admin rights: always `$user->isAdmin()` / `User::query()->admins()`, never `users.admin` directly (policies, resources,
   widgets, import, mails). `AUTH_ADMIN_SOURCE=account-manager`: linked users are admins only with `admin: true` in an
@@ -323,8 +324,9 @@ ddev artisan passport:client --name=Shoppinglist --redirect_uri=https://<shoppin
   `OPENAI_IMAGE_SOURCE`, `OPENAI_HOURLY_LIMIT` default 20). Without a key the
   AI features are hidden. One global key; `App\Ai\OpenAiClient` (Responses API with strict JSON schema
   + Images API via `Http`, no SDK, same as Shoppinglist) logs the token usage per request.
-* Access: `App\Ai\RecipeAssistant::allows()`: verified users with `users.ai_enabled` (default on,
-  admins switch it off in the Author resource's user section). Every request (recipe or photo) counts
+* Access: `App\Ai\RecipeAssistant::allows()`: verified users with the AI features: `users.ai_enabled` (default on,
+  admins switch it off in the Author resource's user section), with `ENTITLEMENTS_DRIVER=account-manager` for linked
+  users the feature `recipes.ai` (`RecipeAssistant::FEATURE`) from the AccountManager instead. Every request (recipe or photo) counts
   against `ai:<user id>` per hour.
 * Import wizard (`ImportRecipe`): 1. "Read recipe": photo/PDF (max. 10 MB) and/or text or web address,
   collapsible "Paste recipe JSON" (exports; the only input without AI rights), cookbook

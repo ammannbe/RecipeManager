@@ -448,6 +448,7 @@
     "Manage in “:name”": "Im «:name» verwalten",
     "Your access to :app is suspended.": "Dein Zugang zu :app ist gesperrt.",
     "Your access to :app is not enabled.": "Dein Zugang zu :app ist nicht freigeschaltet.",
+    "AI features of linked accounts are managed in “:name”.": "KI-Funktionen verknüpfter Konten werden im «:name» verwaltet.",
     "Admin rights of linked accounts are managed in “:name”.": "Admin-Rechte verknüpfter Konten werden im «:name» verwaltet.",
     "Manage account": "Konto verwalten",
     "Manage account in “:name”": "Konto verwalten im «:name»",
