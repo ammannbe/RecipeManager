@@ -20,7 +20,7 @@
             </p>
         @endif
 
-        @if (($register ?? false) || config('login.local.enabled'))
+        @if (($register ?? false) || config('login.local.enabled') || App\Filament\Auth\Login::connectsCompanionApp())
             <div style="display: flex; align-items: center; column-gap: 0.75rem; font-size: 0.875rem; color: var(--gray-500);">
                 <span style="height: 1px; flex: 1; background: currentColor; opacity: 0.3;"></span>
                 {{ __('or') }}

@@ -300,10 +300,11 @@ JSON API for the companion app "Shoppinglist", secured with Laravel Passport
   screen (`resources/views/passport/authorize.blade.php`) is skipped while the user still has a
   valid access token for the client.
 * Trusted clients (`PASSPORT_TRUSTED_CLIENTS`, comma separated client IDs, `App\Models\OAuthClient`):
-  own companion apps skip the approval screen for verified users; with the OIDC login enabled,
-  guests of these clients go straight to `/auth/oidc/redirect` instead of the login form
-  (`redirectGuestsTo` in `bootstrap/app.php`), so connecting needs no input when the user is
-  already logged in at the provider.
+  own companion apps skip the approval screen for verified users. Their guests always get the
+  login form, never the OIDC provider directly (an unlinked account would be linked by e-mail),
+  and the password form is shown even with `AUTH_LOCAL_ENABLED=false` or the OIDC login enabled,
+  so accounts without OIDC sign-in can connect too (`Login::connectsCompanionApp()`, from the
+  intended `/oauth/authorize` URL). Linked accounts still sign in through the provider only.
 * Create the client once per Shoppinglist installation and give its ID and secret to Shoppinglist
   (the secret is shown only once):
 

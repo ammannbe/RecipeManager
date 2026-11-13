@@ -2,11 +2,15 @@
 
 namespace Tests\Feature;
 
+use App\Filament\Auth\Login;
 use App\Models\Food;
 use App\Models\User;
+use Filament\Facades\Filament;
+use Illuminate\Support\Facades\Hash;
 use Laravel\Passport\Client;
 use Laravel\Passport\ClientRepository;
 use Laravel\Passport\Passport;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 class ApiOAuthTest extends TestCase
@@ -161,18 +165,83 @@ class ApiOAuthTest extends TestCase
             ->assertRedirect(route('filament.app.auth.email-verification.prompt'));
     }
 
-    public function test_guests_of_a_trusted_client_go_to_the_oidc_login_when_enabled(): void
+    public function test_guests_of_a_trusted_client_get_the_login_page_even_with_oidc(): void
     {
         $client = $this->client();
         config(['passport.trusted_clients' => [(string) $client->getKey()]]);
-        $url = route('passport.authorizations.authorize', $this->authorizeQuery($client));
+        $url = route('passport.authorizations.authorize', [...$this->authorizeQuery($client), 'sso' => '1']);
 
         $this->get($url)->assertRedirect(route('filament.app.auth.login'));
 
         config(['login.oidc.enabled' => true]);
 
-        $this->get($url)->assertRedirect(route('oidc.redirect'));
-        $this->assertSame($url, session('url.intended'));
+        // Never straight to the provider: accounts without OIDC sign-in use their password.
+        $this->get($url)->assertRedirect(route('filament.app.auth.login'));
+        $this->assertStringStartsWith(route('passport.authorizations.authorize').'?', (string) session('url.intended'));
+        $this->assertTrue(Login::connectsCompanionApp());
+    }
+
+    public function test_a_trusted_client_can_be_connected_with_the_password_without_local_login(): void
+    {
+        $client = $this->client();
+        config([
+            'passport.trusted_clients' => [(string) $client->getKey()],
+            'login.oidc.enabled' => true,
+            'login.local.enabled' => false,
+        ]);
+        Filament::setCurrentPanel('app');
+        $url = route('passport.authorizations.authorize', $this->authorizeQuery($client));
+        $user = User::factory()->create(['password' => Hash::make('secret-password')]);
+
+        $this->get($url)->assertRedirect(route('filament.app.auth.login'));
+        $this->get(route('filament.app.auth.login'))
+            ->assertOk()
+            ->assertSeeInOrder([route('oidc.redirect'), 'type="password"'], false);
+
+        Livewire::test(Login::class)
+            ->assertFormFieldExists('email')
+            ->fillForm(['email' => $user->email, 'password' => 'secret-password'])
+            ->call('authenticate')
+            ->assertHasNoFormErrors()
+            ->assertRedirect($url);
+        $this->assertAuthenticatedAs($user);
+    }
+
+    public function test_linked_accounts_still_cannot_connect_with_a_password(): void
+    {
+        $client = $this->client();
+        config([
+            'passport.trusted_clients' => [(string) $client->getKey()],
+            'login.oidc.enabled' => true,
+            'login.local.enabled' => false,
+        ]);
+        Filament::setCurrentPanel('app');
+        $user = User::factory()->create(['password' => Hash::make('secret-password')]);
+        $user->forceFill(['oidc_sub' => 'sub-123'])->saveQuietly();
+
+        $this->get(route('passport.authorizations.authorize', $this->authorizeQuery($client)));
+
+        Livewire::test(Login::class)
+            ->fillForm(['email' => $user->email, 'password' => 'secret-password'])
+            ->call('authenticate')
+            ->assertHasFormErrors(['email']);
+        $this->assertGuest();
+    }
+
+    public function test_other_clients_do_not_unlock_the_password_login(): void
+    {
+        config(['login.oidc.enabled' => true, 'login.local.enabled' => false]);
+        Filament::setCurrentPanel('app');
+        $user = User::factory()->create(['password' => Hash::make('secret-password')]);
+
+        $this->get(route('passport.authorizations.authorize', $this->authorizeQuery($this->client())));
+
+        Livewire::test(Login::class)->assertFormFieldDoesNotExist('email');
+        Livewire::withQueryParams(['local' => 1])->test(Login::class)
+            ->fillForm(['email' => $user->email, 'password' => 'secret-password'])
+            ->call('authenticate')
+            ->assertHasFormErrors(['email']);
+        $this->assertGuest();
     }
 
     public function test_guests_of_other_clients_keep_the_login_form(): void
