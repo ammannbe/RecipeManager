@@ -35,8 +35,6 @@ class AppPanelProvider extends PanelProvider
 {
     public function panel(Panel $panel): Panel
     {
-        $localLogin = (bool) config('login.local.enabled');
-
         $panel = $panel
             ->default()
             ->id('app')
@@ -44,6 +42,9 @@ class AppPanelProvider extends PanelProvider
             ->brandLogo(fn (): View => view('filament.brand'))
             ->brandLogoHeight('2rem')
             ->login(Login::class)
+            // Always routed: Register::enabled() decides per request (AUTH_LOCAL_ENABLED/AUTH_LOCAL_REGISTRATION),
+            // otherwise the page sends visitors to AUTH_OIDC_SIGNUP_URL or the login.
+            ->registration(Register::class)
             // Kept without the local login (admins, unlinked accounts without password); linked accounts get a notice instead.
             ->passwordReset(RequestPasswordReset::class, ResetPassword::class)
             ->emailVerification()
@@ -85,6 +86,10 @@ class AppPanelProvider extends PanelProvider
                 fn (): View => view('filament.frontend-link'),
             )
             ->renderHook(
+                PanelsRenderHook::CONTENT_START,
+                fn (): View => view('filament.oidc-nudge'),
+            )
+            ->renderHook(
                 PanelsRenderHook::PAGE_HEADER_WIDGETS_AFTER,
                 fn (): View => view('filament.unsaved-changes'),
                 scopes: EditRecipe::class,
@@ -109,10 +114,6 @@ class AppPanelProvider extends PanelProvider
             ->authMiddleware([
                 Authenticate::class,
             ]);
-
-        if ($localLogin && config('login.local.registration')) {
-            $panel->registration(Register::class);
-        }
 
         return $panel;
     }

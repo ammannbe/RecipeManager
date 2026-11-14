@@ -12,11 +12,13 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 
 /**
- * API of the AccountManager (docs/HOUSEHOLDS-API.md there, section 3, and docs/ENTITLEMENTS-API.md, section 4):
+ * API of the AccountManager (docs/HOUSEHOLDS-API.md there, section 3, docs/ENTITLEMENTS-API.md, section 4, and
+ * docs/SERVICE-USERS-API.md):
  * HTTP Basic with the service key and the service secret. Every failure is a AccountManagerUnavailable, 404 is an answer.
  *
  * @phpstan-type EntitlementSnapshot array{sub: string, status: string, admin: bool, features: list<string>, version: int}
  * @phpstan-type Snapshot array{uuid: string, name: string, version: int, members: list<array{sub: string, role: string}>}
+ * @phpstan-type ServiceUser array{id: string, email: string, name: string|null, oidc_sub: string|null, last_login_at: string|null, created_at: string|null}
  * @phpstan-type ImportState array{local_id: string, status: string, household_uuid: string|null, household: Snapshot|null}
  */
 class AccountManagerClient
@@ -189,6 +191,43 @@ class AccountManagerClient
             ], $data['members'])),
             ...(isset($data['deleted']) ? ['deleted' => (bool) $data['deleted']] : []),
         ];
+    }
+
+    /**
+     * Full sync of this app's users (SERVICE-USERS-API.md). Several chunks of one sync share $startedAt; the
+     * AccountManager removes the users it did not see only on the chunk with $complete.
+     *
+     * @param  list<ServiceUser>  $users
+     * @return array{upserted: int, removed: int}
+     */
+    public function putUsers(array $users, bool $complete, string $startedAt): array
+    {
+        $response = $this->send(fn (PendingRequest $http): Response => $http
+            ->withHeaders(['X-Sync-Started-At' => $startedAt])
+            ->put('service-users', ['users' => $users, 'complete' => $complete]));
+
+        return [
+            'upserted' => (int) $response->json('upserted', 0),
+            'removed' => (int) $response->json('removed', 0),
+        ];
+    }
+
+    /**
+     * Creates or updates one user (SERVICE-USERS-API.md).
+     *
+     * @param  ServiceUser  $user
+     */
+    public function upsertUser(array $user): void
+    {
+        $this->send(fn (PendingRequest $http): Response => $http->post('service-users', $user));
+    }
+
+    /**
+     * The user is gone in this app (SERVICE-USERS-API.md); unknown users (404) are fine.
+     */
+    public function deleteUser(string $id): void
+    {
+        $this->send(fn (PendingRequest $http): Response => $http->delete('service-users/'.rawurlencode($id)), allowNotFound: true);
     }
 
     private function http(): PendingRequest

@@ -29,8 +29,33 @@ class Register extends BaseRegister
     #[Locked]
     public int $formRenderedAt = 0;
 
+    /**
+     * Local self-registration: AUTH_LOCAL_REGISTRATION and the local login (AUTH_LOCAL_ENABLED). Without it, new
+     * accounts come from the OIDC provider only (e.g. the AccountManager's sign-up, AUTH_OIDC_SIGNUP_URL).
+     */
+    public static function enabled(): bool
+    {
+        return config('login.local.enabled') && config('login.local.registration');
+    }
+
+    /**
+     * Where "Register" leads without local registration: the provider's sign-up, otherwise null.
+     */
+    public static function signupUrl(): ?string
+    {
+        $url = config('login.oidc.signup_url');
+
+        return is_string($url) && $url !== '' ? $url : null;
+    }
+
     public function mount(): void
     {
+        if (! self::enabled()) {
+            $this->redirect(self::signupUrl() ?? filament()->getLoginUrl());
+
+            return;
+        }
+
         parent::mount();
 
         $this->formRenderedAt = now()->getTimestamp();
@@ -38,6 +63,8 @@ class Register extends BaseRegister
 
     public function register(): ?RegistrationResponse
     {
+        abort_unless(self::enabled(), 403);
+
         if ($this->looksLikeABot()) {
             throw ValidationException::withMessages([
                 'data.email' => __('Registration failed. Please try again.'),

@@ -45,6 +45,9 @@ Schedule::command('model:prune', ['--model' => [AccountManagerWebhookEvent::clas
 // ENTITLEMENTS_DRIVER / AUTH_ADMIN_SOURCE=account-manager: fallback for lost entitlements.changed webhooks.
 Schedule::command('entitlements:sync')->dailyAt('04:30')->withoutOverlapping();
 
+// ACCOUNT_MANAGER_REPORT_USERS: full sync of the users (repairs lost single reports, removes deleted users there).
+Schedule::command('account-manager:report-users')->dailyAt('04:45')->withoutOverlapping();
+
 Artisan::command('recipe-drafts:prune', function () {
     // Imported drafts stay a while longer: the companion app links its entry to the recipe.
     $pruned = RecipeDraft::prune();

@@ -454,5 +454,9 @@
     "Manage account in “:name”": "Konto verwalten im «:name»",
     "Unlink from :provider": "Von :provider lösen",
     "Shown as the author of your recipes and cookbooks.": "Wird bei deinen Rezepten und Kochbüchern als Autor angezeigt.",
-    "It is the address of your :provider account.": "Das ist die Adresse deines :provider-Kontos."
+    "It is the address of your :provider account.": "Das ist die Adresse deines :provider-Kontos.",
+    "Link with :provider": "Mit :provider verknüpfen",
+    "One account for all Narrenhaus apps: sign in once, households and access everywhere.": "Ein Konto für alle Narrenhaus-Apps: einmal anmelden, Haushalte und Freischaltungen überall.",
+    "Link now": "Jetzt verknüpfen",
+    "Later": "Später"
 }

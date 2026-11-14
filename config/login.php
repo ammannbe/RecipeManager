@@ -42,6 +42,11 @@ return [
         // Create a new account on the first OIDC login of an unknown user.
         'registration' => (bool) env('AUTH_OIDC_REGISTRATION', true),
 
+        // Banner in the panel offering unlinked users to link the sign-in (App\Auth\OidcNudge). nudge_days: show it
+        // again this many days after "Later"; empty or 0: never again.
+        'nudge' => (bool) env('AUTH_OIDC_NUDGE', false),
+        'nudge_days' => (int) env('AUTH_OIDC_NUDGE_DAYS', 0),
+
         // Only users with this value in the "groups" claim may sign in.
         'required_group' => env('AUTH_OIDC_REQUIRED_GROUP') ?: null,
     ],

@@ -6,11 +6,14 @@ use App\Auth\OidcAccount;
 use App\Entitlements\Entitlements;
 use App\Models\OAuthClient;
 use App\Models\User;
+use Filament\Actions\Action;
 use Filament\Auth\Http\Responses\Contracts\LoginResponse;
 use Filament\Auth\Pages\Login as BaseLogin;
 use Filament\Notifications\Notification;
 use Filament\Schemas\Schema;
 use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Contracts\Support\Htmlable;
+use Illuminate\Support\HtmlString;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Locked;
 
@@ -101,6 +104,29 @@ class Login extends BaseLogin
         }
 
         parent::throwFailureValidationException();
+    }
+
+    /**
+     * "Register" leads to the local registration (Register::enabled()), otherwise to the provider's sign-up
+     * (AUTH_OIDC_SIGNUP_URL). With the OIDC login enabled the sign-in button already offers that sign-up.
+     */
+    public function getSubheading(): string|Htmlable|null
+    {
+        if (filled($this->userUndertakingMultiFactorAuthentication) || Register::enabled()) {
+            return parent::getSubheading();
+        }
+
+        if (config('login.oidc.enabled') || Register::signupUrl() === null) {
+            return null;
+        }
+
+        return new HtmlString(__('filament-panels::auth/pages/login.actions.register.before').' '.$this->registerAction->toHtml());
+    }
+
+    public function registerAction(): Action
+    {
+        return parent::registerAction()
+            ->url(Register::enabled() ? filament()->getRegistrationUrl() : Register::signupUrl());
     }
 
     /**

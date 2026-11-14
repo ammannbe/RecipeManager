@@ -79,7 +79,18 @@ If any command fails, repeat the process from the beginning.
   unique author name and no password. `AUTH_OIDC_REQUIRED_GROUP` checks the `groups` claim.
 * `AUTH_LOCAL_ENABLED=false` hides the password form (`/admin/login?local=1` shows it) and allows
   password logins for admins only (emergency access). Password reset stays available for unlinked accounts.
-  `AUTH_LOCAL_REGISTRATION=false` removes registration.
+* Registration only through the provider: `AUTH_LOCAL_REGISTRATION=false` (or `AUTH_LOCAL_ENABLED=false`) turns off the
+  local sign-up (`Register::enabled()`, checked per request: the panel always routes `/admin/register`). The page then
+  redirects (302) to `AUTH_OIDC_SIGNUP_URL` (`Register::signupUrl()`), otherwise to the login; submitting is refused
+  (403). The login's "Register" link points to the sign-up URL (`Login::getSubheading()`/`registerAction()`), hidden
+  without one; with the OIDC login enabled only the button's "No … account yet?" offers it (no duplicate).
+  Existing users keep the local login (`AUTH_LOCAL_ENABLED`). Tests `LocalRegistrationSwitchTest`.
+* Link banner (`AUTH_OIDC_NUDGE`, default off, needs the OIDC login): `filament/oidc-nudge.blade.php` (render hook
+  `CONTENT_START`, `App\Auth\OidcNudge::shows()`) for unlinked users: «Mit :provider verknüpfen» (`OidcLabel`),
+  "Link now" opens the profile's "Link …" action (`EditProfile?action=linkOidc`: password confirmation, then
+  `/auth/oidc/redirect?link=1`), "Later" posts to `/auth/oidc/nudge/dismiss` (`OidcNudgeController`, auth + CSRF) and
+  stores `users.oidc_nudge_dismissed_at`. `AUTH_OIDC_NUDGE_DAYS` empty/0: never again; n: again after n days.
+  Tests `OidcNudgeTest`.
 
 ### Linked accounts are SSO-only (reference for Shoppinglist and Chorelist)
 
@@ -223,6 +234,24 @@ If any command fails, repeat the process from the beginning.
   shares stay; the webhook answers 404. Switching to `account-manager` again overwrites them with the next newer snapshot.
 * Deleting a user: in mirrored households the user only leaves (no hand-over, the AccountManager decides).
 * Tests: `AccountManagerHouseholdTest` (fake AccountManager via `Http::fake`, signed webhooks, Socialite mock).
+
+## Users reported to the AccountManager (`ACCOUNT_MANAGER_REPORT_USERS`)
+
+* Contract: AccountManager `docs/SERVICE-USERS-API.md` (overview of every app's users there). Off by default; needs
+  `ACCOUNT_MANAGER_URL`, `ACCOUNT_MANAGER_SERVICE_KEY`, `ACCOUNT_MANAGER_SECRET` (same HTTP Basic client
+  `AccountManagerClient`: `putUsers()`, `upsertUser()`, `deleteUser()`), independent of the households/entitlements
+  drivers. `App\Households\AccountManagerUsers`: `enabled()`, `payload()` (`id` as string, `email`, `name` = author
+  name, `oidc_sub`, `last_login_at`, `created_at`, ISO 8601), `report()`, `sync()`.
+* Single reports: the queued `ReportAccountManagerUser` (user id, after commit, 3 tries, backoff 60/300 s, failures only
+  log) sends the state at run time: `POST /api/service-users` while the user exists, `DELETE /api/service-users/{id}`
+  once it is soft deleted or gone. Dispatched by `UserObserver` (created = local and OIDC registration; updated on
+  `email`, `oidc_sub` (link/unlink), `author_id`, `last_login_at`; deleted, forceDeleted, restored) and
+  `AuthorObserver` (author name). `users.last_login_at` is set by `App\Listeners\RecordLastLogin` (event `Login`,
+  discovered automatically, also remember-me; never breaks the sign-in).
+* Full sync `account-manager:report-users` (daily 04:45): `PUT /api/service-users` with all non-trashed users in chunks
+  of 5000, header `X-Sync-Started-At` (same for every chunk), `complete: false` except on the last chunk (the
+  AccountManager removes users not seen since the sync started); no users: one empty complete request.
+* Tests: `AccountManagerUsersTest` (`Http::fake`).
 
 ## Entitlements from the AccountManager
 
@@ -578,6 +607,7 @@ Important test areas:
 * households (membership, roles, last admin, invitations, driver) and cookbook access through households
 * households from the AccountManager (webhook signature, idempotency, versions, sync, import, AccountManager down)
 * entitlements from the AccountManager (snapshots, admin source, blocked access, user.deleted, sync, AccountManager down)
+* users reported to the AccountManager (payload, triggers, deletion, full sync chunks, AccountManager down)
 * recipe visibility, including photo access
 * API (OAuth, visibility, search ranking, scaling, recipe creation)
 * filament pages

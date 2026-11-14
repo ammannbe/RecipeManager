@@ -2,6 +2,7 @@
 
 namespace App\Observers;
 
+use App\Households\AccountManagerUsers;
 use App\Models\Cookbook;
 use App\Models\User;
 use App\Services\Households;
@@ -29,6 +30,33 @@ class UserObserver
             $user->entitlement()->delete();
             $user->unsetRelation('entitlement');
         }
+
+        if ($user->wasChanged(['email', 'oidc_sub', 'author_id', 'last_login_at'])) {
+            AccountManagerUsers::report($user);
+        }
+    }
+
+    /**
+     * ACCOUNT_MANAGER_REPORT_USERS: registration (local or OIDC), deletion (also soft deletion), restoring.
+     */
+    public function created(User $user): void
+    {
+        AccountManagerUsers::report($user);
+    }
+
+    public function deleted(User $user): void
+    {
+        AccountManagerUsers::report($user);
+    }
+
+    public function forceDeleted(User $user): void
+    {
+        AccountManagerUsers::report((int) $user->getKey());
+    }
+
+    public function restored(User $user): void
+    {
+        AccountManagerUsers::report($user);
     }
 
     public function deleting(User $user): void

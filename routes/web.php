@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\OidcController;
+use App\Http\Controllers\Auth\OidcNudgeController;
 use App\Http\Controllers\CookbookInvitationController;
 use App\Http\Controllers\HouseholdInvitationController;
 use App\Http\Controllers\ImportPhotoController;
@@ -34,6 +35,11 @@ Route::middleware('throttle:20,1')->group(function () {
     Route::get('/auth/oidc/redirect', [OidcController::class, 'redirect'])->name('oidc.redirect');
     Route::get('/auth/oidc/callback', [OidcController::class, 'callback'])->name('oidc.callback');
 });
+
+// "Later" on the banner offering to link the OIDC sign-in (AUTH_OIDC_NUDGE).
+Route::post('/auth/oidc/nudge/dismiss', [OidcNudgeController::class, 'dismiss'])
+    ->middleware(['auth', 'throttle:20,1'])
+    ->name('oidc.nudge.dismiss');
 
 // Approval of AI clients (MCP) with the permissions the user ticked, then Passport's approval.
 Route::post('/oauth/authorize/mcp', [McpAuthorizationController::class, 'approve'])

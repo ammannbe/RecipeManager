@@ -454,5 +454,9 @@
     "Manage account in “:name”": "Manage account in “:name”",
     "Unlink from :provider": "Unlink from :provider",
     "Shown as the author of your recipes and cookbooks.": "Shown as the author of your recipes and cookbooks.",
-    "It is the address of your :provider account.": "It is the address of your :provider account."
+    "It is the address of your :provider account.": "It is the address of your :provider account.",
+    "Link with :provider": "Link with :provider",
+    "One account for all Narrenhaus apps: sign in once, households and access everywhere.": "One account for all Narrenhaus apps: sign in once, households and access everywhere.",
+    "Link now": "Link now",
+    "Later": "Later"
 }

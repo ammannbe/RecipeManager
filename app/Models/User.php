@@ -53,6 +53,8 @@ class User extends Authenticatable implements FilamentUser, HasName, MustVerifyE
 
     protected $casts = [
         'email_verified_at' => 'datetime',
+        'oidc_nudge_dismissed_at' => 'datetime',
+        'last_login_at' => 'datetime',
         'password' => 'hashed',
         'ai_enabled' => 'boolean',
     ];
