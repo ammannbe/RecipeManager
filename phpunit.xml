@@ -27,6 +27,9 @@
         <env name="ENTITLEMENTS_DRIVER" value="local" force="true"/>
         <env name="ENTITLEMENTS_LOCAL_FEATURES" value="" force="true"/>
         <env name="AUTH_ADMIN_SOURCE" value="local" force="true"/>
+        <env name="ANNOUNCEMENTS_DRIVER" value="none" force="true"/>
+        <env name="VAPID_PUBLIC_KEY" value="" force="true"/>
+        <env name="VAPID_PRIVATE_KEY" value="" force="true"/>
         <server name="HOUSEHOLDS_DRIVER" value="local" force="true"/>
         <!-- Never call OpenAI with the real key; tests set a fake key and Http::fake(). -->
         <env name="OPENAI_API_KEY" value="" force="true"/>

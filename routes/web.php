@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\AnnouncementController;
 use App\Http\Controllers\Auth\OidcController;
 use App\Http\Controllers\Auth\OidcNudgeController;
 use App\Http\Controllers\CookbookInvitationController;
@@ -7,7 +8,9 @@ use App\Http\Controllers\HouseholdInvitationController;
 use App\Http\Controllers\ImportPhotoController;
 use App\Http\Controllers\McpAuthorizationController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PushSubscriptionController;
 use App\Http\Controllers\RecipeController;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', [RecipeController::class, 'index'])->name('recipes.index');
@@ -45,3 +48,20 @@ Route::post('/auth/oidc/nudge/dismiss', [OidcNudgeController::class, 'dismiss'])
 Route::post('/oauth/authorize/mcp', [McpAuthorizationController::class, 'approve'])
     ->middleware('auth')
     ->name('mcp.authorize.approve');
+
+// Announcements (ANNOUNCEMENTS_DRIVER=account-manager): closing the banner, Web Push subscriptions of the browser
+// (profile), unsubscribing from announcement e-mails (signed link, POST also as one-click List-Unsubscribe).
+Route::middleware(['auth', 'throttle:30,1'])->group(function (): void {
+    Route::post('/announcements/{announcement}/dismiss', [AnnouncementController::class, 'dismiss'])->name('announcements.dismiss');
+    Route::post('/push-subscriptions', [PushSubscriptionController::class, 'store'])->name('push-subscriptions.store');
+    Route::delete('/push-subscriptions', [PushSubscriptionController::class, 'destroy'])->name('push-subscriptions.destroy');
+});
+
+Route::middleware(['signed', 'throttle:20,1'])->group(function (): void {
+    Route::get('/announcements/unsubscribe/{user}/{kind}', [AnnouncementController::class, 'confirmUnsubscribe'])
+        ->whereIn('kind', array_keys(AnnouncementController::KINDS))
+        ->name('announcements.unsubscribe');
+    Route::post('/announcements/unsubscribe/{user}/{kind}', [AnnouncementController::class, 'unsubscribe'])
+        ->whereIn('kind', array_keys(AnnouncementController::KINDS))
+        ->withoutMiddleware(PreventRequestForgery::class);
+});

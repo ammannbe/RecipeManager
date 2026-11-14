@@ -253,6 +253,48 @@ If any command fails, repeat the process from the beginning.
   AccountManager removes users not seen since the sync started); no users: one empty complete request.
 * Tests: `AccountManagerUsersTest` (`Http::fake`).
 
+## Announcements from the AccountManager (`ANNOUNCEMENTS_DRIVER=account-manager`)
+
+* Contract: AccountManager `docs/ANNOUNCEMENTS-API.md` (phase 11). `config/announcements.php`: `driver`
+  (`ANNOUNCEMENTS_DRIVER`, `none` default; `local`/empty = none), `send_window_days` (7), `batch_size` (50),
+  `batch_delay` (60 s between e-mail batches). Uses the `ACCOUNT_MANAGER_*` values, the same client
+  (`AccountManagerClient::announcements()`, `reportDelivery()`) and the same webhook. `App\Announcements\Announcements::enabled()`.
+* Tables: `announcements` (local copy: `account_manager_uuid`, type, title/body_html/excerpt per locale as JSON, channels,
+  link, image_url, publish_at, expires_at, `remote_updated_at`, `withdrawn_at`, `push_dispatched_at`/`email_dispatched_at`),
+  `announcement_reads` (user, read_at, dismissed_at), `announcement_deliveries` (announcement, user, channel, status;
+  unique), `push_subscriptions` (package table) and `users.announcement_emails` (default off) / `maintenance_emails` (default on).
+* Sync `AccountManagerAnnouncements::sync()` (command `account-manager:sync-announcements`, every 15 min; `--full` daily
+  04:50; webhook `announcements.changed` → queued `SyncAccountManagerAnnouncements`, once per `event_id`): `since` = the
+  stored `server_time` (cache `announcements:server_time`, missing = full), upsert by uuid (same `updated_at`: nothing
+  written), `deleted` and copies missing in a full list get `withdrawn_at` (hidden, never deleted, so they are not sent
+  again when they come back). Invalid items are skipped, unknown types count as `info`, unknown channels dropped,
+  links/images only http(s). A cache lock serializes the runs. AccountManager down: the last state stays.
+* Visibility (`Announcement::scopeVisibleTo($user, $channel)`): not withdrawn, published, not expired, the channel;
+  users registered after `publish_at` only see `maintenance`. Texts in the app locale, otherwise the other one;
+  `body_html` is used as is (sanitized by the AccountManager).
+* `in_app`: bell (`filament/announcement-bell`, render hook `USER_MENU_BEFORE`, badge = unread) opens the page
+  `App\Filament\Pages\News` (`/admin/news`, no navigation entry), which marks everything read on open and highlights
+  what was unread. `banner`: `filament/announcement-banner` (render hook `CONTENT_START`, same pattern as the OIDC
+  nudge): the newest not closed one, "Close" posts to `/announcements/{id}/dismiss` (`dismissed_at`, also `read_at`).
+* Push and e-mail (`AnnouncementSender`, after every sync): per announcement and channel claimed once
+  (`*_dispatched_at`, atomic update), only within `send_window_days` after `publish_at` (switching the driver on does
+  not mail old news), then `SendAnnouncementBatch` jobs of `batch_size` users. Each batch re-checks the consent, skips
+  withdrawn/expired announcements and inserts the user into `announcement_deliveries` before sending (never twice,
+  also with overlapping runs or retries), then reports `POST /api/announcements/{uuid}/deliveries` with the counts of
+  its users from that table (`batch` = `{channel}-{first id}-{last id}`, a retry replaces the numbers; failures only log).
+  Push without VAPID keys is not claimed (goes out once configured, within the window).
+* Push: `laravel-notification-channels/webpush` like Chorelist (`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, `VAPID_SUBJECT`,
+  create them with `php artisan webpush:vapid`). Consent = a push subscription of the browser: profile section "News and
+  notifications" → "Push notifications on this device" (`filament/push-toggle`, Alpine inline) registers
+  `public/push-sw.js` (push only, the app is no PWA) and `POST/DELETE /push-subscriptions` (`PushSubscriptionController`,
+  known push services only). `AnnouncementPush` (title + excerpt in the user's locale, opens News) goes through the
+  `WebPushChannel` directly (its reports give the counts; expired subscriptions are deleted by the package).
+* E-mail (`AnnouncementMail`, user's locale): verified addresses with "News by e-mail" (`feature`/`info`) or
+  "Maintenance notices by e-mail" (`maintenance`). Signed unsubscribe link + `List-Unsubscribe`/`List-Unsubscribe-Post`
+  (`/announcements/unsubscribe/{user}/{news|maintenance}`: GET shows a confirmation, POST unsubscribes, also one-click
+  without CSRF). Toggles in the profile.
+* Tests: `AccountManagerAnnouncementsTest` (`Http::fake`, signed webhooks, `Mail::fake`, mocked `WebPushChannel`).
+
 ## Entitlements from the AccountManager
 
 * Contract: AccountManager `docs/ENTITLEMENTS-API.md` (phase 6a), concept 5.3/6. Same design and names in Shoppinglist and
@@ -275,8 +317,8 @@ If any command fails, repeat the process from the beginning.
   snapshot (`syncOnSignIn()`, total timeout 5 s, failures keep the last state and only log) and `entitlements:sync`
   (daily 04:30) fetches it for every linked user (a failure stops the run, the state stays). Snapshots are stored when
   the driver or the admin source is `account-manager` and the AccountManager is configured (`Entitlements::syncEnabled()`).
-* Webhook `POST /api/account-manager/webhook` (`AccountManagerWebhookController`): open when households are mirrored or
-  entitlements are synced, otherwise 404. Same signature check and `event_id` idempotency; `entitlements.changed` is applied
+* Webhook `POST /api/account-manager/webhook` (`AccountManagerWebhookController`): open when households are mirrored,
+  entitlements are synced or announcements are mirrored, otherwise 404. Same signature check and `event_id` idempotency; `entitlements.changed` is applied
   right away in one transaction with the event row (`service` must be ours, otherwise 422; unknown statuses count as
   `none`), `user.deleted` by the queued `DeleteAccountManagerUser`, household events as before, unknown types 204.
 * Access (driver account-manager): `EnsureEntitlementAccess` (web group, panel middleware, API and MCP routes) signs out a
@@ -608,6 +650,7 @@ Important test areas:
 * households from the AccountManager (webhook signature, idempotency, versions, sync, import, AccountManager down)
 * entitlements from the AccountManager (snapshots, admin source, blocked access, user.deleted, sync, AccountManager down)
 * users reported to the AccountManager (payload, triggers, deletion, full sync chunks, AccountManager down)
+* announcements from the AccountManager (sync, webhook, visibility, read/dismiss, push/e-mail consent, exactly once, unsubscribe, delivery reports)
 * recipe visibility, including photo access
 * API (OAuth, visibility, search ranking, scaling, recipe creation)
 * filament pages

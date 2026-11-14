@@ -90,6 +90,14 @@ class AppPanelProvider extends PanelProvider
                 fn (): View => view('filament.oidc-nudge'),
             )
             ->renderHook(
+                PanelsRenderHook::CONTENT_START,
+                fn (): View => view('filament.announcement-banner'),
+            )
+            ->renderHook(
+                PanelsRenderHook::USER_MENU_BEFORE,
+                fn (): View => view('filament.announcement-bell'),
+            )
+            ->renderHook(
                 PanelsRenderHook::PAGE_HEADER_WIDGETS_AFTER,
                 fn (): View => view('filament.unsaved-changes'),
                 scopes: EditRecipe::class,

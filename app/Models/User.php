@@ -20,6 +20,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Passport\Contracts\OAuthenticatable;
 use Laravel\Passport\HasApiTokens;
+use NotificationChannels\WebPush\HasPushSubscriptions;
 
 class User extends Authenticatable implements FilamentUser, HasName, MustVerifyEmail, OAuthenticatable
 {
@@ -28,6 +29,7 @@ class User extends Authenticatable implements FilamentUser, HasName, MustVerifyE
     /** @use HasFactory<UserFactory> */
     use HasFactory;
 
+    use HasPushSubscriptions;
     use Notifiable;
     use Searchable;
     use SoftDeletes;
@@ -39,6 +41,8 @@ class User extends Authenticatable implements FilamentUser, HasName, MustVerifyE
         'password',
         'admin',
         'ai_enabled',
+        'announcement_emails',
+        'maintenance_emails',
     ];
 
     protected $hidden = [
@@ -49,6 +53,8 @@ class User extends Authenticatable implements FilamentUser, HasName, MustVerifyE
 
     protected $attributes = [
         'ai_enabled' => true,
+        'announcement_emails' => false,
+        'maintenance_emails' => true,
     ];
 
     protected $casts = [
@@ -57,6 +63,8 @@ class User extends Authenticatable implements FilamentUser, HasName, MustVerifyE
         'last_login_at' => 'datetime',
         'password' => 'hashed',
         'ai_enabled' => 'boolean',
+        'announcement_emails' => 'boolean',
+        'maintenance_emails' => 'boolean',
     ];
 
     protected $with = [

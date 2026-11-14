@@ -51,6 +51,9 @@ class UserObserver
 
     public function forceDeleted(User $user): void
     {
+        // Polymorphic, so no foreign key cascades them.
+        $user->pushSubscriptions()->delete();
+
         AccountManagerUsers::report((int) $user->getKey());
     }
 

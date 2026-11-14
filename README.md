@@ -20,6 +20,7 @@ Written with the PHP Framework [Laravel](https://laravel.com/).
 -   **Import with AI** - Turn a photo, PDF or text of a recipe into a ready-to-import JSON file ([how it works](docs/ai-recipe-import.md)).
 -   **Calculate servings** - Calculate servings directly in the recipe on the fly.
 -   **Reuse recipe properties** - ..like author, category, tags, ingredients, units and more.
+-   **News from a central AccountManager** - Announcements as bell and "News", banner, Web Push and e-mail (with consent, optional, `ANNOUNCEMENTS_DRIVER=account-manager`, see `AGENTS.md`).
 -   **German and English** - Switch the language at any time.
 
 ## What features are planned?

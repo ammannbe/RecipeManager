@@ -10,6 +10,7 @@
         "filament/filament": "^5.6",
         "kovah/laravel-socialite-oidc": "^0.8.0",
         "lamansky/fraction": "^1.0",
+        "laravel-notification-channels/webpush": "^13.0",
         "laravel/framework": "^13.8",
         "laravel/mcp": "^1.1",
         "laravel/passport": "^13.0",

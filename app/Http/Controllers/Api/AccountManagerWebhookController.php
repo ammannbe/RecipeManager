@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Announcements\Announcements;
 use App\Entitlements\AccountManagerEntitlements;
 use App\Entitlements\Entitlements;
 use App\Households\AccountManagerClient;
@@ -9,6 +10,7 @@ use App\Households\AccountManagerHouseholds;
 use App\Http\Controllers\Controller;
 use App\Jobs\ApplyAccountManagerEvent;
 use App\Jobs\DeleteAccountManagerUser;
+use App\Jobs\SyncAccountManagerAnnouncements;
 use App\Models\AccountManagerWebhookEvent;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -21,11 +23,14 @@ use JsonException;
  * docs/ENTITLEMENTS-API.md, section 5): signed with HMAC-SHA256 over "{timestamp}.{body}", at most
  * 300 seconds old, accepted once per event_id. Household events (HOUSEHOLDS_DRIVER=account-manager)
  * and user.deleted are applied by queued jobs, entitlements.changed (ENTITLEMENTS_DRIVER or
- * AUTH_ADMIN_SOURCE=account-manager) right away.
+ * AUTH_ADMIN_SOURCE=account-manager) right away. announcements.changed (ANNOUNCEMENTS_DRIVER=account-manager,
+ * docs/ANNOUNCEMENTS-API.md section 4) is only a trigger for the queued sync.
  */
 class AccountManagerWebhookController extends Controller
 {
     public const TOLERANCE = 300;
+
+    public const ANNOUNCEMENTS_CHANGED = 'announcements.changed';
 
     public function __invoke(Request $request, AccountManagerEntitlements $entitlements): Response
     {
@@ -98,16 +103,24 @@ class AccountManagerWebhookController extends Controller
             return response()->noContent();
         }
 
+        if ($event['type'] === self::ANNOUNCEMENTS_CHANGED) {
+            if (Announcements::enabled() && $this->accept($event)) {
+                SyncAccountManagerAnnouncements::dispatch();
+            }
+
+            return response()->noContent();
+        }
+
         // Unknown types (later extensions) are acknowledged.
         return response()->noContent();
     }
 
     /**
-     * Mirrored households, stored entitlements or both.
+     * Mirrored households, stored entitlements, mirrored announcements or any combination.
      */
     public static function enabled(): bool
     {
-        return AccountManagerHouseholds::enabled() || Entitlements::syncEnabled();
+        return AccountManagerHouseholds::enabled() || Entitlements::syncEnabled() || Announcements::enabled();
     }
 
     /**

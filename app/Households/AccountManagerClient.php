@@ -230,6 +230,44 @@ class AccountManagerClient
         $this->send(fn (PendingRequest $http): Response => $http->delete('service-users/'.rawurlencode($id)), allowNotFound: true);
     }
 
+    /**
+     * Published announcements of this service (ANNOUNCEMENTS-API.md 3.2): all of them without $since, otherwise the
+     * ones changed or published since then plus the UUIDs no longer visible. The items are validated by the caller.
+     *
+     * @return array{data: list<mixed>, deleted: list<string>, server_time: string}
+     */
+    public function announcements(?string $since): array
+    {
+        $response = $this->send(fn (PendingRequest $http): Response => $http->get('announcements', array_filter(['since' => $since])));
+
+        $serverTime = $response->json('server_time');
+        $deleted = $response->json('deleted') ?? [];
+
+        if (! is_string($serverTime) || $serverTime === '' || ! is_array($deleted)) {
+            throw new AccountManagerUnavailable('The AccountManager returned an unexpected answer.');
+        }
+
+        return [
+            'data' => $this->list($response->json('data')),
+            'deleted' => array_values(array_map('strval', array_filter($deleted, 'is_string'))),
+            'server_time' => $serverTime,
+        ];
+    }
+
+    /**
+     * Delivery report of a batch of e-mails or push messages (ANNOUNCEMENTS-API.md 3.3). The same batch again
+     * replaces its numbers. Unknown announcements (404) are fine.
+     */
+    public function reportDelivery(string $uuid, string $channel, int $sent, int $failed, string $batch): void
+    {
+        $this->send(fn (PendingRequest $http): Response => $http->post('announcements/'.rawurlencode($uuid).'/deliveries', [
+            'channel' => $channel,
+            'sent' => $sent,
+            'failed' => $failed,
+            'batch' => $batch,
+        ]), allowNotFound: true);
+    }
+
     private function http(): PendingRequest
     {
         return Http::baseUrl(rtrim((string) config('households.account_manager.url'), '/').'/api')

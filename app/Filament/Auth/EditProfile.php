@@ -2,6 +2,7 @@
 
 namespace App\Filament\Auth;
 
+use App\Announcements\Announcements;
 use App\Auth\OidcAccount;
 use App\Auth\OidcLabel;
 use App\Households\AccountManagerLabel;
@@ -10,10 +11,12 @@ use Filament\Actions\Action;
 use Filament\Auth\Pages\EditProfile as BaseEditProfile;
 use Filament\Facades\Filament;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
 use Filament\Schemas\Components\Component;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\View;
 use Filament\Schemas\Schema;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\Rules\Password;
@@ -46,7 +49,7 @@ class EditProfile extends BaseEditProfile
             ->schema([$this->getNameFormComponent()]);
 
         if (! $this->profileUser()->isLinkedToOidc()) {
-            return $schema->components([
+            return $schema->components(array_filter([
                 $author,
                 Section::make(__('Manage account'))->schema([
                     $this->getEmailFormComponent(),
@@ -54,13 +57,14 @@ class EditProfile extends BaseEditProfile
                     $this->getPasswordConfirmationFormComponent(),
                     $this->getCurrentPasswordFormComponent(),
                 ]),
-            ]);
+                $this->announcementsSection(),
+            ]));
         }
 
         $provider = OidcLabel::get();
         $managerUrl = AccountManagerLabel::profileUrl();
 
-        return $schema->components([
+        return $schema->components(array_filter([
             $author,
             Section::make(__('Manage account'))->schema([
                 // Changing it needs the current password (which a linked account has not).
@@ -77,7 +81,31 @@ class EditProfile extends BaseEditProfile
                     ->icon('heroicon-o-link')
                     ->belowContent(__('Signing in with a password is turned off for this account.')),
             ]),
-        ]);
+            $this->announcementsSection(),
+        ]));
+    }
+
+    /**
+     * Consents for announcements of the AccountManager (ANNOUNCEMENTS_DRIVER=account-manager): news by e-mail (default
+     * off), maintenance notices by e-mail (default on) and push on this device (a push subscription is the consent).
+     */
+    private function announcementsSection(): ?Section
+    {
+        if (! Announcements::enabled()) {
+            return null;
+        }
+
+        return Section::make(__('News and notifications'))->schema(array_filter([
+            Toggle::make('announcement_emails')
+                ->label(__('News by e-mail'))
+                ->helperText(__('New features and notices of :app.', ['app' => config('app.name')])),
+            Toggle::make('maintenance_emails')
+                ->label(__('Maintenance notices by e-mail'))
+                ->helperText(__('Planned maintenance and outages.')),
+            Announcements::pushEnabled()
+                ? View::make('filament.push-toggle')->viewData(['vapidPublicKey' => (string) config('webpush.vapid.public_key')])
+                : null,
+        ]));
     }
 
     /**
