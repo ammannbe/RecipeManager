@@ -22,6 +22,10 @@ class EventListenerRegistrationTest extends TestCase
     {
         $listeners = Event::getRawListeners()[$event] ?? [];
 
+        if (! is_array($listeners)) {
+            return 0;
+        }
+
         return count(array_filter($listeners, function ($registered) use ($listener): bool {
             $class = is_array($registered) ? $registered[0] : (is_string($registered) ? explode('@', $registered)[0] : null);
 

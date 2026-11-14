@@ -296,7 +296,8 @@ class AccountManagerHouseholds
 
             $household ??= new Household(['account_manager_household_uuid' => $snapshot['uuid']]);
             $household->name = mb_substr($snapshot['name'], 0, 255);
-            $household->account_manager_version = $snapshot['version'];
+            // The column is unsigned; never let a malformed remote version break the save.
+            $household->account_manager_version = max(0, $snapshot['version']);
             $household->save();
 
             $this->syncMembers($household, $snapshot['members']);
