@@ -3,12 +3,8 @@
 namespace App\Providers;
 
 use App\Auth\OidcProvider;
-use App\Listeners\AcceptHouseholdInvitationFromSession;
-use App\Listeners\AcceptPendingCookbookInvitations;
 use App\Models\OAuthClient;
 use App\Models\User;
-use Illuminate\Auth\Events\Registered;
-use Illuminate\Auth\Events\Verified;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Storage;
@@ -35,9 +31,7 @@ class AppServiceProvider extends ServiceProvider
     {
         require_once app_path('helpers.php');
 
-        Event::listen(Registered::class, AcceptPendingCookbookInvitations::class);
-        Event::listen(Verified::class, AcceptPendingCookbookInvitations::class);
-        Event::listen(Verified::class, AcceptHouseholdInvitationFromSession::class);
+        // App\Listeners are registered by event discovery; listing them here as well ran them twice.
         Event::listen(function (SocialiteWasCalled $event): void {
             $event->extendSocialite('oidc', OidcProvider::class);
         });
