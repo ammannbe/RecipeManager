@@ -10,8 +10,8 @@ use App\Models\User;
 use Filament\Actions\Action;
 use Filament\Auth\Pages\EditProfile as BaseEditProfile;
 use Filament\Facades\Filament;
+use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Toggle;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Notifications\Notification;
 use Filament\Schemas\Components\Component;
@@ -86,8 +86,9 @@ class EditProfile extends BaseEditProfile
     }
 
     /**
-     * Consents for announcements of the AccountManager (ANNOUNCEMENTS_DRIVER=account-manager): news by e-mail (default
-     * off), maintenance notices by e-mail (default on) and push on this device (a push subscription is the consent).
+     * Consents for announcements of the AccountManager (ANNOUNCEMENTS_DRIVER=account-manager): news by e-mail (all,
+     * only maintenance notices (default) or none; same setting as Shoppinglist and Chorelist) and push on this device
+     * (a push subscription is the consent).
      */
     private function announcementsSection(): ?Section
     {
@@ -96,12 +97,16 @@ class EditProfile extends BaseEditProfile
         }
 
         return Section::make(__('News and notifications'))->schema(array_filter([
-            Toggle::make('announcement_emails')
+            Select::make('announcement_emails')
                 ->label(__('News by e-mail'))
-                ->helperText(__('New features and notices of :app.', ['app' => config('app.name')])),
-            Toggle::make('maintenance_emails')
-                ->label(__('Maintenance notices by e-mail'))
-                ->helperText(__('Planned maintenance and outages.')),
+                ->options([
+                    Announcements::EMAILS_ALL => __('All news'),
+                    Announcements::EMAILS_MAINTENANCE => __('Only maintenance notices'),
+                    Announcements::EMAILS_NONE => __('No e-mails'),
+                ])
+                ->selectablePlaceholder(false)
+                ->required()
+                ->helperText(__('Every e-mail has a link to unsubscribe.')),
             Announcements::pushEnabled()
                 ? View::make('filament.push-toggle')->viewData(['vapidPublicKey' => (string) config('webpush.vapid.public_key')])
                 : null,

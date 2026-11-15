@@ -20,11 +20,12 @@ return [
 
     /*
     | Push and e-mail are sent once per announcement, when the app first sees it
-    | published. Announcements published longer ago than this (days) are only shown,
-    | never sent: switching the driver on must not mail old news to everybody.
+    | published. Announcements published longer ago than this (days, at least 1)
+    | are only shown, never sent: switching the driver on must not mail old news
+    | to everybody. Same variable in Shoppinglist and Chorelist.
     */
 
-    'send_window_days' => (int) env('ANNOUNCEMENTS_SEND_WINDOW_DAYS', 7),
+    'send_max_age_days' => (int) env('ANNOUNCEMENTS_SEND_MAX_AGE_DAYS', 7),
 
     /*
     | Recipients per queued job; e-mail jobs start batch_delay seconds apart

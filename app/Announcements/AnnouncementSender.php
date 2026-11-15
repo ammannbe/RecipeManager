@@ -26,8 +26,9 @@ use Throwable;
  * reports its numbers to the AccountManager (3.3, batch id = channel and user id range, so a retry replaces them).
  *
  * Recipients: push = users with a push subscription (enabled on a device in the profile); e-mail = verified addresses
- * with "News by e-mail" (feature/info, default off) or "Maintenance notices by e-mail" (maintenance, default on, until
- * unsubscribed). Users who registered after the announcement was published only get maintenance ones.
+ * with "News by e-mail" = all, for maintenance notices also = maintenance (the default; none = unsubscribed). Users who
+ * registered after the announcement was published only get maintenance ones. Only announcements published at most
+ * send_max_age_days ago are sent (ANNOUNCEMENTS_SEND_MAX_AGE_DAYS, same in all apps).
  */
 class AnnouncementSender
 {
@@ -75,7 +76,7 @@ class AnnouncementSender
 
         return $query
             ->whereNotNull('email_verified_at')
-            ->where($announcement->isMaintenance() ? 'maintenance_emails' : 'announcement_emails', true);
+            ->whereIn('announcement_emails', Announcements::emailSettingsFor($announcement));
     }
 
     /**
@@ -126,10 +127,10 @@ class AnnouncementSender
             return;
         }
 
-        $window = (int) config('announcements.send_window_days');
+        $maxAge = max(1, (int) config('announcements.send_max_age_days'));
 
-        if ($announcement->publish_at->lt(now()->subDays($window))) {
-            Log::info("Announcements: {$announcement->account_manager_uuid} was published more than {$window} days ago, {$channel} is not sent.");
+        if ($announcement->publish_at->lt(now()->subDays($maxAge))) {
+            Log::info("Announcements: {$announcement->account_manager_uuid} was published more than {$maxAge} days ago, {$channel} is not sent.");
 
             return;
         }

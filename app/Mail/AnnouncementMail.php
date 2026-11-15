@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\URL;
 
 /**
  * Announcement of the AccountManager by e-mail (channel email), in the user's locale, with a signed unsubscribe
- * link and List-Unsubscribe (one-click, RFC 8058) for its kind: maintenance or news.
+ * link and List-Unsubscribe (one-click, RFC 8058): unsubscribing sets "News by e-mail" to none (also maintenance).
  */
 class AnnouncementMail extends Mailable
 {
@@ -21,12 +21,9 @@ class AnnouncementMail extends Mailable
 
     public function __construct(public Announcement $announcement, public User $user) {}
 
-    public static function unsubscribeUrl(User $user, Announcement $announcement): string
+    public static function unsubscribeUrl(User $user): string
     {
-        return URL::signedRoute('announcements.unsubscribe', [
-            'user' => $user->getKey(),
-            'kind' => $announcement->isMaintenance() ? 'maintenance' : 'news',
-        ]);
+        return URL::signedRoute('announcements.unsubscribe', ['user' => $user->getKey()]);
     }
 
     public function envelope(): Envelope
@@ -37,7 +34,7 @@ class AnnouncementMail extends Mailable
     public function headers(): Headers
     {
         return new Headers(text: [
-            'List-Unsubscribe' => '<'.self::unsubscribeUrl($this->user, $this->announcement).'>',
+            'List-Unsubscribe' => '<'.self::unsubscribeUrl($this->user).'>',
             'List-Unsubscribe-Post' => 'List-Unsubscribe=One-Click',
         ]);
     }
@@ -54,8 +51,7 @@ class AnnouncementMail extends Mailable
                 'body' => $body,
                 'imageUrl' => $this->announcement->image_url,
                 'link' => $this->announcement->link,
-                'maintenance' => $this->announcement->isMaintenance(),
-                'unsubscribeUrl' => self::unsubscribeUrl($this->user, $this->announcement),
+                'unsubscribeUrl' => self::unsubscribeUrl($this->user),
             ],
         );
     }

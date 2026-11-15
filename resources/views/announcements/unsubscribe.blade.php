@@ -11,15 +11,14 @@
 <body class="min-h-screen bg-zinc-50 text-zinc-900 dark:bg-zinc-950 dark:text-zinc-100">
     <main class="mx-auto flex min-h-screen max-w-md flex-col justify-center gap-6 px-6 py-12">
         <h1 class="text-2xl font-semibold">
-            {{ $kind === 'maintenance' ? __('Maintenance notices by e-mail') : __('News by e-mail') }}
+            {{ __('News by e-mail') }}
         </h1>
 
         @if ($done)
-            <p data-unsubscribed>{{ __('You are unsubscribed. You can turn it on again in your profile.') }}</p>
+            <p data-unsubscribed>{{ __('You will no longer get news by e-mail from :app, also no maintenance notices.', ['app' => config('app.name')]) }}</p>
+            <p class="text-sm text-zinc-500 dark:text-zinc-400">{{ __('You can turn them on again in your profile.') }}</p>
         @else
-            <p>{{ $kind === 'maintenance'
-                ? __('Do you no longer want maintenance notices of :app by e-mail?', ['app' => config('app.name')])
-                : __('Do you no longer want news of :app by e-mail?', ['app' => config('app.name')]) }}</p>
+            <p>{{ __('Unsubscribe :email from news by e-mail (including maintenance notices)?', ['email' => $user->email]) }}</p>
             <form method="POST" action="{{ request()->fullUrl() }}">
                 <button type="submit" class="inline-flex items-center rounded-xl bg-violet-600 px-4 py-2 font-medium text-white shadow-sm hover:bg-violet-700">
                     {{ __('Unsubscribe') }}

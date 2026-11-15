@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Announcements\AccountManagerAnnouncements;
+use App\Announcements\Announcements;
 use App\Announcements\AnnouncementSender;
 use App\Filament\Auth\EditProfile;
 use App\Filament\Pages\News;
@@ -447,10 +448,11 @@ class AccountManagerAnnouncementsTest extends TestCase
     public function test_news_mails_go_only_to_verified_users_who_opted_in(): void
     {
         Mail::fake();
-        $optedIn = $this->user(['announcement_emails' => true]);
+        $optedIn = $this->user(['announcement_emails' => 'all']);
         $this->user();
-        $this->user(['announcement_emails' => true, 'email_verified_at' => null]);
-        $this->user(['announcement_emails' => true, 'created_at' => '2026-11-14 09:30']);
+        $this->user(['announcement_emails' => 'none']);
+        $this->user(['announcement_emails' => 'all', 'email_verified_at' => null]);
+        $this->user(['announcement_emails' => 'all', 'created_at' => '2026-11-14 09:30']);
 
         $this->serve([$this->announcement(['channels' => ['email']])]);
         $this->sync();
@@ -464,21 +466,23 @@ class AccountManagerAnnouncementsTest extends TestCase
     {
         Mail::fake();
         $default = $this->user();
-        $unsubscribed = $this->user(['maintenance_emails' => false]);
+        $all = $this->user(['announcement_emails' => 'all']);
+        $unsubscribed = $this->user(['announcement_emails' => 'none']);
         $newcomer = $this->user(['created_at' => '2026-11-14 09:30']);
 
         $this->serve([$this->announcement(['type' => 'maintenance', 'channels' => ['email']])]);
         $this->sync();
 
-        Mail::assertSent(AnnouncementMail::class, 2);
+        Mail::assertSent(AnnouncementMail::class, 3);
         Mail::assertSent(AnnouncementMail::class, fn (AnnouncementMail $mail): bool => $mail->hasTo($default->email));
+        Mail::assertSent(AnnouncementMail::class, fn (AnnouncementMail $mail): bool => $mail->hasTo($all->email));
         Mail::assertSent(AnnouncementMail::class, fn (AnnouncementMail $mail): bool => $mail->hasTo($newcomer->email));
         Mail::assertNotSent(AnnouncementMail::class, fn (AnnouncementMail $mail): bool => $mail->hasTo($unsubscribed->email));
     }
 
     public function test_the_mail_is_localized_and_has_an_unsubscribe_link(): void
     {
-        $user = $this->user(['announcement_emails' => true, 'locale' => 'en']);
+        $user = $this->user(['announcement_emails' => 'all', 'locale' => 'en']);
         $this->serve([$this->announcement(['channels' => ['email']])]);
         $this->sync();
         $announcement = Announcement::query()->sole();
@@ -491,35 +495,42 @@ class AccountManagerAnnouncementsTest extends TestCase
 
         $headers = $mail->headers()->text;
         $this->assertSame('List-Unsubscribe=One-Click', $headers['List-Unsubscribe-Post']);
-        $this->assertStringContainsString('/announcements/unsubscribe/'.$user->getKey().'/news', $headers['List-Unsubscribe']);
+        $this->assertStringContainsString('/announcements/unsubscribe/'.$user->getKey().'?', $headers['List-Unsubscribe']);
         $this->assertStringContainsString('signature=', $headers['List-Unsubscribe']);
     }
 
     public function test_unsubscribing_needs_a_valid_signature_and_a_confirmation(): void
     {
-        $user = $this->user(['announcement_emails' => true]);
-        $url = URL::signedRoute('announcements.unsubscribe', ['user' => $user->getKey(), 'kind' => 'news']);
+        $user = $this->user(['announcement_emails' => 'all']);
+        $url = URL::signedRoute('announcements.unsubscribe', ['user' => $user->getKey()]);
 
         $this->get($url)->assertOk()->assertSee('Unsubscribe');
-        $this->assertTrue($user->refresh()->announcement_emails);
+        $this->assertSame('all', $user->refresh()->announcement_emails, 'Opening the link (e.g. a link scanner) does not unsubscribe.');
 
         $this->post($url.'x')->assertForbidden();
-        $this->assertTrue($user->refresh()->announcement_emails);
+        $this->assertSame('all', $user->refresh()->announcement_emails);
 
-        // One-click (RFC 8058) without CSRF token.
+        // One-click (RFC 8058) without CSRF token: none, so also no maintenance notices.
         $this->post($url)->assertOk()->assertSee('data-unsubscribed', false);
-        $this->assertFalse($user->refresh()->announcement_emails);
-        $this->assertTrue($user->refresh()->maintenance_emails);
+        $this->assertSame('none', $user->refresh()->announcement_emails);
+    }
 
-        $maintenance = URL::signedRoute('announcements.unsubscribe', ['user' => $user->getKey(), 'kind' => 'maintenance']);
-        $this->post($maintenance)->assertOk();
-        $this->assertFalse($user->refresh()->maintenance_emails);
+    public function test_unsubscribed_users_get_no_maintenance_mails(): void
+    {
+        Mail::fake();
+        $user = $this->user();
+        $this->post(URL::signedRoute('announcements.unsubscribe', ['user' => $user->getKey()]))->assertOk();
+
+        $this->serve([$this->announcement(['type' => 'maintenance', 'channels' => ['email']])]);
+        $this->sync();
+
+        Mail::assertNothingSent();
     }
 
     public function test_each_announcement_is_mailed_once(): void
     {
         Mail::fake();
-        $user = $this->user(['announcement_emails' => true]);
+        $user = $this->user(['announcement_emails' => 'all']);
         $this->serve([$this->announcement(['channels' => ['email']])]);
 
         $this->sync();
@@ -541,7 +552,7 @@ class AccountManagerAnnouncementsTest extends TestCase
     public function test_old_and_expired_announcements_are_not_sent(): void
     {
         Mail::fake();
-        $this->user(['announcement_emails' => true, 'created_at' => '2025-01-01 00:00']);
+        $this->user(['announcement_emails' => 'all', 'created_at' => '2025-01-01 00:00']);
 
         $this->serve([$this->announcement(['channels' => ['email'], 'publish_at' => '2026-10-01T09:00:00Z'])]);
         $this->sync();
@@ -550,10 +561,46 @@ class AccountManagerAnnouncementsTest extends TestCase
         $this->assertNotNull(Announcement::query()->sole()->email_dispatched_at);
     }
 
+    public function test_only_announcements_of_the_last_seven_days_are_sent(): void
+    {
+        Mail::fake();
+        $this->assertSame(7, config('announcements.send_max_age_days'));
+        $user = $this->user(['announcement_emails' => 'all', 'created_at' => '2025-01-01 00:00']);
+
+        $this->serve([
+            $this->announcement(['channels' => ['email'], 'publish_at' => '2026-11-08T09:00:00Z']),
+            $this->announcement(['uuid' => self::OTHER, 'channels' => ['email'], 'publish_at' => '2026-11-07T09:00:00Z']),
+        ]);
+        $this->sync();
+
+        Mail::assertSent(AnnouncementMail::class, 1);
+        Mail::assertSent(AnnouncementMail::class, fn (AnnouncementMail $mail): bool => $mail->hasTo($user->email) && $mail->announcement->account_manager_uuid === self::UUID);
+    }
+
+    public function test_a_withdrawn_announcement_coming_back_is_shown_again_but_not_sent_again(): void
+    {
+        Mail::fake();
+        $user = $this->user(['announcement_emails' => 'all']);
+        $this->serve([$this->announcement(['channels' => ['in_app', 'email']])]);
+        $this->sync();
+        Mail::assertSent(AnnouncementMail::class, 1);
+
+        $this->serve([], [self::UUID]);
+        $this->sync();
+        $this->assertCount(0, Announcements::news($user));
+        $this->assertSame(1, Announcement::query()->count(), 'hidden, not deleted');
+
+        $this->serve([$this->announcement(['channels' => ['in_app', 'email'], 'updated_at' => '2026-11-14T10:20:00Z'])]);
+        $this->sync();
+
+        $this->assertCount(1, Announcements::news($user));
+        Mail::assertSent(AnnouncementMail::class, 1);
+    }
+
     public function test_a_batch_after_the_expiry_sends_nothing(): void
     {
         Mail::fake();
-        $user = $this->user(['announcement_emails' => true]);
+        $user = $this->user(['announcement_emails' => 'all']);
         $this->serve([$this->announcement(['channels' => ['in_app'], 'expires_at' => '2026-11-14T11:00:00Z'])]);
         $this->sync();
         Carbon::setTestNow('2026-11-14 11:30');
@@ -646,12 +693,17 @@ class AccountManagerAnnouncementsTest extends TestCase
         Livewire::test(EditProfile::class)
             ->assertSee(__('News by e-mail'))
             ->assertSee(__('Push notifications on this device'))
-            ->fillForm(['announcement_emails' => true, 'maintenance_emails' => false])
+            ->assertSchemaStateSet(['announcement_emails' => 'maintenance'])
+            ->fillForm(['announcement_emails' => 'all'])
             ->call('save')
             ->assertHasNoFormErrors();
 
-        $this->assertTrue($user->refresh()->announcement_emails);
-        $this->assertFalse($user->refresh()->maintenance_emails);
+        $this->assertSame('all', $user->refresh()->announcement_emails);
+
+        Livewire::test(EditProfile::class)
+            ->fillForm(['announcement_emails' => 'sometimes'])
+            ->call('save')
+            ->assertHasFormErrors(['announcement_emails']);
     }
 
     public function test_the_profile_hides_the_consents_with_the_none_driver(): void

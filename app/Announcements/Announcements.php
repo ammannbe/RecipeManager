@@ -15,9 +15,35 @@ use Illuminate\Database\Eloquent\Collection;
  */
 class Announcements
 {
+    /**
+     * E-mail setting of the users (users.announcement_emails), same in Shoppinglist and Chorelist: all news,
+     * only maintenance notices (default) or none (also set by the unsubscribe link).
+     */
+    public const EMAILS_ALL = 'all';
+
+    public const EMAILS_MAINTENANCE = 'maintenance';
+
+    public const EMAILS_NONE = 'none';
+
+    public const EMAIL_SETTINGS = [self::EMAILS_ALL, self::EMAILS_MAINTENANCE, self::EMAILS_NONE];
+
+    /**
+     * ANNOUNCEMENTS_DRIVER: "account-manager"; "none" (default), "local" and empty show nothing.
+     */
     public static function enabled(): bool
     {
         return config('announcements.driver') === 'account-manager' && AccountManagerClient::configured();
+    }
+
+    /**
+     * Settings that get the announcement by e-mail: maintenance notices with "all" and "maintenance", the rest only
+     * with "all".
+     *
+     * @return list<string>
+     */
+    public static function emailSettingsFor(Announcement $announcement): array
+    {
+        return $announcement->isMaintenance() ? [self::EMAILS_ALL, self::EMAILS_MAINTENANCE] : [self::EMAILS_ALL];
     }
 
     /**

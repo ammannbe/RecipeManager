@@ -13,5 +13,5 @@
 @endcomponent
 @endif
 
-<small>{{ $maintenance ? __('You get maintenance notices of :app by e-mail.', ['app' => config('app.name')]) : __('You get news of :app by e-mail because you asked for it.', ['app' => config('app.name')]) }} [{{ __('Unsubscribe') }}]({{ $unsubscribeUrl }}) · {{ __('Change it in your profile.') }}</small>
+<small>{{ __('You get this e-mail because of your settings in :app.', ['app' => config('app.name')]) }} [{{ __('Unsubscribe from news by e-mail') }}]({{ $unsubscribeUrl }})</small>
 @endcomponent

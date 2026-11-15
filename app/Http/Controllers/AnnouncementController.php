@@ -15,8 +15,6 @@ use Illuminate\Http\Request;
  */
 class AnnouncementController extends Controller
 {
-    public const KINDS = ['news' => 'announcement_emails', 'maintenance' => 'maintenance_emails'];
-
     public function dismiss(Request $request, Announcement $announcement): RedirectResponse
     {
         $user = $request->user();
@@ -31,18 +29,19 @@ class AnnouncementController extends Controller
     /**
      * The link in the mail shows a confirmation (link scanners must not unsubscribe anybody).
      */
-    public function confirmUnsubscribe(User $user, string $kind): View
+    public function confirmUnsubscribe(User $user): View
     {
-        return view('announcements.unsubscribe', ['kind' => $kind, 'done' => false]);
+        return view('announcements.unsubscribe', ['user' => $user, 'done' => false]);
     }
 
     /**
-     * The confirmation's button and the one-click List-Unsubscribe of mail clients (RFC 8058, no CSRF token).
+     * The confirmation's button and the one-click List-Unsubscribe of mail clients (RFC 8058, no CSRF token):
+     * no more announcement e-mails, also no maintenance notices.
      */
-    public function unsubscribe(User $user, string $kind): View
+    public function unsubscribe(User $user): View
     {
-        $user->forceFill([self::KINDS[$kind] => false])->save();
+        $user->forceFill(['announcement_emails' => Announcements::EMAILS_NONE])->save();
 
-        return view('announcements.unsubscribe', ['kind' => $kind, 'done' => true]);
+        return view('announcements.unsubscribe', ['user' => $user, 'done' => true]);
     }
 }

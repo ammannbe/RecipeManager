@@ -58,10 +58,8 @@ Route::middleware(['auth', 'throttle:30,1'])->group(function (): void {
 });
 
 Route::middleware(['signed', 'throttle:20,1'])->group(function (): void {
-    Route::get('/announcements/unsubscribe/{user}/{kind}', [AnnouncementController::class, 'confirmUnsubscribe'])
-        ->whereIn('kind', array_keys(AnnouncementController::KINDS))
+    Route::get('/announcements/unsubscribe/{user}', [AnnouncementController::class, 'confirmUnsubscribe'])
         ->name('announcements.unsubscribe');
-    Route::post('/announcements/unsubscribe/{user}/{kind}', [AnnouncementController::class, 'unsubscribe'])
-        ->whereIn('kind', array_keys(AnnouncementController::KINDS))
+    Route::post('/announcements/unsubscribe/{user}', [AnnouncementController::class, 'unsubscribe'])
         ->withoutMiddleware(PreventRequestForgery::class);
 });

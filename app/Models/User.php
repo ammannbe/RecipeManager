@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Announcements\Announcements;
 use App\Entitlements\Entitlements;
 use App\Traits\Searchable;
 use Database\Factories\UserFactory;
@@ -42,7 +43,6 @@ class User extends Authenticatable implements FilamentUser, HasName, MustVerifyE
         'admin',
         'ai_enabled',
         'announcement_emails',
-        'maintenance_emails',
     ];
 
     protected $hidden = [
@@ -53,8 +53,7 @@ class User extends Authenticatable implements FilamentUser, HasName, MustVerifyE
 
     protected $attributes = [
         'ai_enabled' => true,
-        'announcement_emails' => false,
-        'maintenance_emails' => true,
+        'announcement_emails' => Announcements::EMAILS_MAINTENANCE,
     ];
 
     protected $casts = [
@@ -63,8 +62,6 @@ class User extends Authenticatable implements FilamentUser, HasName, MustVerifyE
         'last_login_at' => 'datetime',
         'password' => 'hashed',
         'ai_enabled' => 'boolean',
-        'announcement_emails' => 'boolean',
-        'maintenance_emails' => 'boolean',
     ];
 
     protected $with = [

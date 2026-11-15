@@ -256,13 +256,15 @@ If any command fails, repeat the process from the beginning.
 ## Announcements from the AccountManager (`ANNOUNCEMENTS_DRIVER=account-manager`)
 
 * Contract: AccountManager `docs/ANNOUNCEMENTS-API.md` (phase 11). `config/announcements.php`: `driver`
-  (`ANNOUNCEMENTS_DRIVER`, `none` default; `local`/empty = none), `send_window_days` (7), `batch_size` (50),
+  (`ANNOUNCEMENTS_DRIVER`, `none` default; `local`/empty = none), `send_max_age_days` (`ANNOUNCEMENTS_SEND_MAX_AGE_DAYS`,
+  7, at least 1; same name in Shoppinglist and Chorelist), `batch_size` (50),
   `batch_delay` (60 s between e-mail batches). Uses the `ACCOUNT_MANAGER_*` values, the same client
   (`AccountManagerClient::announcements()`, `reportDelivery()`) and the same webhook. `App\Announcements\Announcements::enabled()`.
 * Tables: `announcements` (local copy: `account_manager_uuid`, type, title/body_html/excerpt per locale as JSON, channels,
   link, image_url, publish_at, expires_at, `remote_updated_at`, `withdrawn_at`, `push_dispatched_at`/`email_dispatched_at`),
   `announcement_reads` (user, read_at, dismissed_at), `announcement_deliveries` (announcement, user, channel, status;
-  unique), `push_subscriptions` (package table) and `users.announcement_emails` (default off) / `maintenance_emails` (default on).
+  unique), `push_subscriptions` (package table) and `users.announcement_emails` (`all` | `maintenance` (default) | `none`, same
+  setting as Shoppinglist and Chorelist; migrated from the former two toggles: news on → all, both off → none).
 * Sync `AccountManagerAnnouncements::sync()` (command `account-manager:sync-announcements`, every 15 min; `--full` daily
   04:50; webhook `announcements.changed` → queued `SyncAccountManagerAnnouncements`, once per `event_id`): `since` = the
   stored `server_time` (cache `announcements:server_time`, missing = full), upsert by uuid (same `updated_at`: nothing
@@ -277,7 +279,7 @@ If any command fails, repeat the process from the beginning.
   what was unread. `banner`: `filament/announcement-banner` (render hook `CONTENT_START`, same pattern as the OIDC
   nudge): the newest not closed one, "Close" posts to `/announcements/{id}/dismiss` (`dismissed_at`, also `read_at`).
 * Push and e-mail (`AnnouncementSender`, after every sync): per announcement and channel claimed once
-  (`*_dispatched_at`, atomic update), only within `send_window_days` after `publish_at` (switching the driver on does
+  (`*_dispatched_at`, atomic update), only within `send_max_age_days` after `publish_at` (switching the driver on does
   not mail old news), then `SendAnnouncementBatch` jobs of `batch_size` users. Each batch re-checks the consent, skips
   withdrawn/expired announcements and inserts the user into `announcement_deliveries` before sending (never twice,
   also with overlapping runs or retries), then reports `POST /api/announcements/{uuid}/deliveries` with the counts of
@@ -289,11 +291,12 @@ If any command fails, repeat the process from the beginning.
   `public/push-sw.js` (push only, the app is no PWA) and `POST/DELETE /push-subscriptions` (`PushSubscriptionController`,
   known push services only). `AnnouncementPush` (title + excerpt in the user's locale, opens News) goes through the
   `WebPushChannel` directly (its reports give the counts; expired subscriptions are deleted by the package).
-* E-mail (`AnnouncementMail`, user's locale): verified addresses with "News by e-mail" (`feature`/`info`) or
-  "Maintenance notices by e-mail" (`maintenance`). Signed unsubscribe link + `List-Unsubscribe`/`List-Unsubscribe-Post`
-  (`/announcements/unsubscribe/{user}/{news|maintenance}`: GET shows a confirmation, POST unsubscribes, also one-click
-  without CSRF). Toggles in the profile.
-* Tests: `AccountManagerAnnouncementsTest` (`Http::fake`, signed webhooks, `Mail::fake`, mocked `WebPushChannel`).
+* E-mail (`AnnouncementMail`, user's locale): verified addresses with "News by e-mail" `all`, maintenance notices also
+  `maintenance` (`Announcements::emailSettingsFor()`). Select in the profile (All news / Only maintenance notices /
+  None). Signed unsubscribe link + `List-Unsubscribe`/`List-Unsubscribe-Post` (`/announcements/unsubscribe/{user}`:
+  GET shows a confirmation, POST sets `none`, which also stops maintenance notices; also one-click without CSRF).
+* Tests: `AccountManagerAnnouncementsTest` (`Http::fake`, signed webhooks, `Mail::fake`, mocked `WebPushChannel`),
+  `AnnouncementEmailSettingMigrationTest` (no wrapping transaction: schema changes commit on MariaDB).
 
 ## Entitlements from the AccountManager
 
