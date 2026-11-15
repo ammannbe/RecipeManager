@@ -244,4 +244,15 @@ class RecipeVisibilityTest extends TestCase
         );
         $this->assertStringNotContainsString('/storage/', (string) $url);
     }
+
+    public function test_the_index_ignores_array_query_values(): void
+    {
+        Recipe::factory()->create(['is_public' => true, 'name' => 'Public recipe']);
+
+        $this->get('/?search[]=x&complexity[]=easy&sort[]=name_asc&category[]=1&cookbook[a]=2&tags[]=1&quick[]=1&seasonal[]=1')
+            ->assertOk()
+            ->assertSee('Public recipe');
+
+        $this->get('/season?month[]=3')->assertOk();
+    }
 }

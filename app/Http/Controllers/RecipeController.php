@@ -21,13 +21,13 @@ class RecipeController extends Controller
 {
     public function index(Request $request): View
     {
-        $search = trim((string) $request->string('search'));
+        $search = trim($this->scalarQuery($request, 'search'));
         $quick = $request->boolean('quick');
         $seasonal = $request->boolean('seasonal');
-        $complexity = (string) $request->string('complexity');
-        $category = $request->integer('category');
-        $cookbook = $request->integer('cookbook');
-        $selectedSort = (string) $request->string('sort', 'created_at_desc');
+        $complexity = $this->scalarQuery($request, 'complexity');
+        $category = (int) $this->scalarQuery($request, 'category');
+        $cookbook = (int) $this->scalarQuery($request, 'cookbook');
+        $selectedSort = $this->scalarQuery($request, 'sort', 'created_at_desc');
 
         /** @var array<int, string> $selectedTagNames */
         $selectedTagNames = Tag::query()
@@ -271,5 +271,16 @@ class RecipeController extends Controller
         abort_if($document === null, 404);
 
         return $document->response() ?? abort(404);
+    }
+
+    /**
+     * A query value as string; arrays (e.g. `?search[]=x` from bots or broken links) count as missing
+     * instead of failing with "Array to string conversion".
+     */
+    private function scalarQuery(Request $request, string $key, string $default = ''): string
+    {
+        $value = $request->query($key, $default);
+
+        return is_scalar($value) ? (string) $value : $default;
     }
 }
