@@ -73,6 +73,13 @@ If any command fails, repeat the process from the beginning.
   issuer, client id/secret). Off by default; any OIDC provider works (Laravel Socialite +
   `kovah/laravel-socialite-oidc`, JWT signature verified). `App\Auth\OidcProvider` additionally
   checks `iss`, `aud`/`azp` and `exp` (`OidcClaims`).
+* `AUTH_OIDC_ENTRY_URL` (`login.oidc.entry_url`, `App\Auth\OidcEntry::url()`): optional target of the "Sign in
+  with …"/"Register with …" buttons (`filament/oidc-login-button.blade.php`) instead of `/auth/oidc/redirect`, e.g. the
+  AccountManager's `/services/<key>/open` (grants access to the service and syncs the provider groups, then sends the
+  user to `<APP_URL>/auth/oidc/redirect`, the service's login URL there). Empty = the redirect. Linking and confirming
+  in the profile and the nudge always use `/auth/oidc/redirect?link=1|confirm=1`: the intent and the password
+  confirmation live in this app's session, the entry would come back as a plain login. The companion app's OAuth
+  login keeps working (`url.intended` stays in this app's session).
 * Routes `/auth/oidc/redirect` and `/auth/oidc/callback` (`OidcController`, intents `login`, `link`, `confirm`), matching in
   `App\Auth\OidcLogin`: by `users.oidc_sub`, otherwise by e-mail only if the provider marks it as
   verified (an unverified local account gets verified). Unknown users get an account (`AUTH_OIDC_REGISTRATION`) with a

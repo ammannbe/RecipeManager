@@ -36,6 +36,11 @@ return [
         // Name on the buttons; empty: the APP_NAME of a Pocket ID provider, otherwise "SSO" (App\Auth\OidcLabel).
         'label' => env('AUTH_OIDC_LABEL') ?: null,
 
+        // Optional: where the "Sign in with …"/"Register with …" buttons lead instead of the app's own
+        // redirect, e.g. the AccountManager's /services/<key>/open (grants access, then starts the login
+        // here). Linking in the profile always uses the redirect (App\Auth\OidcEntry).
+        'entry_url' => env('AUTH_OIDC_ENTRY_URL') ?: null,
+
         // Optional: where users create an account at the provider (e.g. the AccountManager's /register).
         'signup_url' => env('AUTH_OIDC_SIGNUP_URL') ?: null,
 

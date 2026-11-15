@@ -22,6 +22,8 @@
         <!-- Local DDEV may enable SSO in .ddev/config.local.yaml; tests turn it on themselves. -->
         <env name="AUTH_OIDC_ENABLED" value="false" force="true"/>
         <server name="AUTH_OIDC_ENABLED" value="false" force="true"/>
+        <env name="AUTH_OIDC_ENTRY_URL" value="" force="true"/>
+        <server name="AUTH_OIDC_ENTRY_URL" value="" force="true"/>
         <!-- Local DDEV may mirror households from the AccountManager; tests switch the driver themselves. -->
         <env name="HOUSEHOLDS_DRIVER" value="local" force="true"/>
         <env name="ENTITLEMENTS_DRIVER" value="local" force="true"/>

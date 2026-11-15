@@ -5,7 +5,7 @@
     <div style="display: flex; flex-direction: column; row-gap: 1rem;">
         <x-filament::button
             tag="a"
-            :href="route('oidc.redirect')"
+            :href="App\Auth\OidcEntry::url()"
             color="gray"
             icon="heroicon-o-key"
             size="lg"

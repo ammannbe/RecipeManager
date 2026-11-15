@@ -97,6 +97,17 @@ class OidcLinkedAccountTest extends TestCase
         $this->assertDatabaseMissing('password_reset_tokens', ['email' => 'cook@example.com']);
     }
 
+    public function test_linking_from_the_profile_ignores_the_entry_url(): void
+    {
+        config(['login.oidc.entry_url' => 'https://konto.example.com/services/recipes/open']);
+        $this->actingAs($this->localUser(['email' => 'different@example.com']));
+
+        // The link intent lives in this app's session, so it has to start here.
+        Livewire::test(EditProfile::class)
+            ->callAction('linkOidc', ['currentPassword' => self::PASSWORD])
+            ->assertRedirect(route('oidc.redirect', ['link' => 1]));
+    }
+
     public function test_linking_from_the_profile_needs_the_password(): void
     {
         $user = $this->localUser(['email' => 'different@example.com']);

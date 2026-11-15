@@ -287,6 +287,21 @@ class OidcLoginTest extends TestCase
             ->assertDontSee(route('oidc.redirect'), false);
     }
 
+    public function test_the_buttons_lead_to_the_entry_url_if_set(): void
+    {
+        config(['login.oidc.entry_url' => 'https://konto.example.com/services/recipes/open']);
+
+        $this->get(Filament::getPanel('app')->getLoginUrl())
+            ->assertOk()
+            ->assertSeeInOrder(['href="https://konto.example.com/services/recipes/open"', 'type="password"'], false)
+            ->assertDontSee(route('oidc.redirect'), false);
+
+        $this->get(Filament::getPanel('app')->getRegistrationUrl())
+            ->assertOk()
+            ->assertSee('href="https://konto.example.com/services/recipes/open"', false)
+            ->assertDontSee(route('oidc.redirect'), false);
+    }
+
     public function test_the_label_falls_back_to_the_name_published_by_pocket_id(): void
     {
         config(['login.oidc.label' => null, 'services.oidc.base_url' => 'https://login.example.com']);
