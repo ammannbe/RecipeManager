@@ -32,6 +32,26 @@
         <env name="ANNOUNCEMENTS_DRIVER" value="none" force="true"/>
         <env name="VAPID_PUBLIC_KEY" value="" force="true"/>
         <env name="VAPID_PRIVATE_KEY" value="" force="true"/>
+        <server name="VAPID_PUBLIC_KEY" value="" force="true"/>
+        <server name="VAPID_PRIVATE_KEY" value="" force="true"/>
+        <!-- Local DDEV connects the AccountManager, Pocket ID and Web Push in .ddev/config.local.yaml; tests set them themselves. -->
+        <server name="ANNOUNCEMENTS_DRIVER" value="none" force="true"/>
+        <env name="ACCOUNT_MANAGER_URL" value="" force="true"/>
+        <server name="ACCOUNT_MANAGER_URL" value="" force="true"/>
+        <env name="ACCOUNT_MANAGER_SERVICE_KEY" value="" force="true"/>
+        <server name="ACCOUNT_MANAGER_SERVICE_KEY" value="" force="true"/>
+        <env name="ACCOUNT_MANAGER_SECRET" value="" force="true"/>
+        <server name="ACCOUNT_MANAGER_SECRET" value="" force="true"/>
+        <env name="AUTH_OIDC_SIGNUP_URL" value="" force="true"/>
+        <server name="AUTH_OIDC_SIGNUP_URL" value="" force="true"/>
+        <env name="AUTH_OIDC_ISSUER" value="" force="true"/>
+        <server name="AUTH_OIDC_ISSUER" value="" force="true"/>
+        <env name="AUTH_OIDC_CLIENT_ID" value="" force="true"/>
+        <server name="AUTH_OIDC_CLIENT_ID" value="" force="true"/>
+        <env name="AUTH_OIDC_CLIENT_SECRET" value="" force="true"/>
+        <server name="AUTH_OIDC_CLIENT_SECRET" value="" force="true"/>
+        <env name="VAPID_SUBJECT" value="" force="true"/>
+        <server name="VAPID_SUBJECT" value="" force="true"/>
         <server name="HOUSEHOLDS_DRIVER" value="local" force="true"/>
         <!-- Never call OpenAI with the real key; tests set a fake key and Http::fake(). -->
         <env name="OPENAI_API_KEY" value="" force="true"/>
